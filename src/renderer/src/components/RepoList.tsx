@@ -33,23 +33,31 @@ export function RepoList({ project, selected, onSelect }: Props): JSX.Element {
   }
 
   return (
-    <div>
-      <h4>Repos in {project.name}</h4>
-      <ul>
-        {repos.map((r) => (
-          <li key={r.id}>
-            <button
-              onClick={() => onSelect(r)}
-              style={{ fontWeight: selected?.id === r.id ? 'bold' : 'normal' }}
-            >
-              {r.name}
-            </button>
-          </li>
-        ))}
-      </ul>
-      <input value={path} onChange={(e) => setPath(e.target.value)} placeholder="/path/to/repo" />
-      <button onClick={handleAdd}>Add repo</button>
-      {error && <div style={{ color: 'red' }}>{error}</div>}
+    <div className="rail-repos rail">
+      {repos.map((r) => (
+        <button
+          key={r.id}
+          className={`rail-node${selected?.id === r.id ? ' is-selected' : ''}`}
+          onClick={() => onSelect(r)}
+        >
+          {r.name}
+        </button>
+      ))}
+      <div className="rail-add">
+        <input
+          className="field"
+          value={path}
+          onChange={(e) => setPath(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') handleAdd()
+          }}
+          placeholder="/path/to/repo"
+        />
+        <button className="btn" onClick={handleAdd}>
+          Add
+        </button>
+      </div>
+      {error && <div className="error-text">{error}</div>}
     </div>
   )
 }

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { ChatEvent, Repo } from '../../../shared/types'
 
 interface ChatLine {
-  kind: 'text' | 'tool' | 'error'
+  kind: 'user' | 'text' | 'tool' | 'error'
   text: string
 }
 
@@ -52,7 +52,7 @@ export function ChatPanel({ repo, onTurnEnd }: Props): JSX.Element {
 
   async function handleSend(): Promise<void> {
     if (!input.trim()) return
-    setLines((prev) => [...prev, { kind: 'text', text: `> ${input}` }])
+    setLines((prev) => [...prev, { kind: 'user', text: input }])
     currentTextRef.current = ''
     const text = input
     setInput('')
@@ -60,23 +60,24 @@ export function ChatPanel({ repo, onTurnEnd }: Props): JSX.Element {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div style={{ flex: 1, overflowY: 'auto', padding: 12 }}>
-        {lines.map((line, i) => (
-          <div
-            key={i}
-            style={{
-              color: line.kind === 'error' ? 'red' : line.kind === 'tool' ? '#888' : undefined,
-              whiteSpace: 'pre-wrap'
-            }}
-          >
-            {line.text}
-          </div>
-        ))}
+    <div className="chat">
+      <div className="chat-header">
+        <span className="repo-name">{repo.name}</span>
       </div>
-      <div style={{ display: 'flex', padding: 8 }}>
+      <div className="chat-scroll">
+        {lines.length === 0 ? (
+          <div className="chat-empty">Ask it to explore the code, run something, or make a change.</div>
+        ) : (
+          lines.map((line, i) => (
+            <div key={i} className={`chat-line is-${line.kind}`}>
+              {line.text}
+            </div>
+          ))
+        )}
+      </div>
+      <div className="chat-input">
         <input
-          style={{ flex: 1 }}
+          className="field"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
@@ -84,7 +85,9 @@ export function ChatPanel({ repo, onTurnEnd }: Props): JSX.Element {
           }}
           placeholder={`Message the agent about ${repo.name}`}
         />
-        <button onClick={handleSend}>Send</button>
+        <button className="btn btn-primary" onClick={handleSend}>
+          Send
+        </button>
       </div>
     </div>
   )

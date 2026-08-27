@@ -12,6 +12,7 @@ export function GitStatusPanel({ repo, refreshKey }: Props): JSX.Element {
 
   useEffect(() => {
     let cancelled = false
+    setStatus(null)
     setError(null)
     window.api.git.status(repo.id).then(
       (result) => {
@@ -26,32 +27,44 @@ export function GitStatusPanel({ repo, refreshKey }: Props): JSX.Element {
     }
   }, [repo.id, refreshKey])
 
-  if (error) return <div style={{ padding: 8, color: 'red' }}>{error}</div>
+  if (error) return <div className="git-status git-status-error">{error}</div>
 
-  if (!status) return <div style={{ padding: 8 }}>Loading git status...</div>
+  if (!status) return <div className="git-status git-status-loading">Loading git status…</div>
+
+  const hasChanges = status.changed.length + status.added.length + status.deleted.length > 0
 
   return (
-    <div style={{ padding: 8, borderTop: '1px solid #333' }}>
-      <div>
-        Branch: <strong>{status.branch}</strong>
+    <div className="git-status">
+      <div className="git-status-branch">
+        <span className="branch-dot" />
+        <strong>{status.branch}</strong>
+        {!hasChanges && <span>— clean</span>}
       </div>
-      <StatusList label="Changed" files={status.changed} />
-      <StatusList label="Added" files={status.added} />
-      <StatusList label="Deleted" files={status.deleted} />
+      <FileGroup label="~" kind="changed" files={status.changed} />
+      <FileGroup label="+" kind="added" files={status.added} />
+      <FileGroup label="-" kind="deleted" files={status.deleted} />
     </div>
   )
 }
 
-function StatusList({ label, files }: { label: string; files: string[] }): JSX.Element | null {
+function FileGroup({
+  label,
+  kind,
+  files
+}: {
+  label: string
+  kind: 'changed' | 'added' | 'deleted'
+  files: string[]
+}): JSX.Element | null {
   if (files.length === 0) return null
   return (
-    <div>
-      {label}:
-      <ul>
-        {files.map((f) => (
-          <li key={f}>{f}</li>
-        ))}
-      </ul>
+    <div className="git-status-group">
+      {files.map((f) => (
+        <div key={f} className={`git-status-file is-${kind}`}>
+          <span className="gutter">{label}</span>
+          <span>{f}</span>
+        </div>
+      ))}
     </div>
   )
 }

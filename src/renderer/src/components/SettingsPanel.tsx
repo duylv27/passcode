@@ -45,31 +45,47 @@ export function SettingsPanel(): JSX.Element {
   }
 
   return (
-    <div style={{ padding: 16 }}>
+    <div className="settings">
       <h3>Settings</h3>
-      <section>
-        <h4>Anthropic {status?.anthropic ? '✓ connected' : ''}</h4>
-        <input
-          type="password"
-          value={apiKey}
-          onChange={(e) => setApiKey(e.target.value)}
-          placeholder="Anthropic API key"
-        />
-        <button onClick={handleSaveKey}>Save</button>
-        {anthropicError && <div style={{ color: 'red' }}>{anthropicError}</div>}
-      </section>
-      <section>
-        <h4>GitHub Copilot {status?.copilot ? '✓ connected' : ''}</h4>
-        <button onClick={handleCopilotLogin} disabled={loggingIn}>
-          {loggingIn ? 'Signing in...' : 'Sign in'}
+
+      <div className="settings-card">
+        <div className="settings-card-header">
+          <span className={`status-dot${status?.anthropic ? ' is-connected' : ''}`} />
+          <span>Anthropic</span>
+        </div>
+        <div className="settings-card-row">
+          <input
+            className="field"
+            type="password"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleSaveKey()
+            }}
+            placeholder="Anthropic API key"
+          />
+          <button className="btn btn-primary" onClick={handleSaveKey}>
+            Save
+          </button>
+        </div>
+        {anthropicError && <div className="error-text">{anthropicError}</div>}
+      </div>
+
+      <div className="settings-card">
+        <div className="settings-card-header">
+          <span className={`status-dot${status?.copilot ? ' is-connected' : ''}`} />
+          <span>GitHub Copilot</span>
+        </div>
+        <button className="btn btn-primary" onClick={handleCopilotLogin} disabled={loggingIn}>
+          {loggingIn ? 'Signing in…' : 'Sign in'}
         </button>
         {challenge && (
-          <div>
-            Go to {challenge.verificationUri} and enter code: <strong>{challenge.userCode}</strong>
+          <div className="settings-challenge">
+            Go to {challenge.verificationUri} and enter code <strong>{challenge.userCode}</strong>
           </div>
         )}
-        {copilotError && <div style={{ color: 'red' }}>{copilotError}</div>}
-      </section>
+        {copilotError && <div className="error-text">{copilotError}</div>}
+      </div>
     </div>
   )
 }

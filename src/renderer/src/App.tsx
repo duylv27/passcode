@@ -15,27 +15,27 @@ export default function App(): JSX.Element {
   const handleTurnEnd = useCallback(() => setRefreshKey((k) => k + 1), [])
 
   return (
-    <div style={{ display: 'flex', height: '100vh' }}>
-      <div
-        style={{
-          width: 260,
-          borderRight: '1px solid #333',
-          overflowY: 'auto',
-          display: 'flex',
-          flexDirection: 'column'
-        }}
-      >
-        <div style={{ flex: 1 }}>
+    <div className="app-shell">
+      <div className="sidebar">
+        <div className="sidebar-brand">
+          <span className="pi-mark">π</span>
+          <span>AGENT DESKTOP</span>
+        </div>
+        <div className="sidebar-scroll">
           <ProjectList selected={selectedProject} onSelect={setSelectedProject} />
           {selectedProject && (
             <RepoList project={selectedProject} selected={selectedRepo} onSelect={setSelectedRepo} />
           )}
         </div>
-        <button onClick={() => setShowSettings((s) => !s)}>
-          {showSettings ? 'Close Settings' : 'Settings'}
+        <button
+          className={`rail-node${showSettings ? ' is-selected' : ''}`}
+          style={{ borderTop: '1px solid var(--border)', paddingLeft: 16 }}
+          onClick={() => setShowSettings((s) => !s)}
+        >
+          Settings
         </button>
       </div>
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <div className="main">
         {showSettings ? (
           <SettingsPanel />
         ) : selectedRepo ? (
@@ -46,7 +46,7 @@ export default function App(): JSX.Element {
             <GitStatusPanel repo={selectedRepo} refreshKey={refreshKey} />
           </>
         ) : (
-          <div style={{ padding: 16 }}>Select a repo to start a session.</div>
+          <div className="main-empty">Select a repo to start a session</div>
         )}
       </div>
     </div>

@@ -26,22 +26,30 @@ export function ProjectList({ selected, onSelect }: Props): JSX.Element {
   }
 
   return (
-    <div>
-      <h3>Projects</h3>
-      <ul>
-        {projects.map((p) => (
-          <li key={p.id}>
-            <button
-              onClick={() => onSelect(p)}
-              style={{ fontWeight: selected?.id === p.id ? 'bold' : 'normal' }}
-            >
-              {p.name}
-            </button>
-          </li>
-        ))}
-      </ul>
-      <input value={name} onChange={(e) => setName(e.target.value)} placeholder="New project name" />
-      <button onClick={handleCreate}>Add</button>
+    <div className="rail-section rail">
+      {projects.map((p) => (
+        <button
+          key={p.id}
+          className={`rail-node is-project${selected?.id === p.id ? ' is-selected' : ''}`}
+          onClick={() => onSelect(p)}
+        >
+          {p.name}
+        </button>
+      ))}
+      <div className="rail-add">
+        <input
+          className="field"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') handleCreate()
+          }}
+          placeholder="New project"
+        />
+        <button className="btn" onClick={handleCreate}>
+          Add
+        </button>
+      </div>
     </div>
   )
 }
