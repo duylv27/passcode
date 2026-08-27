@@ -8,6 +8,7 @@ import { createSessionsRepository } from './db/sessionsRepository'
 import { createProjectsHandlers } from './ipc/projectsHandlers'
 import { createReposHandlers } from './ipc/reposHandlers'
 import { createSessionHandlers } from './ipc/sessionHandlers'
+import { createGitHandlers } from './ipc/gitHandlers'
 import { registerIpcHandlers } from './ipc/register'
 import { isGitRepo } from './git/gitStatus'
 import { createRepoSession } from './agent/piSession'
@@ -50,7 +51,8 @@ app.whenReady().then(async () => {
       sessionsRepo,
       openRepoSession: (_repoId, cwd) => createRepoSession({ cwd, modelRuntime }),
       onEvent: (repoId, event) => mainWindow.webContents.send('session:event', repoId, event)
-    })
+    }),
+    git: createGitHandlers(reposRepo)
   })
 
   app.on('activate', () => {

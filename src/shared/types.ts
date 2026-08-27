@@ -59,4 +59,7 @@ export interface Api {
     prompt(repoId: string, text: string): Promise<void>
     onEvent(listener: (repoId: string, event: ChatEvent) => void): () => void
   }
+  git: {
+    status(repoId: string): Promise<GitStatus>
+  }
 }

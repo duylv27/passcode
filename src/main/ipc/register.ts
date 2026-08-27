@@ -2,11 +2,13 @@ import { ipcMain } from 'electron'
 import type { ProjectsHandlers } from './projectsHandlers'
 import type { ReposHandlers } from './reposHandlers'
 import type { SessionHandlers } from './sessionHandlers'
+import type { GitHandlers } from './gitHandlers'
 
 export interface IpcHandlers {
   projects: ProjectsHandlers
   repos: ReposHandlers
   session: SessionHandlers
+  git: GitHandlers
 }
 
 export function registerIpcHandlers(handlers: IpcHandlers): void {
@@ -24,4 +26,6 @@ export function registerIpcHandlers(handlers: IpcHandlers): void {
   ipcMain.handle('session:prompt', (_e, repoId: string, text: string) =>
     handlers.session.sendPrompt(repoId, text)
   )
+
+  ipcMain.handle('git:status', (_e, repoId: string) => handlers.git.status(repoId))
 }

@@ -20,6 +20,9 @@ const api: Api = {
       ipcRenderer.on('session:event', wrapped)
       return () => ipcRenderer.removeListener('session:event', wrapped)
     }
+  },
+  git: {
+    status: (repoId) => ipcRenderer.invoke('git:status', repoId)
   }
 }
 
