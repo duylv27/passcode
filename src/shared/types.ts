@@ -25,3 +25,26 @@ export interface GitStatus {
   added: string[]
   deleted: string[]
 }
+
+export interface AddRepoResult {
+  ok: true
+  repo: Repo
+}
+
+export interface AddRepoError {
+  ok: false
+  error: string
+}
+
+export interface Api {
+  projects: {
+    create(name: string): Promise<Project>
+    list(): Promise<Project[]>
+    delete(id: string): Promise<void>
+  }
+  repos: {
+    add(projectId: string, path: string): Promise<AddRepoResult | AddRepoError>
+    list(projectId: string): Promise<Repo[]>
+    delete(id: string): Promise<void>
+  }
+}

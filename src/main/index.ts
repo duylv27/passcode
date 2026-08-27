@@ -1,5 +1,12 @@
 import { app, BrowserWindow } from 'electron'
 import { join } from 'node:path'
+import { openDatabase } from './db/db'
+import { createProjectsRepository } from './db/projectsRepository'
+import { createReposRepository } from './db/reposRepository'
+import { createProjectsHandlers } from './ipc/projectsHandlers'
+import { createReposHandlers } from './ipc/reposHandlers'
+import { registerIpcHandlers } from './ipc/register'
+import { isGitRepo } from './git/gitStatus'
 
 function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
@@ -21,6 +28,15 @@ function createWindow(): BrowserWindow {
 }
 
 app.whenReady().then(() => {
+  const db = openDatabase(join(app.getPath('userData'), 'pi-agent.db'))
+  const projectsRepo = createProjectsRepository(db)
+  const reposRepo = createReposRepository(db)
+
+  registerIpcHandlers({
+    projects: createProjectsHandlers(projectsRepo),
+    repos: createReposHandlers(reposRepo, isGitRepo)
+  })
+
   createWindow()
 
   app.on('activate', () => {
