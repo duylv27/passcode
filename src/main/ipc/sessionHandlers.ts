@@ -1,61 +1,84 @@
 import type { RepoSession } from '../agent/piSession'
 import type { SessionsRepository } from '../db/sessionsRepository'
 import type { ReposRepository } from '../db/reposRepository'
-import type { ChatEvent } from '../../shared/types'
+import type { ChatEvent, SessionRecord } from '../../shared/types'
 
 export type { ChatEvent }
 
 export interface CreateSessionHandlersDeps {
   reposRepo: ReposRepository
   sessionsRepo: SessionsRepository
-  openRepoSession: (repoId: string, cwd: string) => Promise<{ repoSession: RepoSession; sessionId: string }>
-  onEvent: (repoId: string, event: ChatEvent) => void
+  openRepoSession: (cwd: string) => Promise<{ repoSession: RepoSession; sessionId: string }>
+  onEvent: (sessionId: string, event: ChatEvent) => void
 }
 
 export interface SessionHandlers {
-  openSession(repoId: string): Promise<void>
-  sendPrompt(repoId: string, text: string): Promise<void>
+  listSessions(repoId: string): SessionRecord[]
+  createSession(repoId: string, title?: string): SessionRecord
+  renameSession(sessionId: string, title: string): void
+  deleteSession(sessionId: string): Promise<void>
+  openSession(sessionId: string): Promise<void>
+  sendPrompt(sessionId: string, text: string): Promise<void>
 }
 
 export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionHandlers {
   const openSessions = new Map<string, RepoSession>()
 
-  async function ensureSession(repoId: string): Promise<RepoSession> {
-    const existing = openSessions.get(repoId)
+  async function ensureSession(sessionId: string): Promise<RepoSession> {
+    const existing = openSessions.get(sessionId)
     if (existing) return existing
 
-    const repo = deps.reposRepo.getById(repoId)
-    if (!repo) throw new Error(`Unknown repo: ${repoId}`)
+    const record = deps.sessionsRepo.getById(sessionId)
+    if (!record) throw new Error(`Unknown session: ${sessionId}`)
 
-    const { repoSession, sessionId } = await deps.openRepoSession(repoId, repo.path)
+    const repo = deps.reposRepo.getById(record.repoId)
+    if (!repo) throw new Error(`Unknown repo: ${record.repoId}`)
 
-    if (!deps.sessionsRepo.getByRepoId(repoId)) {
-      deps.sessionsRepo.create(repoId, sessionId, repo.name)
-    }
+    const { repoSession, sessionId: piSessionId } = await deps.openRepoSession(repo.path)
+    deps.sessionsRepo.setPiSessionId(sessionId, piSessionId)
 
     repoSession.subscribe((event) => {
       const mapped = mapAgentEvent(event)
-      if (mapped) deps.onEvent(repoId, mapped)
+      if (mapped) deps.onEvent(sessionId, mapped)
     })
 
-    openSessions.set(repoId, repoSession)
+    openSessions.set(sessionId, repoSession)
     return repoSession
   }
 
   return {
-    async openSession(repoId: string): Promise<void> {
+    listSessions(repoId: string): SessionRecord[] {
+      return deps.sessionsRepo.listByRepo(repoId)
+    },
+    createSession(repoId: string, title?: string): SessionRecord {
+      // pi_session_id is populated once the session is actually opened for the
+      // first time (createRepoSession returns the real Pi SDK session id then).
+      return deps.sessionsRepo.create(repoId, '', title?.trim() || 'New session')
+    },
+    renameSession(sessionId: string, title: string): void {
+      deps.sessionsRepo.rename(sessionId, title)
+    },
+    async deleteSession(sessionId: string): Promise<void> {
+      const open = openSessions.get(sessionId)
+      if (open) {
+        openSessions.delete(sessionId)
+        await open.abort()
+      }
+      deps.sessionsRepo.delete(sessionId)
+    },
+    async openSession(sessionId: string): Promise<void> {
       try {
-        await ensureSession(repoId)
+        await ensureSession(sessionId)
       } catch (err) {
-        deps.onEvent(repoId, { type: 'error', message: (err as Error).message })
+        deps.onEvent(sessionId, { type: 'error', message: (err as Error).message })
       }
     },
-    async sendPrompt(repoId: string, text: string): Promise<void> {
+    async sendPrompt(sessionId: string, text: string): Promise<void> {
       try {
-        const session = await ensureSession(repoId)
+        const session = await ensureSession(sessionId)
         await session.prompt(text)
       } catch (err) {
-        deps.onEvent(repoId, { type: 'error', message: (err as Error).message })
+        deps.onEvent(sessionId, { type: 'error', message: (err as Error).message })
       }
     }
   }
@@ -65,19 +88,42 @@ function mapAgentEvent(event: unknown): ChatEvent | null {
   const e = event as {
     type?: string
     assistantMessageEvent?: { type?: string; delta?: string }
+    toolCallId?: string
     toolName?: string
+    args?: unknown
+    result?: unknown
+    isError?: boolean
+    message?: { role?: string; usage?: { input: number; output: number } }
   }
   if (e.type === 'message_update' && e.assistantMessageEvent?.type === 'text_delta') {
     return { type: 'text_delta', delta: e.assistantMessageEvent.delta ?? '' }
   }
   if (e.type === 'tool_execution_start') {
-    return { type: 'tool_start', toolName: e.toolName ?? 'unknown' }
+    return {
+      type: 'tool_start',
+      toolCallId: e.toolCallId ?? '',
+      toolName: e.toolName ?? 'unknown',
+      args: e.args
+    }
   }
   if (e.type === 'tool_execution_end') {
-    return { type: 'tool_end', toolName: e.toolName ?? 'unknown' }
+    return {
+      type: 'tool_end',
+      toolCallId: e.toolCallId ?? '',
+      toolName: e.toolName ?? 'unknown',
+      isError: e.isError ?? false,
+      result: e.result
+    }
   }
   if (e.type === 'turn_end') {
-    return { type: 'turn_end' }
+    // The turn's assistant message carries real per-turn token usage from the
+    // provider. Tool calls don't carry their own usage (they don't call an
+    // LLM), so this is reported per-turn, not per-action.
+    const usage =
+      e.message?.role === 'assistant' && e.message.usage
+        ? { input: e.message.usage.input, output: e.message.usage.output }
+        : undefined
+    return { type: 'turn_end', usage }
   }
   return null
 }

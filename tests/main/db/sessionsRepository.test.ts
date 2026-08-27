@@ -17,24 +17,40 @@ describe('SessionsRepository', () => {
     sessions = createSessionsRepository(db)
   })
 
-  it('creates a session and finds it by repo id', () => {
-    const created = sessions.create(repoId, 'pi-session-1', 'a')
-    expect(sessions.getByRepoId(repoId)?.id).toBe(created.id)
+  it('creates a session and finds it by id', () => {
+    const created = sessions.create(repoId, 'pi-session-1', 'First session')
+    expect(sessions.getById(created.id)).toEqual(created)
   })
 
-  it('returns undefined when no session exists for a repo', () => {
-    expect(sessions.getByRepoId('missing')).toBeUndefined()
+  it('returns undefined for an unknown session id', () => {
+    expect(sessions.getById('missing')).toBeUndefined()
   })
 
-  it('returns the most recently created session for a repo', () => {
-    sessions.create(repoId, 'pi-session-1', 'a')
-    const second = sessions.create(repoId, 'pi-session-2', 'a')
-    expect(sessions.getByRepoId(repoId)?.id).toBe(second.id)
+  it('lists all sessions for a repo, in creation order', () => {
+    const first = sessions.create(repoId, 'pi-session-1', 'First')
+    const second = sessions.create(repoId, 'pi-session-2', 'Second')
+    expect(sessions.listByRepo(repoId).map((s) => s.id)).toEqual([first.id, second.id])
+  })
+
+  it('returns an empty list for a repo with no sessions', () => {
+    expect(sessions.listByRepo('missing')).toEqual([])
+  })
+
+  it('renames a session', () => {
+    const created = sessions.create(repoId, 'pi-session-1', 'Old title')
+    sessions.rename(created.id, 'New title')
+    expect(sessions.getById(created.id)?.title).toBe('New title')
+  })
+
+  it('records the real Pi session id once a session is opened', () => {
+    const created = sessions.create(repoId, '', 'New session')
+    sessions.setPiSessionId(created.id, 'pi-session-real-id')
+    expect(sessions.getById(created.id)?.piSessionId).toBe('pi-session-real-id')
   })
 
   it('deletes a session', () => {
     const created = sessions.create(repoId, 'pi-session-1', 'a')
     sessions.delete(created.id)
-    expect(sessions.getByRepoId(repoId)).toBeUndefined()
+    expect(sessions.getById(created.id)).toBeUndefined()
   })
 })

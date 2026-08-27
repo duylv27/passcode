@@ -1,20 +1,26 @@
-import { useCallback, useState } from 'react'
-import type { GitStatus, Repo } from '../../shared/types'
+import { useCallback, useEffect, useState } from 'react'
+import type { GitStatus, Repo, SessionRecord } from '../../shared/types'
 import { ProjectTree } from './components/ProjectTree'
+import { SessionTabs } from './components/SessionTabs'
 import { ChatPanel } from './components/ChatPanel'
 import { GitStatusPanel } from './components/GitStatusPanel'
 import { SettingsPanel } from './components/SettingsPanel'
-import { ExplorerIcon, GearIcon, RepoIcon, BranchIcon } from './components/icons'
+import { ExplorerIcon, GearIcon, BranchIcon } from './components/icons'
 
 type Activity = 'explorer' | 'settings'
 
 export default function App(): JSX.Element {
   const [selectedRepo, setSelectedRepo] = useState<Repo | null>(null)
+  const [selectedSession, setSelectedSession] = useState<SessionRecord | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
   const [activity, setActivity] = useState<Activity>('explorer')
   const [branch, setBranch] = useState<GitStatus['branch'] | null>(null)
 
   const handleTurnEnd = useCallback(() => setRefreshKey((k) => k + 1), [])
+
+  useEffect(() => {
+    setSelectedSession(null)
+  }, [selectedRepo?.id])
 
   return (
     <div className="app-shell">
@@ -51,14 +57,11 @@ export default function App(): JSX.Element {
             <SettingsPanel />
           ) : selectedRepo ? (
             <>
-              <div className="tabs">
-                <div className="tab">
-                  <RepoIcon />
-                  <span>{selectedRepo.name}</span>
-                </div>
-              </div>
+              <SessionTabs repo={selectedRepo} selected={selectedSession} onSelect={setSelectedSession} />
               <div style={{ flex: 1, minHeight: 0 }}>
-                <ChatPanel repo={selectedRepo} onTurnEnd={handleTurnEnd} />
+                {selectedSession && (
+                  <ChatPanel session={selectedSession} repoName={selectedRepo.name} onTurnEnd={handleTurnEnd} />
+                )}
               </div>
               <GitStatusPanel repo={selectedRepo} refreshKey={refreshKey} onStatus={setBranch} />
             </>

@@ -24,7 +24,7 @@ export function createReposRepository(db: DatabaseSync): ReposRepository {
     listByProject(projectId: string): Repo[] {
       return db
         .prepare('SELECT id, project_id as projectId, path, name FROM repos WHERE project_id = ?')
-        .all(projectId) as Repo[]
+        .all(projectId) as unknown as Repo[]
     },
     getById(id: string): Repo | undefined {
       return db

@@ -46,11 +46,16 @@ export interface AddRepoError {
   error: string
 }
 
+export interface TokenUsage {
+  input: number
+  output: number
+}
+
 export type ChatEvent =
   | { type: 'text_delta'; delta: string }
-  | { type: 'tool_start'; toolName: string }
-  | { type: 'tool_end'; toolName: string }
-  | { type: 'turn_end' }
+  | { type: 'tool_start'; toolCallId: string; toolName: string; args: unknown }
+  | { type: 'tool_end'; toolCallId: string; toolName: string; isError: boolean; result: unknown }
+  | { type: 'turn_end'; usage?: TokenUsage }
   | { type: 'error'; message: string }
 
 export interface Api {
@@ -65,9 +70,13 @@ export interface Api {
     delete(id: string): Promise<void>
   }
   session: {
-    open(repoId: string): Promise<void>
-    prompt(repoId: string, text: string): Promise<void>
-    onEvent(listener: (repoId: string, event: ChatEvent) => void): () => void
+    list(repoId: string): Promise<SessionRecord[]>
+    create(repoId: string, title?: string): Promise<SessionRecord>
+    rename(sessionId: string, title: string): Promise<void>
+    delete(sessionId: string): Promise<void>
+    open(sessionId: string): Promise<void>
+    prompt(sessionId: string, text: string): Promise<void>
+    onEvent(listener: (sessionId: string, event: ChatEvent) => void): () => void
   }
   git: {
     status(repoId: string): Promise<GitStatus>

@@ -50,9 +50,9 @@ app.whenReady().then(async () => {
     session: createSessionHandlers({
       reposRepo,
       sessionsRepo,
-      openRepoSession: (_repoId, cwd) => createRepoSession({ cwd, modelRuntime }),
-      onEvent: (repoId, event) => {
-        if (!mainWindow.isDestroyed()) mainWindow.webContents.send('session:event', repoId, event)
+      openRepoSession: (cwd) => createRepoSession({ cwd, modelRuntime }),
+      onEvent: (sessionId, event) => {
+        if (!mainWindow.isDestroyed()) mainWindow.webContents.send('session:event', sessionId, event)
       }
     }),
     git: createGitHandlers(reposRepo),

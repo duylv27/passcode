@@ -13,10 +13,14 @@ const api: Api = {
     delete: (id) => ipcRenderer.invoke('repos:delete', id)
   },
   session: {
-    open: (repoId) => ipcRenderer.invoke('session:open', repoId),
-    prompt: (repoId, text) => ipcRenderer.invoke('session:prompt', repoId, text),
+    list: (repoId) => ipcRenderer.invoke('session:list', repoId),
+    create: (repoId, title) => ipcRenderer.invoke('session:create', repoId, title),
+    rename: (sessionId, title) => ipcRenderer.invoke('session:rename', sessionId, title),
+    delete: (sessionId) => ipcRenderer.invoke('session:delete', sessionId),
+    open: (sessionId) => ipcRenderer.invoke('session:open', sessionId),
+    prompt: (sessionId, text) => ipcRenderer.invoke('session:prompt', sessionId, text),
     onEvent: (listener) => {
-      const wrapped = (_e: unknown, repoId: string, event: ChatEvent): void => listener(repoId, event)
+      const wrapped = (_e: unknown, sessionId: string, event: ChatEvent): void => listener(sessionId, event)
       ipcRenderer.on('session:event', wrapped)
       return () => ipcRenderer.removeListener('session:event', wrapped)
     }

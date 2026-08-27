@@ -24,9 +24,17 @@ export function registerIpcHandlers(handlers: IpcHandlers): void {
   ipcMain.handle('repos:list', (_e, projectId: string) => handlers.repos.listRepos(projectId))
   ipcMain.handle('repos:delete', (_e, id: string) => handlers.repos.deleteRepo(id))
 
-  ipcMain.handle('session:open', (_e, repoId: string) => handlers.session.openSession(repoId))
-  ipcMain.handle('session:prompt', (_e, repoId: string, text: string) =>
-    handlers.session.sendPrompt(repoId, text)
+  ipcMain.handle('session:list', (_e, repoId: string) => handlers.session.listSessions(repoId))
+  ipcMain.handle('session:create', (_e, repoId: string, title?: string) =>
+    handlers.session.createSession(repoId, title)
+  )
+  ipcMain.handle('session:rename', (_e, sessionId: string, title: string) =>
+    handlers.session.renameSession(sessionId, title)
+  )
+  ipcMain.handle('session:delete', (_e, sessionId: string) => handlers.session.deleteSession(sessionId))
+  ipcMain.handle('session:open', (_e, sessionId: string) => handlers.session.openSession(sessionId))
+  ipcMain.handle('session:prompt', (_e, sessionId: string, text: string) =>
+    handlers.session.sendPrompt(sessionId, text)
   )
 
   ipcMain.handle('git:status', (_e, repoId: string) => handlers.git.status(repoId))

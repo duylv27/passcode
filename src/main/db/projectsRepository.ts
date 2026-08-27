@@ -23,7 +23,7 @@ export function createProjectsRepository(db: DatabaseSync): ProjectsRepository {
     list(): Project[] {
       return db
         .prepare('SELECT id, name, created_at as createdAt FROM projects ORDER BY created_at')
-        .all() as Project[]
+        .all() as unknown as Project[]
     },
     getById(id: string): Project | undefined {
       return db

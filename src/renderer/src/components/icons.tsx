@@ -54,6 +54,79 @@ export function GearIcon({ className }: IconProps): JSX.Element {
   )
 }
 
+export function SendIcon({ className }: IconProps): JSX.Element {
+  return (
+    <svg className={className} width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+      <path d="M1.7 1.2 14.5 7.6a.5.5 0 0 1 0 .9L1.7 14.9a.5.5 0 0 1-.7-.6l2.3-6-2.3-6a.5.5 0 0 1 .7-.6zm1.6 2.1L4.8 8l-1.5 4.6L12.4 8 3.3 3.3z" />
+    </svg>
+  )
+}
+
+export function StopIcon({ className }: IconProps): JSX.Element {
+  return (
+    <svg className={className} width="10" height="10" viewBox="0 0 16 16" fill="currentColor">
+      <rect x="2" y="2" width="12" height="12" rx="1.5" />
+    </svg>
+  )
+}
+
+export function SpinnerIcon({ className }: IconProps): JSX.Element {
+  return (
+    <svg
+      className={className}
+      width="13"
+      height="13"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <circle cx="8" cy="8" r="6" opacity="0.25" />
+      <path d="M14 8a6 6 0 0 0-6-6" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+export function CheckIcon({ className }: IconProps): JSX.Element {
+  return (
+    <svg
+      className={className}
+      width="12"
+      height="12"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="M3 8.5 6.5 12l6.5-8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+export function ErrorIcon({ className }: IconProps): JSX.Element {
+  return (
+    <svg
+      className={className}
+      width="12"
+      height="12"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="M4 4l8 8M12 4l-8 8" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+export function PlusIcon({ className }: IconProps): JSX.Element {
+  return (
+    <svg className={className} width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+      <path d="M7 1h2v6h6v2H9v6H7V9H1V7h6V1z" />
+    </svg>
+  )
+}
+
 export function BranchIcon({ className }: IconProps): JSX.Element {
   return (
     <svg
