@@ -36,6 +36,13 @@ export interface AddRepoError {
   error: string
 }
 
+export type ChatEvent =
+  | { type: 'text_delta'; delta: string }
+  | { type: 'tool_start'; toolName: string }
+  | { type: 'tool_end'; toolName: string }
+  | { type: 'turn_end' }
+  | { type: 'error'; message: string }
+
 export interface Api {
   projects: {
     create(name: string): Promise<Project>
@@ -46,5 +53,10 @@ export interface Api {
     add(projectId: string, path: string): Promise<AddRepoResult | AddRepoError>
     list(projectId: string): Promise<Repo[]>
     delete(id: string): Promise<void>
+  }
+  session: {
+    open(repoId: string): Promise<void>
+    prompt(repoId: string, text: string): Promise<void>
+    onEvent(listener: (repoId: string, event: ChatEvent) => void): () => void
   }
 }

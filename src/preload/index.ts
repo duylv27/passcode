@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { Api } from '../shared/types'
+import type { Api, ChatEvent } from '../shared/types'
 
 const api: Api = {
   projects: {
@@ -11,6 +11,15 @@ const api: Api = {
     add: (projectId, path) => ipcRenderer.invoke('repos:add', projectId, path),
     list: (projectId) => ipcRenderer.invoke('repos:list', projectId),
     delete: (id) => ipcRenderer.invoke('repos:delete', id)
+  },
+  session: {
+    open: (repoId) => ipcRenderer.invoke('session:open', repoId),
+    prompt: (repoId, text) => ipcRenderer.invoke('session:prompt', repoId, text),
+    onEvent: (listener) => {
+      const wrapped = (_e: unknown, repoId: string, event: ChatEvent): void => listener(repoId, event)
+      ipcRenderer.on('session:event', wrapped)
+      return () => ipcRenderer.removeListener('session:event', wrapped)
+    }
   }
 }
 

@@ -1,12 +1,16 @@
 import { app, BrowserWindow } from 'electron'
 import { join } from 'node:path'
+import type { ModelRuntime } from '@earendil-works/pi-coding-agent'
 import { openDatabase } from './db/db'
 import { createProjectsRepository } from './db/projectsRepository'
 import { createReposRepository } from './db/reposRepository'
+import { createSessionsRepository } from './db/sessionsRepository'
 import { createProjectsHandlers } from './ipc/projectsHandlers'
 import { createReposHandlers } from './ipc/reposHandlers'
+import { createSessionHandlers } from './ipc/sessionHandlers'
 import { registerIpcHandlers } from './ipc/register'
 import { isGitRepo } from './git/gitStatus'
+import { createRepoSession } from './agent/piSession'
 
 function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
@@ -27,17 +31,27 @@ function createWindow(): BrowserWindow {
   return win
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   const db = openDatabase(join(app.getPath('userData'), 'pi-agent.db'))
   const projectsRepo = createProjectsRepository(db)
   const reposRepo = createReposRepository(db)
+  const sessionsRepo = createSessionsRepository(db)
+
+  const { ModelRuntime } = await import('@earendil-works/pi-coding-agent')
+  const modelRuntime: ModelRuntime = await ModelRuntime.create()
+
+  const mainWindow = createWindow()
 
   registerIpcHandlers({
     projects: createProjectsHandlers(projectsRepo),
-    repos: createReposHandlers(reposRepo, isGitRepo)
+    repos: createReposHandlers(reposRepo, isGitRepo),
+    session: createSessionHandlers({
+      reposRepo,
+      sessionsRepo,
+      openRepoSession: (_repoId, cwd) => createRepoSession({ cwd, modelRuntime }),
+      onEvent: (repoId, event) => mainWindow.webContents.send('session:event', repoId, event)
+    })
   })
-
-  createWindow()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
