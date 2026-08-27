@@ -1,3 +1,27 @@
+import { useState } from 'react'
+import type { Project, Repo } from '../../shared/types'
+import { ProjectList } from './components/ProjectList'
+import { RepoList } from './components/RepoList'
+
 export default function App(): JSX.Element {
-  return <div>Pi Agent Desktop</div>
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null)
+  const [selectedRepo, setSelectedRepo] = useState<Repo | null>(null)
+
+  return (
+    <div style={{ display: 'flex', height: '100vh' }}>
+      <div style={{ width: 260, borderRight: '1px solid #333', overflowY: 'auto' }}>
+        <ProjectList selected={selectedProject} onSelect={setSelectedProject} />
+        {selectedProject && (
+          <RepoList project={selectedProject} selected={selectedRepo} onSelect={setSelectedRepo} />
+        )}
+      </div>
+      <div style={{ flex: 1 }}>
+        {selectedRepo ? (
+          <div>Selected repo: {selectedRepo.name}</div>
+        ) : (
+          <div style={{ padding: 16 }}>Select a repo to start a session.</div>
+        )}
+      </div>
+    </div>
+  )
 }
