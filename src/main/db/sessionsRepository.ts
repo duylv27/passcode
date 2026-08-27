@@ -1,4 +1,4 @@
-import type Database from 'better-sqlite3'
+import type { DatabaseSync } from 'node:sqlite'
 import { randomUUID } from 'node:crypto'
 import type { SessionRecord } from '../../shared/types'
 
@@ -8,7 +8,7 @@ export interface SessionsRepository {
   delete(id: string): void
 }
 
-export function createSessionsRepository(db: Database.Database): SessionsRepository {
+export function createSessionsRepository(db: DatabaseSync): SessionsRepository {
   return {
     create(repoId: string, piSessionId: string, title: string): SessionRecord {
       const record: SessionRecord = {

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import Database from 'better-sqlite3'
+import { DatabaseSync as Database } from 'node:sqlite'
 import { initSchema } from '../../../src/main/db/schema'
 import { createProjectsRepository } from '../../../src/main/db/projectsRepository'
 import { createReposRepository } from '../../../src/main/db/reposRepository'

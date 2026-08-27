@@ -1,4 +1,4 @@
-import type Database from 'better-sqlite3'
+import type { DatabaseSync } from 'node:sqlite'
 import { randomUUID } from 'node:crypto'
 import type { Repo } from '../../shared/types'
 
@@ -9,7 +9,7 @@ export interface ReposRepository {
   delete(id: string): void
 }
 
-export function createReposRepository(db: Database.Database): ReposRepository {
+export function createReposRepository(db: DatabaseSync): ReposRepository {
   return {
     create(projectId: string, path: string, name: string): Repo {
       const repo: Repo = { id: randomUUID(), projectId, path, name }

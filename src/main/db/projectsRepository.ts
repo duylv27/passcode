@@ -1,4 +1,4 @@
-import type Database from 'better-sqlite3'
+import type { DatabaseSync } from 'node:sqlite'
 import { randomUUID } from 'node:crypto'
 import type { Project } from '../../shared/types'
 
@@ -9,7 +9,7 @@ export interface ProjectsRepository {
   delete(id: string): void
 }
 
-export function createProjectsRepository(db: Database.Database): ProjectsRepository {
+export function createProjectsRepository(db: DatabaseSync): ProjectsRepository {
   return {
     create(name: string): Project {
       const project: Project = { id: randomUUID(), name, createdAt: new Date().toISOString() }
