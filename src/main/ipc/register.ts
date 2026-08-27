@@ -3,12 +3,14 @@ import type { ProjectsHandlers } from './projectsHandlers'
 import type { ReposHandlers } from './reposHandlers'
 import type { SessionHandlers } from './sessionHandlers'
 import type { GitHandlers } from './gitHandlers'
+import type { SettingsHandlers } from './settingsHandlers'
 
 export interface IpcHandlers {
   projects: ProjectsHandlers
   repos: ReposHandlers
   session: SessionHandlers
   git: GitHandlers
+  settings: SettingsHandlers
 }
 
 export function registerIpcHandlers(handlers: IpcHandlers): void {
@@ -28,4 +30,12 @@ export function registerIpcHandlers(handlers: IpcHandlers): void {
   )
 
   ipcMain.handle('git:status', (_e, repoId: string) => handlers.git.status(repoId))
+
+  ipcMain.handle('settings:setAnthropicApiKey', (_e, apiKey: string) =>
+    handlers.settings.setAnthropicApiKey(apiKey)
+  )
+  ipcMain.handle('settings:getAuthStatus', () => handlers.settings.getAuthStatus())
+  ipcMain.handle('settings:loginCopilot', (event) =>
+    handlers.settings.loginCopilot((challenge) => event.sender.send('settings:copilotChallenge', challenge))
+  )
 }

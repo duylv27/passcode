@@ -26,6 +26,16 @@ export interface GitStatus {
   deleted: string[]
 }
 
+export interface AuthStatus {
+  anthropic: boolean
+  copilot: boolean
+}
+
+export interface DeviceCodeChallenge {
+  userCode: string
+  verificationUri: string
+}
+
 export interface AddRepoResult {
   ok: true
   repo: Repo
@@ -61,5 +71,11 @@ export interface Api {
   }
   git: {
     status(repoId: string): Promise<GitStatus>
+  }
+  settings: {
+    setAnthropicApiKey(apiKey: string): Promise<{ ok: true } | { ok: false; error: string }>
+    getAuthStatus(): Promise<AuthStatus>
+    loginCopilot(): Promise<{ ok: true } | { ok: false; error: string }>
+    onCopilotChallenge(listener: (challenge: DeviceCodeChallenge) => void): () => void
   }
 }

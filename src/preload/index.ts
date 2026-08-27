@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { Api, ChatEvent } from '../shared/types'
+import type { Api, ChatEvent, DeviceCodeChallenge } from '../shared/types'
 
 const api: Api = {
   projects: {
@@ -23,6 +23,16 @@ const api: Api = {
   },
   git: {
     status: (repoId) => ipcRenderer.invoke('git:status', repoId)
+  },
+  settings: {
+    setAnthropicApiKey: (apiKey) => ipcRenderer.invoke('settings:setAnthropicApiKey', apiKey),
+    getAuthStatus: () => ipcRenderer.invoke('settings:getAuthStatus'),
+    loginCopilot: () => ipcRenderer.invoke('settings:loginCopilot'),
+    onCopilotChallenge: (listener) => {
+      const wrapped = (_e: unknown, challenge: DeviceCodeChallenge): void => listener(challenge)
+      ipcRenderer.on('settings:copilotChallenge', wrapped)
+      return () => ipcRenderer.removeListener('settings:copilotChallenge', wrapped)
+    }
   }
 }
 
