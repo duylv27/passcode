@@ -30,12 +30,17 @@ export function SettingsPanel(): JSX.Element {
   }
 
   async function handleCopilotLogin(): Promise<void> {
+    setError(null)
     setLoggingIn(true)
     setChallenge(null)
     const result = await window.api.settings.loginCopilot()
     setLoggingIn(false)
     setChallenge(null)
-    if (result.ok) await refresh()
+    if (!result.ok) {
+      setError(result.error)
+      return
+    }
+    await refresh()
   }
 
   return (

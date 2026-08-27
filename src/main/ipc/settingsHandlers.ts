@@ -29,13 +29,13 @@ export function createSettingsHandlers(modelRuntime: ModelRuntimeLike): Settings
     async getAuthStatus() {
       const [anthropic, copilot] = await Promise.all([
         modelRuntime.checkAuth('anthropic'),
-        modelRuntime.checkAuth('copilot')
+        modelRuntime.checkAuth('github-copilot')
       ])
       return { anthropic: anthropic !== undefined, copilot: copilot !== undefined }
     },
     async loginCopilot(onChallenge) {
       try {
-        await modelRuntime.login('copilot', 'oauth', {
+        await modelRuntime.login('github-copilot', 'oauth', {
           notify: (event) => {
             if (event.type === 'device_code') {
               onChallenge({ userCode: event.userCode, verificationUri: event.verificationUri })

@@ -42,7 +42,7 @@ app.whenReady().then(async () => {
   const { ModelRuntime } = await import('@earendil-works/pi-coding-agent')
   const modelRuntime: ModelRuntime = await ModelRuntime.create()
 
-  const mainWindow = createWindow()
+  let mainWindow = createWindow()
 
   registerIpcHandlers({
     projects: createProjectsHandlers(projectsRepo),
@@ -51,14 +51,16 @@ app.whenReady().then(async () => {
       reposRepo,
       sessionsRepo,
       openRepoSession: (_repoId, cwd) => createRepoSession({ cwd, modelRuntime }),
-      onEvent: (repoId, event) => mainWindow.webContents.send('session:event', repoId, event)
+      onEvent: (repoId, event) => {
+        if (!mainWindow.isDestroyed()) mainWindow.webContents.send('session:event', repoId, event)
+      }
     }),
     git: createGitHandlers(reposRepo),
     settings: createSettingsHandlers(modelRuntime)
   })
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    if (BrowserWindow.getAllWindows().length === 0) mainWindow = createWindow()
   })
 })
 

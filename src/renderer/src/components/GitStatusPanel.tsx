@@ -8,10 +8,25 @@ interface Props {
 
 export function GitStatusPanel({ repo, refreshKey }: Props): JSX.Element {
   const [status, setStatus] = useState<GitStatus | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    window.api.git.status(repo.id).then(setStatus)
+    let cancelled = false
+    setError(null)
+    window.api.git.status(repo.id).then(
+      (result) => {
+        if (!cancelled) setStatus(result)
+      },
+      () => {
+        if (!cancelled) setError('Could not load git status')
+      }
+    )
+    return () => {
+      cancelled = true
+    }
   }, [repo.id, refreshKey])
+
+  if (error) return <div style={{ padding: 8, color: 'red' }}>{error}</div>
 
   if (!status) return <div style={{ padding: 8 }}>Loading git status...</div>
 

@@ -3,7 +3,10 @@ import Database from 'better-sqlite3'
 import { initSchema } from '../../../src/main/db/schema'
 import { createProjectsRepository } from '../../../src/main/db/projectsRepository'
 import { createReposRepository } from '../../../src/main/db/reposRepository'
-import { createSessionsRepository } from '../../../src/main/db/sessionsRepository'
+import {
+  createSessionsRepository,
+  type SessionsRepository
+} from '../../../src/main/db/sessionsRepository'
 import {
   createSessionHandlers,
   type ChatEvent,
@@ -17,13 +20,15 @@ describe('sessionHandlers', () => {
   let promptMock: ReturnType<typeof vi.fn>
   let subscribeListener: ((event: unknown) => void) | undefined
   let handlers: SessionHandlers
+  let sessionsRepo: SessionsRepository
+  let openRepoSessionMock: ReturnType<typeof vi.fn>
 
   beforeEach(() => {
     const db = new Database(':memory:')
     initSchema(db)
     const projectsRepo = createProjectsRepository(db)
     const reposRepo = createReposRepository(db)
-    const sessionsRepo = createSessionsRepository(db)
+    sessionsRepo = createSessionsRepository(db)
     const projectId = projectsRepo.create('Demo').id
     repoId = reposRepo.create(projectId, '/repo/path', 'demo-repo').id
 
@@ -39,10 +44,12 @@ describe('sessionHandlers', () => {
       abort: vi.fn(async () => {})
     }
 
+    openRepoSessionMock = vi.fn(async () => ({ repoSession, sessionId: 'pi-session-1' }))
+
     handlers = createSessionHandlers({
       reposRepo,
       sessionsRepo,
-      openRepoSession: async () => ({ repoSession, sessionId: 'pi-session-1' }),
+      openRepoSession: openRepoSessionMock,
       onEvent: (id, event) => events.push({ repoId: id, event })
     })
   })
@@ -51,6 +58,7 @@ describe('sessionHandlers', () => {
     await handlers.openSession(repoId)
     await handlers.sendPrompt(repoId, 'hello')
     expect(promptMock).toHaveBeenCalledWith('hello')
+    expect(sessionsRepo.getByRepoId(repoId)).toBeDefined()
   })
 
   it('maps and forwards a text_delta event to onEvent', async () => {
@@ -66,5 +74,6 @@ describe('sessionHandlers', () => {
     await handlers.sendPrompt(repoId, 'first')
     await handlers.sendPrompt(repoId, 'second')
     expect(promptMock).toHaveBeenCalledTimes(2)
+    expect(openRepoSessionMock).toHaveBeenCalledTimes(1)
   })
 })

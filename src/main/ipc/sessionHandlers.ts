@@ -44,11 +44,15 @@ export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionH
 
   return {
     async openSession(repoId: string): Promise<void> {
-      await ensureSession(repoId)
+      try {
+        await ensureSession(repoId)
+      } catch (err) {
+        deps.onEvent(repoId, { type: 'error', message: (err as Error).message })
+      }
     },
     async sendPrompt(repoId: string, text: string): Promise<void> {
-      const session = await ensureSession(repoId)
       try {
+        const session = await ensureSession(repoId)
         await session.prompt(text)
       } catch (err) {
         deps.onEvent(repoId, { type: 'error', message: (err as Error).message })

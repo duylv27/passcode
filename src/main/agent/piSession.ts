@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto'
 import type { AgentSessionEvent, ModelRuntime } from '@earendil-works/pi-coding-agent'
 
 export interface RepoSession {
@@ -25,7 +24,7 @@ export async function createRepoSession(
   })
 
   return {
-    sessionId: randomUUID(),
+    sessionId: session.sessionId,
     repoSession: {
       prompt: (text: string) => session.prompt(text),
       subscribe: (listener) => session.subscribe(listener),
