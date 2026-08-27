@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { Project, Repo } from '../../shared/types'
 import { ProjectList } from './components/ProjectList'
 import { RepoList } from './components/RepoList'
+import { ChatPanel } from './components/ChatPanel'
 
 export default function App(): JSX.Element {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
@@ -15,9 +16,9 @@ export default function App(): JSX.Element {
           <RepoList project={selectedProject} selected={selectedRepo} onSelect={setSelectedRepo} />
         )}
       </div>
-      <div style={{ flex: 1 }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         {selectedRepo ? (
-          <div>Selected repo: {selectedRepo.name}</div>
+          <ChatPanel repo={selectedRepo} />
         ) : (
           <div style={{ padding: 16 }}>Select a repo to start a session.</div>
         )}
