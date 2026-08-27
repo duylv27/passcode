@@ -18,3 +18,10 @@ export interface SessionRecord {
   title: string
   createdAt: string
 }
+
+export interface GitStatus {
+  branch: string
+  changed: string[]
+  added: string[]
+  deleted: string[]
+}
