@@ -36,4 +36,31 @@ describe('settingsHandlers', () => {
     const status = await handlers.getAuthStatus()
     expect(status).toEqual({ anthropic: true, copilot: false })
   })
+
+  it('signs in to Copilot and surfaces the device code challenge', async () => {
+    const challenges: Array<{ userCode: string; verificationUri: string }> = []
+    ;(modelRuntime.login as ReturnType<typeof vi.fn>).mockImplementationOnce(
+      async (_providerId: string, _type: string, interaction: { notify: (event: unknown) => void }) => {
+        interaction.notify({
+          type: 'device_code',
+          userCode: 'ABCD-1234',
+          verificationUri: 'https://github.com/login/device'
+        })
+        return { type: 'oauth', refresh: '', access: '', expires: 0 }
+      }
+    )
+
+    const result = await handlers.loginCopilot((c) => challenges.push(c))
+
+    expect(result.ok).toBe(true)
+    expect(challenges).toEqual([{ userCode: 'ABCD-1234', verificationUri: 'https://github.com/login/device' }])
+  })
+
+  it('reports a failed Copilot login', async () => {
+    ;(modelRuntime.login as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('user cancelled'))
+
+    const result = await handlers.loginCopilot(() => {})
+
+    expect(result).toEqual({ ok: false, error: 'user cancelled' })
+  })
 })
