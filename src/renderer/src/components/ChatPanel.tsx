@@ -48,7 +48,7 @@ export function ChatPanel({ repo, onTurnEnd }: Props): JSX.Element {
     })
 
     return unsubscribe
-  }, [repo.id])
+  }, [repo.id, onTurnEnd])
 
   async function handleSend(): Promise<void> {
     if (!input.trim()) return
