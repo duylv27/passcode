@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { Project, Repo } from '../../../shared/types'
+import { RepoIcon } from './icons'
 
 interface Props {
   project: Project
@@ -33,17 +34,18 @@ export function RepoList({ project, selected, onSelect }: Props): JSX.Element {
   }
 
   return (
-    <div className="rail-repos rail">
+    <div>
       {repos.map((r) => (
         <button
           key={r.id}
-          className={`rail-node${selected?.id === r.id ? ' is-selected' : ''}`}
+          className={`tree-row${selected?.id === r.id ? ' is-selected' : ''}`}
           onClick={() => onSelect(r)}
         >
-          {r.name}
+          <RepoIcon className="row-icon is-repo" />
+          <span>{r.name}</span>
         </button>
       ))}
-      <div className="rail-add">
+      <div className="tree-add">
         <input
           className="field"
           value={path}

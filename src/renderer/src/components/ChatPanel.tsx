@@ -61,9 +61,6 @@ export function ChatPanel({ repo, onTurnEnd }: Props): JSX.Element {
 
   return (
     <div className="chat">
-      <div className="chat-header">
-        <span className="repo-name">{repo.name}</span>
-      </div>
       <div className="chat-scroll">
         {lines.length === 0 ? (
           <div className="chat-empty">Ask it to explore the code, run something, or make a change.</div>
@@ -85,7 +82,7 @@ export function ChatPanel({ repo, onTurnEnd }: Props): JSX.Element {
           }}
           placeholder={`Message the agent about ${repo.name}`}
         />
-        <button className="btn btn-primary" onClick={handleSend}>
+        <button className="btn" onClick={handleSend}>
           Send
         </button>
       </div>

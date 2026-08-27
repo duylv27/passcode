@@ -64,7 +64,7 @@ export function SettingsPanel(): JSX.Element {
             }}
             placeholder="Anthropic API key"
           />
-          <button className="btn btn-primary" onClick={handleSaveKey}>
+          <button className="btn" onClick={handleSaveKey}>
             Save
           </button>
         </div>
@@ -76,7 +76,7 @@ export function SettingsPanel(): JSX.Element {
           <span className={`status-dot${status?.copilot ? ' is-connected' : ''}`} />
           <span>GitHub Copilot</span>
         </div>
-        <button className="btn btn-primary" onClick={handleCopilotLogin} disabled={loggingIn}>
+        <button className="btn" onClick={handleCopilotLogin} disabled={loggingIn}>
           {loggingIn ? 'Signing in…' : 'Sign in'}
         </button>
         {challenge && (

@@ -1,47 +1,43 @@
-@import '@fontsource/ibm-plex-mono/400.css';
-@import '@fontsource/ibm-plex-mono/500.css';
-@import '@fontsource/ibm-plex-mono/600.css';
-@import '@fontsource/ibm-plex-mono/700.css';
-@import '@fontsource/ibm-plex-sans/400.css';
-@import '@fontsource/ibm-plex-sans/500.css';
-@import '@fontsource/ibm-plex-sans/600.css';
-
 /* ---------------------------------------------------------------------
-   Tokens
-
-   Terminal-phosphor heritage palette: this app is a window onto a
-   CLI-first tool (the `pi` agent), so the ground leans warm charcoal
-   rather than true black, and the accent is amber phosphor rather than
-   the acid-green every "AI dev tool" reaches for. IBM Plex Mono carries
-   all chrome (wordmark, headers, repo/branch names, buttons) to keep
-   that terminal identity present throughout; IBM Plex Sans is reserved
-   for prose the user actually reads at length (chat replies).
+   Tokens — VS Code's real Dark+ palette and layout language: Activity
+   Bar, Explorer sidebar, editor-style tabs, and a blue status bar
+   showing the active branch. Chrome uses the OS UI font (matching
+   VS Code's own choice of native fonts over a custom webfont); a
+   monospace stack is reserved for tool-execution log lines, echoing
+   VS Code's integrated terminal.
    --------------------------------------------------------------------- */
 :root {
-  --ground: #16181d;
-  --surface: #1e2128;
-  --surface-raised: #262a33;
-  --border: #2e323c;
-  --border-strong: #3a3f4b;
-  --ink: #ece7dd;
-  --dim: #8b8f99;
-  --amber: #e8a33d;
-  --amber-dim: #b9812a;
-  --diff-add: #7fb88f;
-  --diff-del: #c97064;
-  --danger: #d4756b;
+  --activitybar-bg: #333333;
+  --sidebar-bg: #252526;
+  --sidebar-header-fg: #bbbbbb;
+  --editor-bg: #1e1e1e;
+  --titlebar-bg: #3c3c3c;
+  --statusbar-bg: #007acc;
+  --statusbar-fg: #ffffff;
+  --border: #454545;
+  --border-subtle: #2b2b2b;
+  --fg: #cccccc;
+  --fg-dim: #969696;
+  --fg-bright: #ffffff;
+  --accent: #007fd4;
+  --list-hover: #2a2d2e;
+  --list-active: #37373d;
+  --input-bg: #3c3c3c;
+  --button-bg: #0e639c;
+  --button-hover: #1177bb;
 
-  --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Consolas, monospace;
-  --font-sans: 'IBM Plex Sans', -apple-system, 'Segoe UI', sans-serif;
+  --git-added: #81b88b;
+  --git-modified: #e2c08d;
+  --git-deleted: #c74e39;
+  --danger: #f14c4c;
+
+  --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Ubuntu', sans-serif;
+  --font-mono: Consolas, 'Cascadia Code', ui-monospace, 'SFMono-Regular', monospace;
 
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
-  --space-5: 24px;
-  --space-6: 32px;
-
-  --radius: 4px;
 }
 
 * {
@@ -56,11 +52,11 @@ body,
 }
 
 body {
-  background: var(--ground);
-  color: var(--ink);
-  font-family: var(--font-sans);
+  background: var(--editor-bg);
+  color: var(--fg);
+  font-family: var(--font-ui);
   font-size: 13px;
-  line-height: 1.5;
+  line-height: 1.4;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -76,8 +72,8 @@ button {
 }
 
 :focus-visible {
-  outline: 2px solid var(--amber);
-  outline-offset: 1px;
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -88,12 +84,54 @@ button {
 }
 
 /* ---------------------------------------------------------------------
-   Layout shell
+   Shell: Activity Bar + Sidebar + editor area + Status Bar
    --------------------------------------------------------------------- */
 .app-shell {
   display: flex;
+  flex-direction: column;
   height: 100vh;
   min-width: 0;
+}
+
+.workbench {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.activitybar {
+  width: 48px;
+  flex-shrink: 0;
+  background: var(--activitybar-bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: var(--space-2);
+}
+
+.activitybar-icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  border-left: 2px solid transparent;
+  color: #858585;
+}
+
+.activitybar-icon:hover {
+  color: var(--fg-bright);
+}
+
+.activitybar-icon.is-active {
+  color: var(--fg-bright);
+  border-left-color: var(--fg-bright);
+}
+
+.activitybar-spacer {
+  flex: 1;
 }
 
 .sidebar {
@@ -101,182 +139,138 @@ button {
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  background: var(--surface);
-  border-right: 1px solid var(--border);
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--border-subtle);
+  min-height: 0;
+}
+
+.sidebar-header {
+  padding: var(--space-2) var(--space-3);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--sidebar-header-fg);
+  flex-shrink: 0;
 }
 
 .sidebar-scroll {
   flex: 1;
   overflow-y: auto;
-  padding: var(--space-4) 0;
+  padding-bottom: var(--space-3);
 }
 
-.sidebar-brand {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-4);
-  border-bottom: 1px solid var(--border);
-  font-family: var(--font-mono);
-  font-weight: 700;
-  font-size: 13px;
-  letter-spacing: 0.04em;
-}
-
-.sidebar-brand .pi-mark {
-  color: var(--amber);
-  font-size: 18px;
-}
-
-.main {
+.editor-area {
   flex: 1;
   display: flex;
   flex-direction: column;
   min-width: 0;
+  background: var(--editor-bg);
 }
 
-.main-empty {
+.editor-empty {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--dim);
-  font-family: var(--font-mono);
+  color: var(--fg-dim);
   font-size: 13px;
 }
 
 /* ---------------------------------------------------------------------
-   The rail — the signature element. A git-graph-style lineage line runs
-   down the sidebar: a filled pi-node marks each project, small commit
-   dots mark its repos, echoing the `git log --graph` grammar this app's
-   users already read every day.
+   Explorer tree
    --------------------------------------------------------------------- */
-.rail {
-  position: relative;
-  padding-left: var(--space-5);
-}
-
-.rail::before {
-  content: '';
-  position: absolute;
-  left: 15px;
-  top: 4px;
-  bottom: 4px;
-  width: 1px;
-  background: var(--border-strong);
-}
-
-.rail-section {
-  margin-bottom: var(--space-2);
-}
-
-.rail-node {
-  position: relative;
+.tree-row {
   display: flex;
   align-items: center;
+  gap: 4px;
   width: 100%;
   text-align: left;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-2);
+  padding: 3px var(--space-2);
   background: none;
   border: none;
-  border-radius: var(--radius);
-  color: var(--ink);
-  font-family: var(--font-mono);
-  font-size: 12.5px;
-}
-
-.rail-node::before {
-  content: '';
-  position: absolute;
-  left: calc(-1 * var(--space-5) + 11px);
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: var(--surface);
-  border: 1.5px solid var(--border-strong);
-}
-
-.rail-node.is-project::before {
-  content: 'π';
-  width: auto;
-  height: auto;
-  border-radius: 0;
-  border: none;
-  background: none;
-  left: calc(-1 * var(--space-5) + 6px);
-  color: var(--dim);
+  color: var(--fg);
   font-size: 13px;
-  line-height: 1;
-  top: 50%;
-  transform: translateY(-50%);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.rail-node:hover {
-  background: var(--surface-raised);
+.tree-row:hover {
+  background: var(--list-hover);
 }
 
-.rail-node.is-selected {
-  background: var(--surface-raised);
-  color: var(--amber);
+.tree-row.is-selected {
+  background: var(--list-active);
 }
 
-.rail-node.is-selected::before {
-  border-color: var(--amber);
-  color: var(--amber);
+.tree-row .chevron {
+  width: 16px;
+  flex-shrink: 0;
+  display: inline-flex;
+  color: var(--fg-dim);
+  transition: transform 100ms ease;
 }
 
-.rail-node.is-selected.is-project::before {
-  color: var(--amber);
+.tree-row .chevron.is-open {
+  transform: rotate(90deg);
 }
 
-.rail-repos {
-  margin-left: var(--space-3);
+.tree-row .row-icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  color: #c09553;
 }
 
-.rail-add {
+.tree-row .row-icon.is-repo {
+  color: #6a9955;
+}
+
+.tree-repos {
+  padding-left: 20px;
+}
+
+.tree-add {
   display: flex;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-2) var(--space-2) 0;
-  margin-top: var(--space-1);
+  gap: 4px;
+  padding: 3px var(--space-2) 3px 20px;
 }
 
-/* ---------------------------------------------------------------------
-   Form controls
-   --------------------------------------------------------------------- */
+.tree-add.is-project {
+  padding-left: var(--space-2);
+}
+
 .field {
   flex: 1;
   min-width: 0;
-  background: var(--ground);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius);
-  padding: 6px var(--space-2);
-  font-family: var(--font-mono);
+  background: var(--input-bg);
+  border: 1px solid transparent;
+  border-radius: 2px;
+  padding: 3px var(--space-2);
+  font-family: var(--font-ui);
   font-size: 12px;
+  color: var(--fg-bright);
 }
 
 .field::placeholder {
-  color: var(--dim);
+  color: var(--fg-dim);
 }
 
 .field:focus-visible {
-  border-color: var(--amber);
+  border-color: var(--accent);
 }
 
 .btn {
-  background: var(--surface-raised);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius);
-  padding: 6px var(--space-3);
-  font-family: var(--font-mono);
+  background: var(--button-bg);
+  border: none;
+  border-radius: 2px;
+  padding: 3px var(--space-2);
   font-size: 12px;
-  font-weight: 500;
-  color: var(--ink);
+  color: var(--fg-bright);
   white-space: nowrap;
 }
 
 .btn:hover:not(:disabled) {
-  border-color: var(--dim);
+  background: var(--button-hover);
 }
 
 .btn:disabled {
@@ -284,53 +278,45 @@ button {
   cursor: default;
 }
 
-.btn-primary {
-  background: var(--amber);
-  border-color: var(--amber);
-  color: var(--ground);
-  font-weight: 600;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: var(--amber-dim);
-  border-color: var(--amber-dim);
-}
-
 .error-text {
   color: var(--danger);
   font-size: 12px;
-  margin-top: var(--space-1);
+  padding: 2px var(--space-2) 4px 20px;
 }
 
 /* ---------------------------------------------------------------------
-   Chat panel
+   Editor tabs
+   --------------------------------------------------------------------- */
+.tabs {
+  display: flex;
+  background: var(--sidebar-bg);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--editor-bg);
+  border-right: 1px solid var(--border-subtle);
+  font-size: 13px;
+  color: var(--fg);
+}
+
+.tab .row-icon {
+  color: #6a9955;
+}
+
+/* ---------------------------------------------------------------------
+   Chat
    --------------------------------------------------------------------- */
 .chat {
   display: flex;
   flex-direction: column;
   height: 100%;
   min-height: 0;
-}
-
-.chat-header {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
-  border-bottom: 1px solid var(--border);
-  font-family: var(--font-mono);
-  font-size: 12.5px;
-}
-
-.chat-header .repo-name {
-  font-weight: 600;
-}
-
-.branch-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--diff-add);
 }
 
 .chat-scroll {
@@ -347,49 +333,35 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--dim);
-  font-family: var(--font-mono);
-  font-size: 12.5px;
+  color: var(--fg-dim);
+  font-size: 13px;
   text-align: center;
 }
 
 .chat-line {
   font-size: 13px;
   line-height: 1.6;
-  animation: line-in 120ms ease-out;
-}
-
-@keyframes line-in {
-  from {
-    opacity: 0;
-    transform: translateY(2px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 .chat-line.is-user {
   font-family: var(--font-mono);
-  color: var(--dim);
+  color: var(--fg-dim);
 }
 
 .chat-line.is-user::before {
-  content: '❯ ';
-  color: var(--amber);
+  content: '> ';
+  color: var(--accent);
 }
 
 .chat-line.is-text {
-  font-family: var(--font-sans);
   white-space: pre-wrap;
 }
 
 .chat-line.is-tool {
   font-family: var(--font-mono);
   font-size: 12px;
-  color: var(--dim);
-  border-left: 2px solid var(--amber-dim);
+  color: var(--fg-dim);
+  border-left: 2px solid var(--button-bg);
   padding-left: var(--space-2);
 }
 
@@ -403,94 +375,96 @@ button {
   display: flex;
   gap: var(--space-2);
   padding: var(--space-3) var(--space-4);
-  border-top: 1px solid var(--border);
-}
-
-.chat-input .field {
-  font-family: var(--font-sans);
-  font-size: 13px;
-  padding: var(--space-2) var(--space-3);
+  border-top: 1px solid var(--border-subtle);
 }
 
 /* ---------------------------------------------------------------------
-   Git status panel — styled like a real diff summary
+   Git status (Source Control style list)
    --------------------------------------------------------------------- */
 .git-status {
-  border-top: 1px solid var(--border);
-  padding: var(--space-3) var(--space-4);
-  font-family: var(--font-mono);
-  font-size: 12px;
+  border-top: 1px solid var(--border-subtle);
+  padding: var(--space-2) 0;
+  font-size: 13px;
+  max-height: 160px;
+  overflow-y: auto;
 }
 
 .git-status-loading,
 .git-status-error {
-  color: var(--dim);
+  color: var(--fg-dim);
+  padding: var(--space-2) var(--space-3);
 }
 
 .git-status-error {
   color: var(--danger);
 }
 
-.git-status-branch {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: var(--space-2);
-  color: var(--dim);
-}
-
-.git-status-branch strong {
-  color: var(--ink);
-  font-weight: 600;
-}
-
-.git-status-group {
-  margin-bottom: var(--space-1);
-}
-
 .git-status-file {
   display: flex;
   gap: var(--space-2);
-  padding: 2px 0;
+  padding: 2px var(--space-3);
 }
 
 .git-status-file .gutter {
   width: 12px;
   flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-weight: 700;
 }
 
-.git-status-file.is-added .gutter {
-  color: var(--diff-add);
+.git-status-file.is-added {
+  color: var(--git-added);
 }
 
-.git-status-file.is-changed .gutter {
-  color: var(--amber);
+.git-status-file.is-changed {
+  color: var(--git-modified);
 }
 
-.git-status-file.is-deleted .gutter {
-  color: var(--diff-del);
+.git-status-file.is-deleted {
+  color: var(--git-deleted);
+}
+
+/* ---------------------------------------------------------------------
+   Status bar
+   --------------------------------------------------------------------- */
+.statusbar {
+  height: 22px;
+  flex-shrink: 0;
+  background: var(--statusbar-bg);
+  color: var(--statusbar-fg);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-2);
+  font-size: 12px;
+  gap: var(--space-3);
+}
+
+.statusbar-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 /* ---------------------------------------------------------------------
    Settings
    --------------------------------------------------------------------- */
 .settings {
-  padding: var(--space-5);
+  padding: var(--space-4);
   max-width: 480px;
 }
 
 .settings h3 {
-  font-family: var(--font-mono);
   font-size: 15px;
-  margin: 0 0 var(--space-5);
+  margin: 0 0 var(--space-4);
+  font-weight: 600;
 }
 
 .settings-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: var(--space-4);
-  margin-bottom: var(--space-4);
+  background: var(--sidebar-bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: 3px;
+  padding: var(--space-3);
+  margin-bottom: var(--space-3);
 }
 
 .settings-card-header {
@@ -498,7 +472,6 @@ button {
   align-items: center;
   gap: var(--space-2);
   margin-bottom: var(--space-3);
-  font-family: var(--font-mono);
   font-weight: 600;
   font-size: 13px;
 }
@@ -507,11 +480,11 @@ button {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--border-strong);
+  background: #6b6b6b;
 }
 
 .status-dot.is-connected {
-  background: var(--diff-add);
+  background: var(--git-added);
 }
 
 .settings-card-row {
@@ -522,14 +495,14 @@ button {
 .settings-challenge {
   margin-top: var(--space-3);
   padding: var(--space-3);
-  background: var(--ground);
-  border: 1px dashed var(--border-strong);
-  border-radius: var(--radius);
+  background: var(--editor-bg);
+  border: 1px dashed var(--border);
+  border-radius: 3px;
   font-family: var(--font-mono);
   font-size: 12px;
 }
 
 .settings-challenge strong {
-  color: var(--amber);
+  color: var(--accent);
   letter-spacing: 0.05em;
 }
