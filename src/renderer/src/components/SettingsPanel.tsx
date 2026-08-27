@@ -4,7 +4,8 @@ import type { AuthStatus, DeviceCodeChallenge } from '../../../shared/types'
 export function SettingsPanel(): JSX.Element {
   const [apiKey, setApiKey] = useState('')
   const [status, setStatus] = useState<AuthStatus | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [anthropicError, setAnthropicError] = useState<string | null>(null)
+  const [copilotError, setCopilotError] = useState<string | null>(null)
   const [challenge, setChallenge] = useState<DeviceCodeChallenge | null>(null)
   const [loggingIn, setLoggingIn] = useState(false)
 
@@ -19,10 +20,10 @@ export function SettingsPanel(): JSX.Element {
   }, [])
 
   async function handleSaveKey(): Promise<void> {
-    setError(null)
+    setAnthropicError(null)
     const result = await window.api.settings.setAnthropicApiKey(apiKey)
     if (!result.ok) {
-      setError(result.error)
+      setAnthropicError(result.error)
       return
     }
     setApiKey('')
@@ -30,14 +31,14 @@ export function SettingsPanel(): JSX.Element {
   }
 
   async function handleCopilotLogin(): Promise<void> {
-    setError(null)
+    setCopilotError(null)
     setLoggingIn(true)
     setChallenge(null)
     const result = await window.api.settings.loginCopilot()
     setLoggingIn(false)
     setChallenge(null)
     if (!result.ok) {
-      setError(result.error)
+      setCopilotError(result.error)
       return
     }
     await refresh()
@@ -55,7 +56,7 @@ export function SettingsPanel(): JSX.Element {
           placeholder="Anthropic API key"
         />
         <button onClick={handleSaveKey}>Save</button>
-        {error && <div style={{ color: 'red' }}>{error}</div>}
+        {anthropicError && <div style={{ color: 'red' }}>{anthropicError}</div>}
       </section>
       <section>
         <h4>GitHub Copilot {status?.copilot ? '✓ connected' : ''}</h4>
@@ -67,6 +68,7 @@ export function SettingsPanel(): JSX.Element {
             Go to {challenge.verificationUri} and enter code: <strong>{challenge.userCode}</strong>
           </div>
         )}
+        {copilotError && <div style={{ color: 'red' }}>{copilotError}</div>}
       </section>
     </div>
   )

@@ -41,7 +41,15 @@ export function createSettingsHandlers(modelRuntime: ModelRuntimeLike): Settings
               onChallenge({ userCode: event.userCode, verificationUri: event.verificationUri })
             }
           },
-          prompt: () => Promise.reject(new Error('Interactive login prompts are not supported yet'))
+          prompt: async (prompt) => {
+            // GitHub Copilot's real login flow asks a "text" prompt for an
+            // optional GitHub Enterprise domain before it ever reaches the
+            // device-code step. Blank means "use github.com" — the vast
+            // majority case, and the only one we have no UI for yet, so we
+            // answer it automatically instead of blocking the flow.
+            if (prompt.type === 'text') return ''
+            throw new Error(`Interactive login prompt of type "${prompt.type}" is not supported yet`)
+          }
         })
         return { ok: true }
       } catch (err) {

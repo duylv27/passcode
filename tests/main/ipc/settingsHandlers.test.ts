@@ -63,4 +63,43 @@ describe('settingsHandlers', () => {
 
     expect(result).toEqual({ ok: false, error: 'user cancelled' })
   })
+
+  it('answers a text prompt during Copilot login automatically (defaults to github.com)', async () => {
+    let promptedValue: string | undefined
+    ;(modelRuntime.login as ReturnType<typeof vi.fn>).mockImplementationOnce(
+      async (
+        _providerId: string,
+        _type: string,
+        interaction: { prompt: (p: { type: string }) => Promise<string> }
+      ) => {
+        promptedValue = await interaction.prompt({ type: 'text' })
+        return { type: 'oauth', refresh: '', access: '', expires: 0 }
+      }
+    )
+
+    const result = await handlers.loginCopilot(() => {})
+
+    expect(result.ok).toBe(true)
+    expect(promptedValue).toBe('')
+  })
+
+  it('rejects a non-text interactive prompt during Copilot login', async () => {
+    ;(modelRuntime.login as ReturnType<typeof vi.fn>).mockImplementationOnce(
+      async (
+        _providerId: string,
+        _type: string,
+        interaction: { prompt: (p: { type: string }) => Promise<string> }
+      ) => {
+        await interaction.prompt({ type: 'secret' })
+        return { type: 'oauth', refresh: '', access: '', expires: 0 }
+      }
+    )
+
+    const result = await handlers.loginCopilot(() => {})
+
+    expect(result).toEqual({
+      ok: false,
+      error: 'Interactive login prompt of type "secret" is not supported yet'
+    })
+  })
 })
