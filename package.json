@@ -9,10 +9,12 @@
     "node": ">=22.19.0"
   },
   "scripts": {
-    "dev": "electron-vite dev",
+    "rebuild:electron": "electron-builder install-app-deps",
+    "dev": "npm run rebuild:electron && electron-vite dev",
     "build": "electron-vite build",
     "dist:win": "electron-vite build && electron-builder --win",
-    "test": "vitest run"
+    "test": "npm run rebuild:node && vitest run",
+    "rebuild:node": "npm rebuild better-sqlite3"
   },
   "build": {
     "appId": "com.duyle.pi-agent-desktop",
