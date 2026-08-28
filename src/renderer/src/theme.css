@@ -1,32 +1,38 @@
 /* ---------------------------------------------------------------------
-   Tokens — VS Code's real Dark+ palette and layout language: Activity
-   Bar, Explorer sidebar, editor-style tabs, and a blue status bar.
-   Chrome uses the OS UI font (matching VS Code's own choice of native
-   fonts over a custom webfont); a monospace stack is reserved for
-   tool-execution log lines, echoing VS Code's integrated terminal.
+   Tokens — VS Code's real Light+ palette and layout language: a dark
+   Activity Bar rail (VS Code keeps this dark even in its light theme)
+   against an otherwise light Explorer sidebar, editor-style tabs, and
+   a blue status bar. Chrome uses the OS UI font (matching VS Code's
+   own choice of native fonts over a custom webfont); a monospace
+   stack is reserved for tool-execution log lines, echoing VS Code's
+   integrated terminal.
    --------------------------------------------------------------------- */
 :root {
-  --activitybar-bg: #333333;
-  --sidebar-bg: #252526;
-  --sidebar-header-fg: #bbbbbb;
-  --editor-bg: #1e1e1e;
-  --titlebar-bg: #3c3c3c;
+  color-scheme: light;
+
+  --activitybar-bg: #2c2c2c;
+  --activitybar-fg: #b3b3b3;
+  --activitybar-fg-active: #ffffff;
+  --sidebar-bg: #f3f3f3;
+  --sidebar-header-fg: #6f6f6f;
+  --editor-bg: #ffffff;
+  --titlebar-bg: #dddddd;
   --statusbar-bg: #007acc;
   --statusbar-fg: #ffffff;
-  --border: #454545;
-  --border-subtle: #2b2b2b;
-  --fg: #cccccc;
-  --fg-dim: #969696;
-  --fg-bright: #ffffff;
-  --accent: #007fd4;
-  --list-hover: #2a2d2e;
-  --list-active: #37373d;
-  --input-bg: #3c3c3c;
-  --button-bg: #0e639c;
-  --button-hover: #1177bb;
+  --border: #d4d4d4;
+  --border-subtle: #e5e5e5;
+  --fg: #3b3b3b;
+  --fg-dim: #6f6f6f;
+  --fg-bright: #000000;
+  --accent: #005fb8;
+  --list-hover: #e8e8e8;
+  --list-active: #e4e6f1;
+  --input-bg: #ffffff;
+  --button-bg: #005fb8;
+  --button-hover: #0258a8;
 
-  --success: #81b88b;
-  --danger: #f14c4c;
+  --success: #3e9142;
+  --danger: #cd3131;
 
   --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Ubuntu', sans-serif;
   --font-mono: Consolas, 'Cascadia Code', ui-monospace, 'SFMono-Regular', monospace;
@@ -115,16 +121,16 @@ button {
   background: none;
   border: none;
   border-left: 2px solid transparent;
-  color: #858585;
+  color: var(--activitybar-fg);
 }
 
 .activitybar-icon:hover {
-  color: var(--fg-bright);
+  color: var(--activitybar-fg-active);
 }
 
 .activitybar-icon.is-active {
-  color: var(--fg-bright);
-  border-left-color: var(--fg-bright);
+  color: var(--activitybar-fg-active);
+  border-left-color: var(--activitybar-fg-active);
 }
 
 .activitybar-spacer {
@@ -388,7 +394,7 @@ button {
 }
 
 .tab.is-active {
-  background: #1e1e1e;
+  background: var(--editor-bg);
   box-shadow: inset 0 -2px 0 var(--accent);
 }
 
@@ -727,7 +733,7 @@ button {
   background: var(--sidebar-bg);
   border: 1px solid var(--border);
   border-radius: 4px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
   padding: 4px;
   z-index: 20;
 }
@@ -805,23 +811,14 @@ button {
 }
 
 /* ---------------------------------------------------------------------
-   Settings — deliberately light, breaking from the rest of the app's
-   dark theme (matches the reference app's own settings surface).
+   Settings — a single bordered row-list (title, description, and a
+   right-aligned control per row) rather than a stack of cards.
    --------------------------------------------------------------------- */
 .settings-light {
-  --s-bg: #f3f3f3;
-  --s-card-bg: #f8f8f8;
-  --s-border: #e2e2e2;
-  --s-text: #1f1f1f;
-  --s-text-dim: #6b6b6b;
-  --s-accent: #2f6fed;
-  --s-danger: #d1453b;
-  --s-switch-off: #d0d0d0;
-
   height: 100%;
   overflow-y: auto;
-  background: var(--s-bg);
-  color: var(--s-text);
+  background: var(--sidebar-bg);
+  color: var(--fg);
   padding: var(--space-4) var(--space-4) 40px;
 }
 
@@ -830,13 +827,14 @@ button {
   margin: 0 auto var(--space-3);
   font-size: 20px;
   font-weight: 700;
+  color: var(--fg-bright);
 }
 
 .settings-group {
   max-width: 640px;
   margin: 0 auto;
-  background: var(--s-card-bg);
-  border: 1px solid var(--s-border);
+  background: var(--editor-bg);
+  border: 1px solid var(--border-subtle);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -847,7 +845,7 @@ button {
   justify-content: space-between;
   gap: var(--space-4);
   padding: 14px 18px;
-  border-bottom: 1px solid var(--s-border);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .settings-row:last-child {
@@ -864,28 +862,28 @@ button {
 .settings-row-title {
   font-size: 13.5px;
   font-weight: 600;
-  color: var(--s-text);
+  color: var(--fg-bright);
 }
 
 .settings-row-desc {
   font-size: 12.5px;
-  color: var(--s-text-dim);
+  color: var(--fg-dim);
 }
 
 .settings-row-hint {
   font-size: 12px;
-  color: var(--s-text-dim);
+  color: var(--fg-dim);
   font-family: var(--font-mono);
 }
 
 .settings-row-hint strong {
-  color: var(--s-accent);
+  color: var(--accent);
   letter-spacing: 0.05em;
 }
 
 .settings-row-error {
   font-size: 12px;
-  color: var(--s-danger);
+  color: var(--danger);
 }
 
 .settings-row-control {
@@ -901,25 +899,25 @@ button {
 
 .settings-input {
   width: 200px;
-  background: #ffffff;
-  border: 1px solid var(--s-border);
+  background: var(--editor-bg);
+  border: 1px solid var(--border);
   border-radius: 6px;
   padding: 6px 10px;
   font-size: 12.5px;
-  color: var(--s-text);
+  color: var(--fg-bright);
 }
 
 .settings-input::placeholder {
-  color: #a8a8a8;
+  color: var(--fg-dim);
 }
 
 .settings-input:focus-visible {
   outline: none;
-  border-color: var(--s-accent);
+  border-color: var(--accent);
 }
 
 .settings-btn {
-  background: var(--s-accent);
+  background: var(--button-bg);
   border: none;
   border-radius: 6px;
   padding: 6px 14px;
@@ -930,7 +928,7 @@ button {
 }
 
 .settings-btn:hover:not(:disabled) {
-  background: #2560d4;
+  background: var(--button-hover);
 }
 
 .settings-btn:disabled {
@@ -956,13 +954,13 @@ button {
 .switch-track {
   position: absolute;
   inset: 0;
-  background: var(--s-switch-off);
+  background: var(--border);
   border-radius: 999px;
   transition: background 150ms ease;
 }
 
 .switch input:checked + .switch-track {
-  background: var(--s-accent);
+  background: var(--accent);
 }
 
 .switch-thumb {
@@ -982,7 +980,7 @@ button {
 }
 
 .switch input:focus-visible + .switch-track {
-  outline: 2px solid var(--s-accent);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
@@ -1006,7 +1004,7 @@ button {
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: var(--space-4);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
 }
 
 .approval-title {
