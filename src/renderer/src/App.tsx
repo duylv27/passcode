@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import type { GitStatus, Repo, SessionRecord } from '../../shared/types'
 import { ProjectTree } from './components/ProjectTree'
 import { SessionTabs } from './components/SessionTabs'
@@ -12,6 +12,7 @@ type Activity = 'explorer' | 'settings'
 
 export default function App(): JSX.Element {
   const [selectedRepo, setSelectedRepo] = useState<Repo | null>(null)
+  const [openSessions, setOpenSessions] = useState<SessionRecord[]>([])
   const [selectedSession, setSelectedSession] = useState<SessionRecord | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
   const [activity, setActivity] = useState<Activity>('explorer')
@@ -19,9 +20,35 @@ export default function App(): JSX.Element {
 
   const handleTurnEnd = useCallback(() => setRefreshKey((k) => k + 1), [])
 
-  useEffect(() => {
-    setSelectedSession(null)
-  }, [selectedRepo?.id])
+  function handleSelectRepo(repo: Repo): void {
+    setSelectedRepo(repo)
+    const tabsForRepo = openSessions.filter((s) => s.repoId === repo.id)
+    setSelectedSession(tabsForRepo.length > 0 ? tabsForRepo[tabsForRepo.length - 1] : null)
+  }
+
+  function handleOpenSession(session: SessionRecord, repo: Repo): void {
+    setSelectedRepo(repo)
+    setOpenSessions((prev) => (prev.some((s) => s.id === session.id) ? prev : [...prev, session]))
+    setSelectedSession(session)
+  }
+
+  function handleCloseTab(session: SessionRecord): void {
+    const remaining = openSessions.filter((s) => s.id !== session.id)
+    setOpenSessions(remaining)
+    if (selectedSession?.id === session.id) {
+      const remainingForRepo = remaining.filter((s) => s.repoId === session.repoId)
+      setSelectedSession(remainingForRepo.length > 0 ? remainingForRepo[remainingForRepo.length - 1] : null)
+    }
+  }
+
+  function handleSessionDeleted(session: SessionRecord): void {
+    setOpenSessions((prev) => prev.filter((s) => s.id !== session.id))
+    setSelectedSession((prev) => (prev?.id === session.id ? null : prev))
+  }
+
+  const sessionsForSelectedRepo = selectedRepo
+    ? openSessions.filter((s) => s.repoId === selectedRepo.id)
+    : []
 
   return (
     <div className="app-shell">
@@ -48,7 +75,13 @@ export default function App(): JSX.Element {
           <div className="sidebar">
             <div className="sidebar-header">EXPLORER</div>
             <div className="sidebar-scroll">
-              <ProjectTree selectedRepo={selectedRepo} onSelectRepo={setSelectedRepo} />
+              <ProjectTree
+                selectedRepo={selectedRepo}
+                selectedSession={selectedSession}
+                onSelectRepo={handleSelectRepo}
+                onOpenSession={handleOpenSession}
+                onSessionDeleted={handleSessionDeleted}
+              />
             </div>
           </div>
         )}
@@ -58,10 +91,17 @@ export default function App(): JSX.Element {
             <SettingsPanel />
           ) : selectedRepo ? (
             <>
-              <SessionTabs repo={selectedRepo} selected={selectedSession} onSelect={setSelectedSession} />
+              <SessionTabs
+                sessions={sessionsForSelectedRepo}
+                selected={selectedSession}
+                onSelect={setSelectedSession}
+                onClose={handleCloseTab}
+              />
               <div style={{ flex: 1, minHeight: 0 }}>
-                {selectedSession && (
+                {selectedSession ? (
                   <ChatPanel session={selectedSession} repoName={selectedRepo.name} onTurnEnd={handleTurnEnd} />
+                ) : (
+                  <div className="editor-empty">Pick or create a session for this repo in the sidebar</div>
                 )}
               </div>
               <GitStatusPanel repo={selectedRepo} refreshKey={refreshKey} onStatus={setBranch} />

@@ -127,6 +127,30 @@ export function PlusIcon({ className }: IconProps): JSX.Element {
   )
 }
 
+export function ChatIcon({ className }: IconProps): JSX.Element {
+  return (
+    <svg
+      className={className}
+      width="13"
+      height="13"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.3"
+    >
+      <path d="M2 3.5h12a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-.5.5H6.5L3.5 13V10.5H2a.5.5 0 0 1-.5-.5V4a.5.5 0 0 1 .5-.5z" />
+    </svg>
+  )
+}
+
+export function TrashIcon({ className }: IconProps): JSX.Element {
+  return (
+    <svg className={className} width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <path d="M3 4.5h10M6 4.5V3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1.5M4.5 4.5 5 13.5a1 1 0 0 0 1 .9h4a1 1 0 0 0 1-.9l.5-9" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 export function BranchIcon({ className }: IconProps): JSX.Element {
   return (
     <svg

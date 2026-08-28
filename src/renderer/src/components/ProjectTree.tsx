@@ -1,14 +1,23 @@
 import { useEffect, useState } from 'react'
-import type { Project, Repo } from '../../../shared/types'
+import type { Project, Repo, SessionRecord } from '../../../shared/types'
 import { RepoList } from './RepoList'
 import { ChevronIcon, FolderIcon } from './icons'
 
 interface Props {
   selectedRepo: Repo | null
+  selectedSession: SessionRecord | null
   onSelectRepo: (repo: Repo) => void
+  onOpenSession: (session: SessionRecord, repo: Repo) => void
+  onSessionDeleted: (session: SessionRecord) => void
 }
 
-export function ProjectTree({ selectedRepo, onSelectRepo }: Props): JSX.Element {
+export function ProjectTree({
+  selectedRepo,
+  selectedSession,
+  onSelectRepo,
+  onOpenSession,
+  onSessionDeleted
+}: Props): JSX.Element {
   const [projects, setProjects] = useState<Project[]>([])
   const [name, setName] = useState('')
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
@@ -51,7 +60,14 @@ export function ProjectTree({ selectedRepo, onSelectRepo }: Props): JSX.Element 
             </button>
             {isOpen && (
               <div className="tree-repos">
-                <RepoList project={p} selected={selectedRepo} onSelect={onSelectRepo} />
+                <RepoList
+                  project={p}
+                  selectedRepo={selectedRepo}
+                  selectedSession={selectedSession}
+                  onSelectRepo={onSelectRepo}
+                  onOpenSession={onOpenSession}
+                  onSessionDeleted={onSessionDeleted}
+                />
               </div>
             )}
           </div>

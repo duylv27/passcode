@@ -1,59 +1,17 @@
-import { useEffect, useState } from 'react'
-import type { Repo, SessionRecord } from '../../../shared/types'
-import { PlusIcon, RepoIcon, ErrorIcon } from './icons'
+import type { SessionRecord } from '../../../shared/types'
+import { RepoIcon, ErrorIcon } from './icons'
 
 interface Props {
-  repo: Repo
+  sessions: SessionRecord[]
   selected: SessionRecord | null
   onSelect: (session: SessionRecord) => void
+  onClose: (session: SessionRecord) => void
 }
 
-export function SessionTabs({ repo, selected, onSelect }: Props): JSX.Element {
-  const [sessions, setSessions] = useState<SessionRecord[]>([])
-
-  async function refresh(): Promise<SessionRecord[]> {
-    const list = await window.api.session.list(repo.id)
-    setSessions(list)
-    return list
-  }
-
-  useEffect(() => {
-    let cancelled = false
-    refresh().then(async (list) => {
-      if (cancelled) return
-      if (list.length === 0) {
-        const created = await window.api.session.create(repo.id)
-        if (cancelled) return
-        setSessions([created])
-        onSelect(created)
-      } else {
-        onSelect(list[list.length - 1])
-      }
-    })
-    return () => {
-      cancelled = true
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [repo.id])
-
-  async function handleCreate(): Promise<void> {
-    const created = await window.api.session.create(repo.id)
-    await refresh()
-    onSelect(created)
-  }
-
-  async function handleDelete(session: SessionRecord): Promise<void> {
-    await window.api.session.delete(session.id)
-    const remaining = sessions.filter((s) => s.id !== session.id)
-    setSessions(remaining)
-    if (selected?.id !== session.id) return
-    if (remaining.length > 0) {
-      onSelect(remaining[remaining.length - 1])
-    } else {
-      await handleCreate()
-    }
-  }
-
+/** The currently-open sessions for the selected repo, shown as editor-style
+ * tabs. The full list of every session for a repo lives in the Explorer
+ * tree (see SessionList) -- this only tracks what's been opened here. */
+export function SessionTabs({ sessions, selected, onSelect, onClose }: Props): JSX.Element {
   return (
     <div className="tabs">
       {sessions.map((s) => (
@@ -62,19 +20,11 @@ export function SessionTabs({ repo, selected, onSelect }: Props): JSX.Element {
             <RepoIcon />
             <span className="tab-title">{s.title}</span>
           </button>
-          <button
-            className="tab-close"
-            onClick={() => handleDelete(s)}
-            title="Close session"
-            disabled={sessions.length === 1}
-          >
+          <button className="tab-close" onClick={() => onClose(s)} title="Close tab">
             <ErrorIcon />
           </button>
         </div>
       ))}
-      <button className="tab-add" onClick={handleCreate} title="New session">
-        <PlusIcon />
-      </button>
     </div>
   )
 }

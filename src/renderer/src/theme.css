@@ -229,6 +229,89 @@ button {
   padding-left: 20px;
 }
 
+.tree-sessions {
+  padding-left: 20px;
+}
+
+.session-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.session-row:hover {
+  background: var(--list-hover);
+}
+
+.session-row.is-active {
+  background: var(--list-active);
+}
+
+.session-row-select {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  padding: 3px var(--space-2);
+  background: none;
+  border: none;
+  color: var(--fg);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.row-icon.is-session {
+  flex-shrink: 0;
+  color: var(--fg-dim);
+}
+
+.session-row-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.session-row-delete {
+  flex-shrink: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-right: 4px;
+  background: none;
+  border: none;
+  border-radius: 3px;
+  color: var(--fg-dim);
+}
+
+.session-row:hover .session-row-delete {
+  display: flex;
+}
+
+.session-row-delete:hover {
+  background: var(--list-hover);
+  color: var(--danger);
+}
+
+.session-row.is-add {
+  padding: 3px var(--space-2);
+  gap: 4px;
+  color: var(--fg-dim);
+  background: none;
+  border: none;
+  font-size: 12px;
+  text-align: left;
+}
+
+.session-row.is-add:hover {
+  color: var(--fg-bright);
+  background: var(--list-hover);
+}
+
 .tree-add {
   display: flex;
   gap: 4px;
