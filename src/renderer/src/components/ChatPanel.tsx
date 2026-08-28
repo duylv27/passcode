@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import type { ChatEvent, HistoryItem, ModelInfo, SessionRecord, SkillInfo } from '../../../shared/types'
 import { KNOWN_TOOL_NAMES } from '../../../shared/types'
 import { ChevronIcon, SendIcon, StopIcon, SpinnerIcon, PlusIcon, SlashIcon } from './icons'
@@ -302,14 +302,14 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
     await window.api.approvals.setPolicy({ autoApprove })
   }
 
-  function toggleExpanded(id: string): void {
+  const toggleExpanded = useCallback((id: string): void => {
     setExpandedIds((prev) => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
       else next.add(id)
       return next
     })
-  }
+  }, [])
 
   const visibleItems = items.filter((item) => !(item.kind === 'thinking' && !item.text.trim()))
 
@@ -340,7 +340,7 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
                     key={item.id}
                     item={item}
                     expanded={expandedIds.has(item.id)}
-                    onToggle={() => toggleExpanded(item.id)}
+                    onToggle={toggleExpanded}
                   />
                 ))}
               </div>
@@ -491,7 +491,7 @@ type SingleItem = Exclude<TranscriptItem, { kind: 'thinking' | 'tool' }>
  * own turns (a shaded, right-aligned bubble) and the agent's prose replies
  * (plain, full-width) -- alignment and shading alone signal who's speaking,
  * with no "You"/"Agent" label needed. */
-function TranscriptRow({ item }: { item: SingleItem }): JSX.Element {
+const TranscriptRow = memo(function TranscriptRow({ item }: { item: SingleItem }): JSX.Element {
   if (item.kind === 'user') {
     return (
       <div className="chat-line is-user">
@@ -517,7 +517,7 @@ function TranscriptRow({ item }: { item: SingleItem }): JSX.Element {
       </span>
     </div>
   )
-}
+})
 
 type RenderGroup = { type: 'timeline'; items: TimelineItem[] } | { type: 'single'; item: SingleItem }
 
@@ -538,15 +538,17 @@ function groupForRender(items: TranscriptItem[]): RenderGroup[] {
   return groups
 }
 
-function TimelineRow({
+const TimelineRow = memo(function TimelineRow({
   item,
   expanded,
   onToggle
 }: {
   item: TimelineItem
   expanded: boolean
-  onToggle: () => void
+  onToggle: (id: string) => void
 }): JSX.Element {
+  const handleToggle = useCallback(() => onToggle(item.id), [onToggle, item.id])
+
   if (item.kind === 'thinking') {
     const label = item.endedAt
       ? `Thought for ${Math.max(1, Math.round((item.endedAt - item.startedAt) / 1000))}s`
@@ -554,7 +556,7 @@ function TimelineRow({
     return (
       <div className="timeline-row">
         <span className="timeline-dot" />
-        <button className="timeline-row-header" onClick={onToggle}>
+        <button className="timeline-row-header" onClick={handleToggle}>
           <span className="timeline-row-title is-muted">{label}</span>
           <ChevronIcon className={`chevron${expanded ? ' is-open' : ''}`} />
         </button>
@@ -572,7 +574,7 @@ function TimelineRow({
   return (
     <div className="timeline-row">
       <span className={`timeline-dot is-${item.status}`} />
-      <button className="timeline-row-header" onClick={onToggle}>
+      <button className="timeline-row-header" onClick={handleToggle}>
         <span className="timeline-row-title">{toolActionLabel(item.toolName)}</span>
         {summary && <span className="timeline-row-summary">{summary}</span>}
         {duration && <span className="timeline-row-duration">{duration}</span>}
@@ -600,7 +602,7 @@ function TimelineRow({
       )}
     </div>
   )
-}
+})
 
 /** A short preview of shell output for the always-visible terminal box --
  * the full output remains available by expanding the row. */

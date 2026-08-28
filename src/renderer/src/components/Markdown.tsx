@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { memo, type ReactNode } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import hljs from 'highlight.js'
@@ -28,7 +28,7 @@ function CodeBlock({ className, children }: { className?: string; children?: Rea
   )
 }
 
-export function Markdown({ text }: { text: string }): JSX.Element {
+export const Markdown = memo(function Markdown({ text }: { text: string }): JSX.Element {
   return (
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}
@@ -50,4 +50,4 @@ export function Markdown({ text }: { text: string }): JSX.Element {
       {text}
     </ReactMarkdown>
   )
-}
+})
