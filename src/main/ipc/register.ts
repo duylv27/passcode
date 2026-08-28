@@ -5,7 +5,9 @@ import type { SessionHandlers } from './sessionHandlers'
 import type { SettingsHandlers } from './settingsHandlers'
 import type { ApprovalHandlers } from './approvalHandlers'
 import type { ModelsHandlers } from './modelsHandlers'
-import type { ToolApprovalPolicy } from '../../shared/types'
+import type { SkillsHandlers } from './skillsHandlers'
+import type { FilesHandlers } from './filesHandlers'
+import type { PromptOptions, ToolApprovalPolicy } from '../../shared/types'
 
 export interface IpcHandlers {
   projects: ProjectsHandlers
@@ -13,6 +15,8 @@ export interface IpcHandlers {
   session: SessionHandlers
   settings: SettingsHandlers
   models: ModelsHandlers
+  skills: SkillsHandlers
+  files: FilesHandlers
   approvals: ApprovalHandlers
 }
 
@@ -36,8 +40,8 @@ export function registerIpcHandlers(handlers: IpcHandlers): void {
   )
   ipcMain.handle('session:delete', (_e, sessionId: string) => handlers.session.deleteSession(sessionId))
   ipcMain.handle('session:open', (_e, sessionId: string) => handlers.session.openSession(sessionId))
-  ipcMain.handle('session:prompt', (_e, sessionId: string, text: string) =>
-    handlers.session.sendPrompt(sessionId, text)
+  ipcMain.handle('session:prompt', (_e, sessionId: string, text: string, options?: PromptOptions) =>
+    handlers.session.sendPrompt(sessionId, text, options)
   )
   ipcMain.handle('session:abort', (_e, sessionId: string) => handlers.session.abortSession(sessionId))
   ipcMain.handle('session:setModel', (_e, sessionId: string, provider: string, modelId: string) =>
@@ -45,6 +49,10 @@ export function registerIpcHandlers(handlers: IpcHandlers): void {
   )
 
   ipcMain.handle('models:list', () => handlers.models.listModels())
+
+  ipcMain.handle('skills:list', (_e, repoId: string) => handlers.skills.listSkills(repoId))
+
+  ipcMain.handle('files:pickFile', () => handlers.files.pickFile())
 
   ipcMain.handle('settings:setAnthropicApiKey', (_e, apiKey: string) =>
     handlers.settings.setAnthropicApiKey(apiKey)

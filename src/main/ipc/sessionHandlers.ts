@@ -2,7 +2,7 @@ import type { Model } from '@earendil-works/pi-ai'
 import type { RepoSession } from '../agent/piSession'
 import type { SessionsRepository } from '../db/sessionsRepository'
 import type { ReposRepository } from '../db/reposRepository'
-import type { ChatEvent, SessionRecord } from '../../shared/types'
+import type { ChatEvent, PromptOptions, SessionRecord } from '../../shared/types'
 
 export type { ChatEvent }
 
@@ -17,6 +17,7 @@ export interface CreateSessionHandlersDeps {
   onEvent: (sessionId: string, event: ChatEvent) => void
   requestApproval: (sessionId: string, toolName: string, input: unknown) => Promise<boolean>
   findModel: (provider: string, modelId: string) => Model<any> | undefined
+  buildPromptText: (text: string, options?: PromptOptions) => Promise<string>
 }
 
 export interface SessionHandlers {
@@ -25,7 +26,7 @@ export interface SessionHandlers {
   renameSession(sessionId: string, title: string): void
   deleteSession(sessionId: string): Promise<void>
   openSession(sessionId: string): Promise<void>
-  sendPrompt(sessionId: string, text: string): Promise<void>
+  sendPrompt(sessionId: string, text: string, options?: PromptOptions): Promise<void>
   abortSession(sessionId: string): Promise<void>
   setSessionModel(sessionId: string, provider: string, modelId: string): Promise<void>
 }
@@ -105,10 +106,11 @@ export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionH
         deps.onEvent(sessionId, { type: 'error', message: (err as Error).message })
       }
     },
-    async sendPrompt(sessionId: string, text: string): Promise<void> {
+    async sendPrompt(sessionId: string, text: string, options?: PromptOptions): Promise<void> {
       try {
         const session = await ensureSession(sessionId)
-        await session.prompt(text)
+        const promptText = await deps.buildPromptText(text, options)
+        await session.prompt(promptText)
       } catch (err) {
         deps.onEvent(sessionId, { type: 'error', message: (err as Error).message })
       }

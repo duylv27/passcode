@@ -77,7 +77,8 @@ describe('sessionHandlers', () => {
       openRepoSession: openRepoSessionMock,
       onEvent: (id, event) => events.push({ sessionId: id, event }),
       requestApproval: async () => true,
-      findModel: findModelMock
+      findModel: findModelMock,
+      buildPromptText: async (text) => text
     })
   })
 
@@ -110,6 +111,26 @@ describe('sessionHandlers', () => {
     await handlers.sendPrompt(session.id, 'hello')
     expect(promptMock).toHaveBeenCalledWith('hello')
     expect(sessionsRepo.getById(session.id)?.piSessionId).toBe('pi-session-1')
+  })
+
+  it('builds the prompt text via buildPromptText, passing options through, and sends the built text', async () => {
+    const buildPromptText = vi.fn(async (text: string) => `built:${text}`)
+    const localHandlers = createSessionHandlers({
+      reposRepo: { getById: () => ({ id: repoId, projectId: 'p1', path: '/repo/path', name: 'demo-repo' }) } as never,
+      sessionsRepo,
+      openRepoSession: openRepoSessionMock,
+      onEvent: () => {},
+      requestApproval: async () => true,
+      findModel: findModelMock,
+      buildPromptText
+    })
+    const session = localHandlers.createSession(repoId)
+    const options = { skillFilePath: '/skills/foo/SKILL.md', skillName: 'foo' }
+
+    await localHandlers.sendPrompt(session.id, 'hello', options)
+
+    expect(buildPromptText).toHaveBeenCalledWith('hello', options)
+    expect(promptMock).toHaveBeenCalledWith('built:hello')
   })
 
   it('maps and forwards a text_delta event, keyed by session id', async () => {
@@ -293,7 +314,8 @@ describe('sessionHandlers', () => {
       openRepoSession: openRepoSessionMock,
       onEvent: () => {},
       requestApproval,
-      findModel: findModelMock
+      findModel: findModelMock,
+      buildPromptText: async (text) => text
     })
 
     const session = localHandlers.createSession(repoId)

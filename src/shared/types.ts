@@ -67,6 +67,22 @@ export interface ModelInfo {
   name: string
 }
 
+export interface SkillInfo {
+  name: string
+  description: string
+  filePath: string
+}
+
+export interface PromptOptions {
+  /** Absolute path to the SKILL.md (or skill .md) file, when the user
+   * explicitly picked a skill for this turn rather than leaving discovery
+   * to the model. */
+  skillFilePath?: string
+  skillName?: string
+  /** Absolute path to a file the user attached as context for this turn. */
+  attachedFilePath?: string
+}
+
 /** Known built-in tool names an approval policy can key on. Any other
  * (e.g. custom) tool name defaults to requiring approval. */
 export const KNOWN_TOOL_NAMES = [
@@ -108,13 +124,19 @@ export interface Api {
     rename(sessionId: string, title: string): Promise<void>
     delete(sessionId: string): Promise<void>
     open(sessionId: string): Promise<void>
-    prompt(sessionId: string, text: string): Promise<void>
+    prompt(sessionId: string, text: string, options?: PromptOptions): Promise<void>
     abort(sessionId: string): Promise<void>
     setModel(sessionId: string, provider: string, modelId: string): Promise<void>
     onEvent(listener: (sessionId: string, event: ChatEvent) => void): () => void
   }
   models: {
     list(): Promise<ModelInfo[]>
+  }
+  skills: {
+    list(repoId: string): Promise<SkillInfo[]>
+  }
+  files: {
+    pickFile(): Promise<string | null>
   }
   settings: {
     setAnthropicApiKey(apiKey: string): Promise<{ ok: true } | { ok: false; error: string }>

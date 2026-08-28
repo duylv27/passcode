@@ -1,6 +1,7 @@
 import type { AgentSessionEvent, ModelRuntime } from '@earendil-works/pi-coding-agent'
 import type { Model } from '@earendil-works/pi-ai'
 import type { HistoryItem } from '../../shared/types'
+import { getAdditionalSkillPaths } from './skills'
 
 export interface RepoSession {
   prompt(text: string): Promise<void>
@@ -37,6 +38,7 @@ export async function createRepoSession(
   const resourceLoader = new DefaultResourceLoader({
     cwd: options.cwd,
     agentDir: getAgentDir(),
+    additionalSkillPaths: getAdditionalSkillPaths(),
     extensionFactories: [
       (pi) => {
         pi.on('tool_call', async (event) => {

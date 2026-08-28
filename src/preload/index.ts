@@ -18,7 +18,7 @@ const api: Api = {
     rename: (sessionId, title) => ipcRenderer.invoke('session:rename', sessionId, title),
     delete: (sessionId) => ipcRenderer.invoke('session:delete', sessionId),
     open: (sessionId) => ipcRenderer.invoke('session:open', sessionId),
-    prompt: (sessionId, text) => ipcRenderer.invoke('session:prompt', sessionId, text),
+    prompt: (sessionId, text, options) => ipcRenderer.invoke('session:prompt', sessionId, text, options),
     abort: (sessionId) => ipcRenderer.invoke('session:abort', sessionId),
     setModel: (sessionId, provider, modelId) =>
       ipcRenderer.invoke('session:setModel', sessionId, provider, modelId),
@@ -30,6 +30,12 @@ const api: Api = {
   },
   models: {
     list: () => ipcRenderer.invoke('models:list')
+  },
+  skills: {
+    list: (repoId) => ipcRenderer.invoke('skills:list', repoId)
+  },
+  files: {
+    pickFile: () => ipcRenderer.invoke('files:pickFile')
   },
   settings: {
     setAnthropicApiKey: (apiKey) => ipcRenderer.invoke('settings:setAnthropicApiKey', apiKey),

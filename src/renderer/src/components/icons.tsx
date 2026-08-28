@@ -136,6 +136,23 @@ export function PlusIcon({ className }: IconProps): JSX.Element {
   )
 }
 
+export function SlashIcon({ className }: IconProps): JSX.Element {
+  return (
+    <svg
+      className={className}
+      width="12"
+      height="12"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+    >
+      <rect x="2.5" y="2.5" width="11" height="11" rx="2" />
+      <path d="M9.5 5 6.5 11" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 export function ChatIcon({ className }: IconProps): JSX.Element {
   return (
     <svg

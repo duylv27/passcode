@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, dialog } from 'electron'
 import { join } from 'node:path'
 import type { ModelRuntime } from '@earendil-works/pi-coding-agent'
 import { openDatabase } from './db/db'
@@ -12,9 +12,12 @@ import { createSessionHandlers } from './ipc/sessionHandlers'
 import { createSettingsHandlers } from './ipc/settingsHandlers'
 import { createApprovalHandlers } from './ipc/approvalHandlers'
 import { createModelsHandlers } from './ipc/modelsHandlers'
+import { createSkillsHandlers } from './ipc/skillsHandlers'
+import { createFilesHandlers } from './ipc/filesHandlers'
 import { registerIpcHandlers } from './ipc/register'
 import { isGitRepo } from './git/gitStatus'
 import { createRepoSession } from './agent/piSession'
+import { buildPromptText } from './agent/promptBuilder'
 
 function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
@@ -70,10 +73,15 @@ app.whenReady().then(async () => {
       },
       requestApproval: (sessionId, toolName, input) =>
         approvalHandlers.requestApproval(sessionId, toolName, input),
-      findModel: (provider, modelId) => modelRegistry.find(provider, modelId)
+      findModel: (provider, modelId) => modelRegistry.find(provider, modelId),
+      buildPromptText
     }),
     settings: createSettingsHandlers(modelRuntime),
     models: createModelsHandlers(modelRegistry),
+    skills: createSkillsHandlers(reposRepo),
+    files: createFilesHandlers({
+      showOpenDialog: () => dialog.showOpenDialog(mainWindow, { properties: ['openFile'] })
+    }),
     approvals: approvalHandlers
   })
 

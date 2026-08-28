@@ -1,8 +1,20 @@
 import { useEffect, useRef, useState } from 'react'
-import type { ChatEvent, HistoryItem, ModelInfo, SessionRecord } from '../../../shared/types'
-import { ChevronIcon, SendIcon, StopIcon, SpinnerIcon } from './icons'
+import type { ChatEvent, HistoryItem, ModelInfo, SessionRecord, SkillInfo } from '../../../shared/types'
+import { KNOWN_TOOL_NAMES } from '../../../shared/types'
+import { ChevronIcon, SendIcon, StopIcon, SpinnerIcon, PlusIcon, SlashIcon } from './icons'
 import { Markdown } from './Markdown'
 import { DiffView } from './DiffView'
+
+const THINKING_WORDS = [
+  'Thinking',
+  'Scheming',
+  'Pondering',
+  'Noodling',
+  'Ruminating',
+  'Percolating',
+  'Puzzling',
+  'Mulling'
+]
 
 type TranscriptItem =
   | { kind: 'user'; id: string; text: string }
@@ -44,17 +56,53 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
   const [currentModel, setCurrentModel] = useState<ModelInfo | null>(null)
   const [modelMenuOpen, setModelMenuOpen] = useState(false)
   const modelPickerRef = useRef<HTMLDivElement>(null)
+  const [skills, setSkills] = useState<SkillInfo[]>([])
+  const [selectedSkill, setSelectedSkill] = useState<SkillInfo | null>(null)
+  const [skillMenuOpen, setSkillMenuOpen] = useState(false)
+  const skillPickerRef = useRef<HTMLDivElement>(null)
+  const [attachedFile, setAttachedFile] = useState<string | null>(null)
+  const [autoMode, setAutoMode] = useState(false)
+  const [thinkingWord, setThinkingWord] = useState(THINKING_WORDS[0])
 
   async function sendNow(text: string): Promise<void> {
     setItems((prev) => [...prev, { kind: 'user', id: newId(), text }])
     setBusy(true)
     setThinking(true)
-    await window.api.session.prompt(session.id, text)
+    const options = {
+      skillFilePath: selectedSkill?.filePath,
+      skillName: selectedSkill?.name,
+      attachedFilePath: attachedFile ?? undefined
+    }
+    setSelectedSkill(null)
+    setAttachedFile(null)
+    await window.api.session.prompt(session.id, text, options)
   }
 
   useEffect(() => {
     window.api.models.list().then(setModels)
   }, [])
+
+  useEffect(() => {
+    window.api.skills.list(session.repoId).then(setSkills)
+  }, [session.repoId])
+
+  useEffect(() => {
+    window.api.approvals.getPolicy().then((policy) => {
+      setAutoMode(KNOWN_TOOL_NAMES.every((name) => policy.autoApprove[name]))
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!thinking) return
+    setThinkingWord(THINKING_WORDS[Math.floor(Math.random() * THINKING_WORDS.length)])
+    const interval = setInterval(() => {
+      setThinkingWord((prev) => {
+        const options = THINKING_WORDS.filter((w) => w !== prev)
+        return options[Math.floor(Math.random() * options.length)]
+      })
+    }, 1800)
+    return () => clearInterval(interval)
+  }, [thinking])
 
   useEffect(() => {
     if (!modelMenuOpen) return
@@ -66,6 +114,17 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [modelMenuOpen])
+
+  useEffect(() => {
+    if (!skillMenuOpen) return
+    function handleClickOutside(e: MouseEvent): void {
+      if (skillPickerRef.current && !skillPickerRef.current.contains(e.target as Node)) {
+        setSkillMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [skillMenuOpen])
 
   useEffect(() => {
     setItems([])
@@ -205,6 +264,24 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
     window.api.session.setModel(session.id, model.provider, model.id)
   }
 
+  function handleSelectSkill(skill: SkillInfo): void {
+    setSelectedSkill(skill)
+    setSkillMenuOpen(false)
+  }
+
+  async function handleAttachFile(): Promise<void> {
+    const path = await window.api.files.pickFile()
+    if (path) setAttachedFile(path)
+  }
+
+  async function handleToggleAuto(): Promise<void> {
+    const next = !autoMode
+    setAutoMode(next)
+    const autoApprove: Record<string, boolean> = {}
+    for (const name of KNOWN_TOOL_NAMES) autoApprove[name] = next
+    await window.api.approvals.setPolicy({ autoApprove })
+  }
+
   function toggleExpanded(id: string): void {
     setExpandedIds((prev) => {
       const next = new Set(prev)
@@ -241,11 +318,41 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
         )}
         {thinking && (
           <div className="chat-line is-thinking">
-            <SpinnerIcon className="spin" /> Thinking…
+            <SpinnerIcon className="spin" /> {thinkingWord}…
           </div>
         )}
       </div>
-      <div className="composer">
+      <div className={`composer${busy ? ' is-busy' : ''}`}>
+        {(selectedSkill || attachedFile) && (
+          <div className="composer-chips">
+            {selectedSkill && (
+              <span className="composer-chip">
+                <SlashIcon /> {selectedSkill.name}
+                <button
+                  type="button"
+                  className="composer-chip-remove"
+                  onClick={() => setSelectedSkill(null)}
+                  title="Remove skill"
+                >
+                  ×
+                </button>
+              </span>
+            )}
+            {attachedFile && (
+              <span className="composer-chip">
+                <PlusIcon /> {attachedFile.split(/[/\\]/).pop()}
+                <button
+                  type="button"
+                  className="composer-chip-remove"
+                  onClick={() => setAttachedFile(null)}
+                  title="Remove attachment"
+                >
+                  ×
+                </button>
+              </span>
+            )}
+          </div>
+        )}
         <input
           className="composer-field"
           value={input}
@@ -256,9 +363,48 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
           placeholder={busy ? 'Queue another message…' : `Message the agent about ${repoName}`}
         />
         <div className="composer-toolbar">
+          <button type="button" className="composer-icon-btn" onClick={handleAttachFile} title="Attach a file">
+            <PlusIcon />
+          </button>
+          {skills.length > 0 && (
+            <div className="skill-picker" ref={skillPickerRef}>
+              <button
+                type="button"
+                className="composer-icon-btn"
+                onClick={() => setSkillMenuOpen((v) => !v)}
+                title="Use a skill"
+              >
+                <SlashIcon />
+              </button>
+              {skillMenuOpen && (
+                <div className="skill-picker-menu" role="listbox">
+                  {skills.map((skill) => (
+                    <button
+                      key={skill.filePath}
+                      type="button"
+                      role="option"
+                      className="skill-picker-option"
+                      onClick={() => handleSelectSkill(skill)}
+                    >
+                      <span className="skill-picker-option-name">{skill.name}</span>
+                      <span className="skill-picker-option-desc">{skill.description}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           <span className="composer-hint">
             {queue.length > 0 ? `${queue.length} queued` : session.title}
           </span>
+          <button
+            type="button"
+            className={`composer-auto-btn${autoMode ? ' is-active' : ''}`}
+            onClick={handleToggleAuto}
+            title="Toggle auto-approve for all tools"
+          >
+            {autoMode ? 'Auto' : 'Manual'}
+          </button>
           {models.length > 0 && (
             <div className="model-picker" ref={modelPickerRef}>
               <button
@@ -387,23 +533,51 @@ function TimelineRow({
 
   const duration = item.endedAt ? ((item.endedAt - item.startedAt) / 1000).toFixed(1) + 's' : null
   const summary = summarizeToolCall(item.toolName, item.args)
-  const resultSummary = item.status !== 'running' ? summarizeToolResult(item.toolName, item.result) : null
+  const isShell = item.toolName === 'bash' || item.toolName === 'powershell'
+  const resultSummary =
+    !isShell && item.status !== 'running' ? summarizeToolResult(item.toolName, item.result) : null
+  const runOutput = isShell && typeof item.result === 'string' ? truncateOutput(item.result) : null
 
   return (
     <div className="timeline-row">
       <span className={`timeline-dot is-${item.status}`} />
       <button className="timeline-row-header" onClick={onToggle}>
         <span className="timeline-row-title">{toolActionLabel(item.toolName)}</span>
-        {summary && <span className="timeline-row-summary">{summary}</span>}
+        {!isShell && summary && <span className="timeline-row-summary">{summary}</span>}
         {duration && <span className="timeline-row-duration">{duration}</span>}
         <ChevronIcon className={`chevron${expanded ? ' is-open' : ''}`} />
       </button>
+      {isShell && (summary || runOutput) && !expanded && (
+        <div className="timeline-terminal">
+          {summary && (
+            <div className="timeline-terminal-row">
+              <span className="timeline-terminal-label">IN</span>
+              <span className="timeline-terminal-value">{summary}</span>
+            </div>
+          )}
+          {runOutput && (
+            <div className="timeline-terminal-row">
+              <span className="timeline-terminal-label">RUN</span>
+              <span className="timeline-terminal-value">{runOutput}</span>
+            </div>
+          )}
+        </div>
+      )}
       {resultSummary && !expanded && <div className="timeline-row-result">{resultSummary}</div>}
       {expanded && (
         <div className="timeline-row-body">{renderToolDetail(item.toolName, item.args, item.result)}</div>
       )}
     </div>
   )
+}
+
+/** A short preview of shell output for the always-visible terminal box --
+ * the full output remains available by expanding the row. */
+function truncateOutput(text: string, maxLines = 6, maxCharsPerLine = 160): string {
+  const lines = text.trim().split('\n').slice(0, maxLines)
+  const truncated = lines.map((line) => (line.length > maxCharsPerLine ? `${line.slice(0, maxCharsPerLine)}…` : line))
+  const hasMore = text.trim().split('\n').length > maxLines
+  return truncated.join('\n') + (hasMore ? '\n…' : '')
 }
 
 const TOOL_ACTION_LABELS: Record<string, string> = {
