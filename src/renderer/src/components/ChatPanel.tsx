@@ -7,7 +7,7 @@ import { DiffView } from './DiffView'
 type TranscriptItem =
   | { kind: 'user'; id: string; text: string }
   | { kind: 'text'; id: string; text: string }
-  | { kind: 'thinking'; id: string; text: string }
+  | { kind: 'thinking'; id: string; text: string; startedAt: number; endedAt?: number }
   | {
       kind: 'tool'
       id: string
@@ -98,7 +98,19 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
           if (last && last.kind === 'thinking') {
             next[next.length - 1] = { ...last, text: last.text + event.delta }
           } else {
-            next.push({ kind: 'thinking', id: newId(), text: event.delta })
+            next.push({ kind: 'thinking', id: newId(), text: event.delta, startedAt: Date.now() })
+          }
+          return next
+        })
+      } else if (event.type === 'thinking_end') {
+        setItems((prev) => {
+          const next = [...prev]
+          for (let i = next.length - 1; i >= 0; i--) {
+            const item = next[i]
+            if (item.kind === 'thinking' && item.endedAt === undefined) {
+              next[i] = { ...item, endedAt: Date.now() }
+              break
+            }
           }
           return next
         })
@@ -202,20 +214,30 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
     })
   }
 
+  const visibleItems = items.filter((item) => !(item.kind === 'thinking' && !item.text.trim()))
+
   return (
     <div className="chat">
       <div className="chat-scroll">
-        {items.length === 0 && !thinking ? (
+        {visibleItems.length === 0 && !thinking ? (
           <div className="chat-empty">Ask it to explore the code, run something, or make a change.</div>
         ) : (
-          items.map((item) => (
-            <TranscriptRow
-              key={item.id}
-              item={item}
-              expanded={expandedIds.has(item.id)}
-              onToggle={() => toggleExpanded(item.id)}
-            />
-          ))
+          groupForRender(visibleItems).map((group) =>
+            group.type === 'timeline' ? (
+              <div className="timeline" key={group.items[0].id}>
+                {group.items.map((item) => (
+                  <TimelineRow
+                    key={item.id}
+                    item={item}
+                    expanded={expandedIds.has(item.id)}
+                    onToggle={() => toggleExpanded(item.id)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <TranscriptRow key={group.item.id} item={group.item} />
+            )
+          )
         )}
         {thinking && (
           <div className="chat-line is-thinking">
@@ -284,22 +306,17 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
   )
 }
 
-function TranscriptRow({
-  item,
-  expanded,
-  onToggle
-}: {
-  item: TranscriptItem
-  expanded: boolean
-  onToggle: () => void
-}): JSX.Element {
+type TimelineItem = Extract<TranscriptItem, { kind: 'thinking' | 'tool' }>
+type SingleItem = Exclude<TranscriptItem, { kind: 'thinking' | 'tool' }>
+
+/** Everything that isn't part of the reasoning/action timeline: the user's
+ * own turns (a shaded, right-aligned bubble) and the agent's prose replies
+ * (plain, full-width) -- alignment and shading alone signal who's speaking,
+ * with no "You"/"Agent" label needed. */
+function TranscriptRow({ item }: { item: SingleItem }): JSX.Element {
   if (item.kind === 'user') {
     return (
       <div className="chat-line is-user">
-        <div className="turn-header">
-          <span className="turn-dot is-user" />
-          You
-        </div>
         <div className="turn-bubble">{item.text}</div>
       </div>
     )
@@ -307,56 +324,84 @@ function TranscriptRow({
   if (item.kind === 'text') {
     return (
       <div className="chat-line is-markdown">
-        <div className="turn-header">
-          <span className="turn-dot is-agent" />
-          Agent
-        </div>
         <div className="md-body">
           <Markdown text={item.text} />
         </div>
       </div>
     )
   }
+  if (item.kind === 'error') return <div className="chat-line is-error">{item.text}</div>
+  return (
+    <div className="usage-card">
+      <span className="usage-card-label">{item.label}</span>
+      <span className="usage-card-tokens">
+        ↑ {item.input.toLocaleString()} · ↓ {item.output.toLocaleString()}
+      </span>
+    </div>
+  )
+}
+
+type RenderGroup = { type: 'timeline'; items: TimelineItem[] } | { type: 'single'; item: SingleItem }
+
+/** Groups consecutive reasoning/tool-call items into one connected
+ * timeline, matching how an agent actually works: think, act, think, act.
+ * Conversational turns (user bubbles, prose replies) break the chain. */
+function groupForRender(items: TranscriptItem[]): RenderGroup[] {
+  const groups: RenderGroup[] = []
+  for (const item of items) {
+    if (item.kind === 'thinking' || item.kind === 'tool') {
+      const last = groups[groups.length - 1]
+      if (last?.type === 'timeline') last.items.push(item)
+      else groups.push({ type: 'timeline', items: [item] })
+    } else {
+      groups.push({ type: 'single', item })
+    }
+  }
+  return groups
+}
+
+function TimelineRow({
+  item,
+  expanded,
+  onToggle
+}: {
+  item: TimelineItem
+  expanded: boolean
+  onToggle: () => void
+}): JSX.Element {
   if (item.kind === 'thinking') {
-    // A thinking block with no content yet (the delta stream just started,
-    // or ended up empty) has nothing worth showing.
-    if (!item.text.trim()) return <></>
+    const label = item.endedAt
+      ? `Thought for ${Math.max(1, Math.round((item.endedAt - item.startedAt) / 1000))}s`
+      : 'Reasoning'
     return (
-      <div className="thinking-card">
-        <button className="thinking-card-header" onClick={onToggle}>
-          <span className="turn-dot is-reasoning" />
-          <span className="thinking-card-label">Reasoning</span>
+      <div className="timeline-row">
+        <span className="timeline-dot" />
+        <button className="timeline-row-header" onClick={onToggle}>
+          <span className="timeline-row-title is-muted">{label}</span>
           <ChevronIcon className={`chevron${expanded ? ' is-open' : ''}`} />
         </button>
-        {expanded && <div className="thinking-card-body">{item.text}</div>}
-      </div>
-    )
-  }
-  if (item.kind === 'error') return <div className="chat-line is-error">{item.text}</div>
-  if (item.kind === 'usage') {
-    return (
-      <div className="usage-card">
-        <span className="usage-card-label">{item.label}</span>
-        <span className="usage-card-tokens">
-          ↑ {item.input.toLocaleString()} · ↓ {item.output.toLocaleString()}
-        </span>
+        {expanded && <div className="timeline-row-body">{item.text}</div>}
       </div>
     )
   }
 
   const duration = item.endedAt ? ((item.endedAt - item.startedAt) / 1000).toFixed(1) + 's' : null
   const summary = summarizeToolCall(item.toolName, item.args)
+  const resultSummary = item.status !== 'running' ? summarizeToolResult(item.toolName, item.result) : null
 
   return (
-    <div className="tool-card">
-      <button className="tool-card-header" onClick={onToggle}>
-        <span className={`status-dot is-${item.status}`} />
-        <span className="tool-card-name">{toolActionLabel(item.toolName)}</span>
-        {summary && <span className="tool-card-summary">{summary}</span>}
-        {duration && <span className="tool-card-duration">{duration}</span>}
+    <div className="timeline-row">
+      <span className={`timeline-dot is-${item.status}`} />
+      <button className="timeline-row-header" onClick={onToggle}>
+        <span className="timeline-row-title">{toolActionLabel(item.toolName)}</span>
+        {summary && <span className="timeline-row-summary">{summary}</span>}
+        {duration && <span className="timeline-row-duration">{duration}</span>}
         <ChevronIcon className={`chevron${expanded ? ' is-open' : ''}`} />
       </button>
-      {expanded && <div className="tool-card-body">{renderToolDetail(item.toolName, item.args, item.result)}</div>}
+      {resultSummary && !expanded && <div className="timeline-row-result">{resultSummary}</div>}
+      {expanded && (
+        <div className="timeline-row-body">{renderToolDetail(item.toolName, item.args, item.result)}</div>
+      )}
     </div>
   )
 }
@@ -401,6 +446,33 @@ function summarizeToolCall(toolName: string, args: unknown): string | null {
   }
 }
 
+/** A one-line summary of the completed call's output, shown under the
+ * header even while collapsed so the outcome doesn't require expanding. */
+function summarizeToolResult(toolName: string, result: unknown): string | null {
+  if (typeof result !== 'string') return null
+  const text = result.trim()
+  if (!text) return null
+  switch (toolName) {
+    case 'grep':
+    case 'find':
+    case 'ls': {
+      const lines = text.split('\n').filter(Boolean).length
+      return `${lines} line${lines === 1 ? '' : 's'} of output`
+    }
+    case 'read': {
+      const lines = text.split('\n').length
+      return `${lines} line${lines === 1 ? '' : 's'}`
+    }
+    case 'bash':
+    case 'powershell': {
+      const lines = text.split('\n').filter(Boolean)
+      return lines.length > 1 ? `${lines.length} lines of output` : lines[0].slice(0, 120)
+    }
+    default:
+      return null
+  }
+}
+
 function renderToolDetail(toolName: string, args: unknown, result: unknown): JSX.Element {
   const a = args as { path?: string; content?: string; edits?: { oldText: string; newText: string }[] } | undefined
 
@@ -430,7 +502,7 @@ function mapHistory(items: HistoryItem[]): TranscriptItem[] {
   return items.map((item) => {
     if (item.kind === 'user') return { kind: 'user', id: newId(), text: item.text }
     if (item.kind === 'text') return { kind: 'text', id: newId(), text: item.text }
-    if (item.kind === 'thinking') return { kind: 'thinking', id: newId(), text: item.text }
+    if (item.kind === 'thinking') return { kind: 'thinking', id: newId(), text: item.text, startedAt: Date.now() }
     return {
       kind: 'tool',
       id: newId(),

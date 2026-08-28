@@ -180,6 +180,41 @@ describe('sessionHandlers', () => {
     })
   })
 
+  it('extracts plain text from a raw AgentToolResult on tool_execution_end', async () => {
+    const session = handlers.createSession(repoId)
+    await handlers.openSession(session.id)
+    subscribeListener?.({
+      type: 'tool_execution_end',
+      toolCallId: 'call-1',
+      toolName: 'grep',
+      result: { content: [{ type: 'text', text: 'src/a.ts:1\nsrc/b.ts:9' }], details: { truncation: undefined } },
+      isError: false
+    })
+    expect(events).toContainEqual({
+      sessionId: session.id,
+      event: {
+        type: 'tool_end',
+        toolCallId: 'call-1',
+        toolName: 'grep',
+        isError: false,
+        result: 'src/a.ts:1\nsrc/b.ts:9'
+      }
+    })
+  })
+
+  it('maps and forwards a thinking_end event, keyed by session id', async () => {
+    const session = handlers.createSession(repoId)
+    await handlers.openSession(session.id)
+    subscribeListener?.({
+      type: 'message_update',
+      assistantMessageEvent: { type: 'thinking_end' }
+    })
+    expect(events).toContainEqual({
+      sessionId: session.id,
+      event: { type: 'thinking_end' }
+    })
+  })
+
   it('extracts token usage from an assistant turn_end event', async () => {
     const session = handlers.createSession(repoId)
     await handlers.openSession(session.id)

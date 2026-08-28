@@ -151,6 +151,9 @@ function mapAgentEvent(event: unknown): ChatEvent | null {
   if (e.type === 'message_update' && e.assistantMessageEvent?.type === 'thinking_delta') {
     return { type: 'thinking_delta', delta: e.assistantMessageEvent.delta ?? '' }
   }
+  if (e.type === 'message_update' && e.assistantMessageEvent?.type === 'thinking_end') {
+    return { type: 'thinking_end' }
+  }
   if (e.type === 'tool_execution_start') {
     return {
       type: 'tool_start',
@@ -165,7 +168,10 @@ function mapAgentEvent(event: unknown): ChatEvent | null {
       toolCallId: e.toolCallId ?? '',
       toolName: e.toolName ?? 'unknown',
       isError: e.isError ?? false,
-      result: e.result
+      // The raw SDK result is { content: TextContent[], details, usage } --
+      // extract the plain text so the renderer gets the same shape whether
+      // a tool call arrives live or is reconstructed from resumed history.
+      result: extractResultText(e.result)
     }
   }
   if (e.type === 'turn_end') {
@@ -179,4 +185,16 @@ function mapAgentEvent(event: unknown): ChatEvent | null {
     return { type: 'turn_end', usage }
   }
   return null
+}
+
+function extractResultText(result: unknown): unknown {
+  const r = result as { content?: unknown } | undefined
+  if (r && Array.isArray(r.content)) {
+    const text = r.content
+      .filter((part): part is { type: string; text: string } => (part as { type?: string })?.type === 'text')
+      .map((part) => part.text)
+      .join('')
+    if (text) return text
+  }
+  return result
 }

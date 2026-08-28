@@ -53,6 +53,7 @@ export type HistoryItem =
 export type ChatEvent =
   | { type: 'text_delta'; delta: string }
   | { type: 'thinking_delta'; delta: string }
+  | { type: 'thinking_end' }
   | { type: 'tool_start'; toolCallId: string; toolName: string; args: unknown }
   | { type: 'tool_end'; toolCallId: string; toolName: string; isError: boolean; result: unknown }
   | { type: 'turn_end'; usage?: TokenUsage }
