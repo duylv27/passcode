@@ -5,6 +5,7 @@ import type { SessionHandlers } from './sessionHandlers'
 import type { GitHandlers } from './gitHandlers'
 import type { SettingsHandlers } from './settingsHandlers'
 import type { ApprovalHandlers } from './approvalHandlers'
+import type { ModelsHandlers } from './modelsHandlers'
 import type { ToolApprovalPolicy } from '../../shared/types'
 
 export interface IpcHandlers {
@@ -13,6 +14,7 @@ export interface IpcHandlers {
   session: SessionHandlers
   git: GitHandlers
   settings: SettingsHandlers
+  models: ModelsHandlers
   approvals: ApprovalHandlers
 }
 
@@ -40,6 +42,11 @@ export function registerIpcHandlers(handlers: IpcHandlers): void {
     handlers.session.sendPrompt(sessionId, text)
   )
   ipcMain.handle('session:abort', (_e, sessionId: string) => handlers.session.abortSession(sessionId))
+  ipcMain.handle('session:setModel', (_e, sessionId: string, provider: string, modelId: string) =>
+    handlers.session.setSessionModel(sessionId, provider, modelId)
+  )
+
+  ipcMain.handle('models:list', () => handlers.models.listModels())
 
   ipcMain.handle('git:status', (_e, repoId: string) => handlers.git.status(repoId))
 

@@ -588,6 +588,23 @@ button {
   color: var(--fg-dim);
 }
 
+.composer-model {
+  flex-shrink: 0;
+  max-width: 140px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--fg-dim);
+  font-size: 11px;
+  padding: 3px 4px;
+}
+
+.composer-model:hover,
+.composer-model:focus-visible {
+  color: var(--fg-bright);
+  border-color: var(--fg-dim);
+}
+
 .composer-send {
   display: flex;
   align-items: center;

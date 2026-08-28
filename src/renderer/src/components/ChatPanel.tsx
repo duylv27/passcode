@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { ChatEvent, HistoryItem, SessionRecord } from '../../../shared/types'
+import type { ChatEvent, HistoryItem, ModelInfo, SessionRecord } from '../../../shared/types'
 import { ChevronIcon, SendIcon, StopIcon, SpinnerIcon, CheckIcon, ErrorIcon } from './icons'
 
 type TranscriptItem =
@@ -38,6 +38,8 @@ export function ChatPanel({ session, repoName, onTurnEnd }: Props): JSX.Element 
   const [thinking, setThinking] = useState(false)
   const [queue, setQueue] = useState<string[]>([])
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
+  const [models, setModels] = useState<ModelInfo[]>([])
+  const [currentModel, setCurrentModel] = useState<ModelInfo | null>(null)
 
   async function sendNow(text: string): Promise<void> {
     setItems((prev) => [...prev, { kind: 'user', id: newId(), text }])
@@ -47,10 +49,15 @@ export function ChatPanel({ session, repoName, onTurnEnd }: Props): JSX.Element 
   }
 
   useEffect(() => {
+    window.api.models.list().then(setModels)
+  }, [])
+
+  useEffect(() => {
     setItems([])
     setBusy(false)
     setThinking(false)
     setQueue([])
+    setCurrentModel(null)
     window.api.session.open(session.id)
 
     const unsubscribe = window.api.session.onEvent((eventSessionId, event: ChatEvent) => {
@@ -120,6 +127,8 @@ export function ChatPanel({ session, repoName, onTurnEnd }: Props): JSX.Element 
         onTurnEnd?.()
       } else if (event.type === 'history') {
         setItems(mapHistory(event.items))
+      } else if (event.type === 'model') {
+        setCurrentModel({ provider: event.provider, id: event.id, name: event.name })
       }
     })
 
@@ -150,6 +159,13 @@ export function ChatPanel({ session, repoName, onTurnEnd }: Props): JSX.Element 
     setBusy(false)
     setThinking(false)
     await window.api.session.abort(session.id)
+  }
+
+  function handleModelChange(value: string): void {
+    const model = models.find((m) => `${m.provider}/${m.id}` === value)
+    if (!model) return
+    setCurrentModel(model)
+    window.api.session.setModel(session.id, model.provider, model.id)
   }
 
   function toggleExpanded(id: string): void {
@@ -196,6 +212,21 @@ export function ChatPanel({ session, repoName, onTurnEnd }: Props): JSX.Element 
           <span className="composer-hint">
             {queue.length > 0 ? `${queue.length} queued` : session.title}
           </span>
+          {models.length > 0 && (
+            <select
+              className="composer-model"
+              value={currentModel ? `${currentModel.provider}/${currentModel.id}` : ''}
+              onChange={(e) => handleModelChange(e.target.value)}
+              title="Model"
+            >
+              {!currentModel && <option value="">Model…</option>}
+              {models.map((m) => (
+                <option key={`${m.provider}/${m.id}`} value={`${m.provider}/${m.id}`}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+          )}
           <button
             className={`composer-send${busy ? ' is-stop' : ''}`}
             onClick={busy ? handleStop : handleSend}

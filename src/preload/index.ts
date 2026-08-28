@@ -20,11 +20,16 @@ const api: Api = {
     open: (sessionId) => ipcRenderer.invoke('session:open', sessionId),
     prompt: (sessionId, text) => ipcRenderer.invoke('session:prompt', sessionId, text),
     abort: (sessionId) => ipcRenderer.invoke('session:abort', sessionId),
+    setModel: (sessionId, provider, modelId) =>
+      ipcRenderer.invoke('session:setModel', sessionId, provider, modelId),
     onEvent: (listener) => {
       const wrapped = (_e: unknown, sessionId: string, event: ChatEvent): void => listener(sessionId, event)
       ipcRenderer.on('session:event', wrapped)
       return () => ipcRenderer.removeListener('session:event', wrapped)
     }
+  },
+  models: {
+    list: () => ipcRenderer.invoke('models:list')
   },
   git: {
     status: (repoId) => ipcRenderer.invoke('git:status', repoId)

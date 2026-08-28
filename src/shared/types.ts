@@ -63,6 +63,13 @@ export type ChatEvent =
   | { type: 'turn_end'; usage?: TokenUsage }
   | { type: 'error'; message: string }
   | { type: 'history'; items: HistoryItem[] }
+  | { type: 'model'; provider: string; id: string; name: string }
+
+export interface ModelInfo {
+  provider: string
+  id: string
+  name: string
+}
 
 /** Known built-in tool names an approval policy can key on. Any other
  * (e.g. custom) tool name defaults to requiring approval. */
@@ -107,7 +114,11 @@ export interface Api {
     open(sessionId: string): Promise<void>
     prompt(sessionId: string, text: string): Promise<void>
     abort(sessionId: string): Promise<void>
+    setModel(sessionId: string, provider: string, modelId: string): Promise<void>
     onEvent(listener: (sessionId: string, event: ChatEvent) => void): () => void
+  }
+  models: {
+    list(): Promise<ModelInfo[]>
   }
   git: {
     status(repoId: string): Promise<GitStatus>

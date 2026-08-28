@@ -3,8 +3,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 const promptMock = vi.fn(async () => {})
 const subscribeMock = vi.fn(() => () => {})
 const abortMock = vi.fn(async () => {})
+const setModelMock = vi.fn(async () => {})
 const getSessionFileMock = vi.fn(() => '/fake/agent/sessions/repo/abc.jsonl')
 let mockMessages: unknown[] = []
+let mockModel: unknown = { provider: 'anthropic', id: 'claude-opus-4-5', name: 'Claude Opus 4.5' }
 const createAgentSessionMock = vi.fn(async () => ({
   session: {
     prompt: promptMock,
@@ -12,7 +14,9 @@ const createAgentSessionMock = vi.fn(async () => ({
     abort: abortMock,
     sessionId: 'pi-session-1',
     sessionManager: { getSessionFile: getSessionFileMock },
-    agent: { state: { get messages() { return mockMessages } } }
+    agent: { state: { get messages() { return mockMessages } } },
+    get model() { return mockModel },
+    setModel: setModelMock
   }
 }))
 const getAgentDirMock = vi.fn(() => '/fake/agent/dir')
@@ -45,6 +49,7 @@ function noApproval(): Promise<boolean> {
 describe('createRepoSession', () => {
   beforeEach(() => {
     mockMessages = []
+    mockModel = { provider: 'anthropic', id: 'claude-opus-4-5', name: 'Claude Opus 4.5' }
   })
 
   it('creates a session scoped to the repo cwd with the expected tools', async () => {
@@ -192,5 +197,29 @@ describe('createRepoSession', () => {
       },
       { kind: 'text', text: 'Tests pass.' }
     ])
+  })
+
+  it('exposes the current model from the underlying session', async () => {
+    const { repoSession } = await createRepoSession({
+      cwd: '/repo/path',
+      modelRuntime: {} as never,
+      requestApproval: noApproval
+    })
+    expect(repoSession.getModel()).toEqual({
+      provider: 'anthropic',
+      id: 'claude-opus-4-5',
+      name: 'Claude Opus 4.5'
+    })
+  })
+
+  it('forwards setModel to the underlying session', async () => {
+    const { repoSession } = await createRepoSession({
+      cwd: '/repo/path',
+      modelRuntime: {} as never,
+      requestApproval: noApproval
+    })
+    const model = { provider: 'openai', id: 'gpt-5', name: 'GPT-5' } as never
+    await repoSession.setModel(model)
+    expect(setModelMock).toHaveBeenCalledWith(model)
   })
 })

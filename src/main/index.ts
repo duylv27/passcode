@@ -12,6 +12,7 @@ import { createSessionHandlers } from './ipc/sessionHandlers'
 import { createGitHandlers } from './ipc/gitHandlers'
 import { createSettingsHandlers } from './ipc/settingsHandlers'
 import { createApprovalHandlers } from './ipc/approvalHandlers'
+import { createModelsHandlers } from './ipc/modelsHandlers'
 import { registerIpcHandlers } from './ipc/register'
 import { isGitRepo } from './git/gitStatus'
 import { createRepoSession } from './agent/piSession'
@@ -42,8 +43,10 @@ app.whenReady().then(async () => {
   const sessionsRepo = createSessionsRepository(db)
   const appSettingsRepo = createAppSettingsRepository(db)
 
-  const { ModelRuntime } = await import('@earendil-works/pi-coding-agent')
+  const { ModelRuntime, ModelRegistry } = await import('@earendil-works/pi-coding-agent')
   const modelRuntime: ModelRuntime = await ModelRuntime.create()
+  const modelRegistry = new ModelRegistry(modelRuntime)
+  await modelRegistry.refresh()
 
   let mainWindow = createWindow()
 
@@ -67,10 +70,12 @@ app.whenReady().then(async () => {
         if (!mainWindow.isDestroyed()) mainWindow.webContents.send('session:event', sessionId, event)
       },
       requestApproval: (sessionId, toolName, input) =>
-        approvalHandlers.requestApproval(sessionId, toolName, input)
+        approvalHandlers.requestApproval(sessionId, toolName, input),
+      findModel: (provider, modelId) => modelRegistry.find(provider, modelId)
     }),
     git: createGitHandlers(reposRepo),
     settings: createSettingsHandlers(modelRuntime),
+    models: createModelsHandlers(modelRegistry),
     approvals: approvalHandlers
   })
 

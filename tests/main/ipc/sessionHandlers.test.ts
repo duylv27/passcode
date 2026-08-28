@@ -14,17 +14,21 @@ import {
 } from '../../../src/main/ipc/sessionHandlers'
 import type { RepoSession } from '../../../src/main/agent/piSession'
 import type { HistoryItem } from '../../../src/shared/types'
+import type { Model } from '@earendil-works/pi-ai'
 
 describe('sessionHandlers', () => {
   let repoId: string
   let events: Array<{ sessionId: string; event: ChatEvent }>
   let promptMock: ReturnType<typeof vi.fn>
   let abortMock: ReturnType<typeof vi.fn>
+  let setModelMock: ReturnType<typeof vi.fn>
   let historyItems: HistoryItem[]
+  let currentModel: Model<any> | undefined
   let subscribeListener: ((event: unknown) => void) | undefined
   let handlers: SessionHandlers
   let sessionsRepo: SessionsRepository
   let openRepoSessionMock: ReturnType<typeof vi.fn>
+  let findModelMock: ReturnType<typeof vi.fn>
 
   beforeEach(() => {
     const db = new Database(':memory:')
@@ -38,7 +42,11 @@ describe('sessionHandlers', () => {
     events = []
     promptMock = vi.fn(async () => {})
     abortMock = vi.fn(async () => {})
+    setModelMock = vi.fn(async (model: Model<any>) => {
+      currentModel = model
+    })
     historyItems = []
+    currentModel = undefined
     subscribeListener = undefined
     const repoSession: RepoSession = {
       prompt: promptMock,
@@ -47,7 +55,9 @@ describe('sessionHandlers', () => {
         return () => {}
       },
       abort: abortMock,
-      getHistory: () => historyItems
+      getHistory: () => historyItems,
+      getModel: () => currentModel,
+      setModel: setModelMock
     }
 
     openRepoSessionMock = vi.fn(async () => ({
@@ -56,12 +66,18 @@ describe('sessionHandlers', () => {
       sessionFile: '/fake/session/file.jsonl'
     }))
 
+    findModelMock = vi.fn(
+      (provider: string, modelId: string) =>
+        ({ provider, id: modelId, name: `${provider}/${modelId}` }) as Model<any>
+    )
+
     handlers = createSessionHandlers({
       reposRepo,
       sessionsRepo,
       openRepoSession: openRepoSessionMock,
       onEvent: (id, event) => events.push({ sessionId: id, event }),
-      requestApproval: async () => true
+      requestApproval: async () => true,
+      findModel: findModelMock
     })
   })
 
@@ -228,7 +244,8 @@ describe('sessionHandlers', () => {
       sessionsRepo,
       openRepoSession: openRepoSessionMock,
       onEvent: () => {},
-      requestApproval
+      requestApproval,
+      findModel: findModelMock
     })
 
     const session = localHandlers.createSession(repoId)
@@ -274,5 +291,52 @@ describe('sessionHandlers', () => {
     await handlers.openSession(session.id)
 
     expect(events.some((e) => e.event.type === 'history')).toBe(false)
+  })
+
+  it('emits a model event on open when the resumed session already has a model', async () => {
+    currentModel = { provider: 'anthropic', id: 'claude-opus-4-5', name: 'Claude Opus 4.5' } as Model<any>
+    const session = handlers.createSession(repoId)
+
+    await handlers.openSession(session.id)
+
+    expect(events).toContainEqual({
+      sessionId: session.id,
+      event: { type: 'model', provider: 'anthropic', id: 'claude-opus-4-5', name: 'Claude Opus 4.5' }
+    })
+  })
+
+  it('does not emit a model event on open when no model has been selected yet', async () => {
+    currentModel = undefined
+    const session = handlers.createSession(repoId)
+
+    await handlers.openSession(session.id)
+
+    expect(events.some((e) => e.event.type === 'model')).toBe(false)
+  })
+
+  it('sets the model on the underlying session and emits a model event', async () => {
+    const session = handlers.createSession(repoId)
+
+    await handlers.setSessionModel(session.id, 'openai', 'gpt-5')
+
+    expect(findModelMock).toHaveBeenCalledWith('openai', 'gpt-5')
+    expect(setModelMock).toHaveBeenCalledWith({ provider: 'openai', id: 'gpt-5', name: 'openai/gpt-5' })
+    expect(events).toContainEqual({
+      sessionId: session.id,
+      event: { type: 'model', provider: 'openai', id: 'gpt-5', name: 'openai/gpt-5' }
+    })
+  })
+
+  it('reports an error via onEvent when setting an unknown model', async () => {
+    findModelMock.mockReturnValueOnce(undefined)
+    const session = handlers.createSession(repoId)
+
+    await handlers.setSessionModel(session.id, 'bogus', 'nope')
+
+    expect(events).toContainEqual({
+      sessionId: session.id,
+      event: { type: 'error', message: 'Unknown model: bogus/nope' }
+    })
+    expect(setModelMock).not.toHaveBeenCalled()
   })
 })

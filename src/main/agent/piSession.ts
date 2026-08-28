@@ -1,4 +1,5 @@
 import type { AgentSessionEvent, ModelRuntime } from '@earendil-works/pi-coding-agent'
+import type { Model } from '@earendil-works/pi-ai'
 import type { HistoryItem } from '../../shared/types'
 
 export interface RepoSession {
@@ -7,6 +8,8 @@ export interface RepoSession {
   abort(): Promise<void>
   /** The conversation loaded so far -- empty for a brand-new session, populated when resumed. */
   getHistory(): HistoryItem[]
+  getModel(): Model<any> | undefined
+  setModel(model: Model<any>): Promise<void>
 }
 
 export interface CreateRepoSessionOptions {
@@ -63,7 +66,9 @@ export async function createRepoSession(
       prompt: (text: string) => session.prompt(text),
       subscribe: (listener) => session.subscribe(listener),
       abort: () => session.abort(),
-      getHistory: () => buildHistory(session.agent.state.messages)
+      getHistory: () => buildHistory(session.agent.state.messages),
+      getModel: () => session.model,
+      setModel: (model: Model<any>) => session.setModel(model)
     }
   }
 }
