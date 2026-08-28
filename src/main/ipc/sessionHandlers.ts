@@ -47,6 +47,10 @@ export interface SessionHandlers {
 
 export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionHandlers {
   const openSessions = new Map<string, RepoSession>()
+  // Sessions with a prompt currently in flight -- purely server-side state
+  // the renderer has no other way to learn, since it clears its own busy
+  // flag on every session switch/reopen.
+  const busySessions = new Set<string>()
 
   async function ensureSession(sessionId: string): Promise<RepoSession> {
     const existing = openSessions.get(sessionId)
@@ -90,6 +94,8 @@ export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionH
 
     const model = repoSession.getModel()
     if (model) deps.onEvent(sessionId, { type: 'model', provider: model.provider, id: model.id, name: model.name })
+
+    deps.onEvent(sessionId, { type: 'busy', busy: busySessions.has(sessionId) })
   }
 
   return {
@@ -138,6 +144,7 @@ export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionH
         openSessions.delete(sessionId)
         await open.abort()
       }
+      busySessions.delete(sessionId)
       deps.sessionsRepo.delete(sessionId)
     },
     async openSession(sessionId: string): Promise<void> {
@@ -150,6 +157,7 @@ export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionH
       }
     },
     async sendPrompt(sessionId: string, text: string, options?: PromptOptions): Promise<void> {
+      busySessions.add(sessionId)
       try {
         const session = await ensureSession(sessionId)
         const record = deps.sessionsRepo.getById(sessionId)
@@ -162,9 +170,12 @@ export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionH
         await session.prompt(promptText)
       } catch (err) {
         deps.onEvent(sessionId, { type: 'error', message: (err as Error).message })
+      } finally {
+        busySessions.delete(sessionId)
       }
     },
     async abortSession(sessionId: string): Promise<void> {
+      busySessions.delete(sessionId)
       const open = openSessions.get(sessionId)
       if (open) await open.abort()
     },

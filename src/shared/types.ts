@@ -75,6 +75,10 @@ export type ChatEvent =
   | { type: 'error'; message: string }
   | { type: 'history'; items: HistoryItem[] }
   | { type: 'model'; provider: string; id: string; name: string }
+  /** Sent when a session is (re)opened so the UI can restore the stop
+   * button/busy indicator if a turn was already in flight -- e.g. after
+   * switching tabs and back while the agent was still running. */
+  | { type: 'busy'; busy: boolean }
 
 export interface ModelInfo {
   provider: string

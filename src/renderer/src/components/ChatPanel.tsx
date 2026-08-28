@@ -281,6 +281,11 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
         setItems(mapHistory(event.items))
       } else if (event.type === 'model') {
         setCurrentModel({ provider: event.provider, id: event.id, name: event.name })
+      } else if (event.type === 'busy') {
+        // Restores the stop button/pulsing state after switching away from
+        // a session and back while a turn was still running server-side --
+        // the reset above otherwise always leaves this false.
+        setBusy(event.busy)
       }
     })
 
