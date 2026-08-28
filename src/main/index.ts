@@ -36,10 +36,6 @@ function createWindow(): BrowserWindow {
     }
   })
 
-  win.webContents.on('did-finish-load', () => {
-    win.webContents.setZoomFactor(3)
-  })
-
   if (process.env['ELECTRON_RENDERER_URL']) {
     win.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
