@@ -1103,6 +1103,23 @@ button {
   font-size: 11px;
 }
 
+.timeline-row-diffstat {
+  flex-shrink: 0;
+  display: flex;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.timeline-row-diffstat .is-add {
+  color: var(--success);
+}
+
+.timeline-row-diffstat .is-del {
+  color: var(--danger);
+}
+
 .timeline-row-header .chevron {
   flex-shrink: 0;
   margin-left: auto;

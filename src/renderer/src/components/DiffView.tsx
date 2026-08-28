@@ -16,6 +16,19 @@ function toDiffLines(oldText: string, newText: string): DiffLine[] {
   return lines
 }
 
+/** Added/removed line counts for a change, shown as a "+N -N" badge so a
+ * timeline row's collapsed header is obvious about what changed without
+ * needing to expand it. */
+export function diffStats(oldText: string, newText: string): { adds: number; dels: number } {
+  let adds = 0
+  let dels = 0
+  for (const line of toDiffLines(oldText, newText)) {
+    if (line.kind === 'add') adds += 1
+    else if (line.kind === 'del') dels += 1
+  }
+  return { adds, dels }
+}
+
 export function DiffView({ oldText, newText }: { oldText: string; newText: string }): JSX.Element {
   const lines = toDiffLines(oldText, newText)
   return (

@@ -3,7 +3,7 @@ import type { ChatEvent, HistoryItem, ModelInfo, SessionRecord, SkillInfo } from
 import { KNOWN_TOOL_NAMES } from '../../../shared/types'
 import { ChevronIcon, SendIcon, StopIcon, SpinnerIcon, PlusIcon, SlashIcon } from './icons'
 import { Markdown } from './Markdown'
-import { DiffView } from './DiffView'
+import { DiffView, diffStats } from './DiffView'
 
 const LAST_MODEL_KEY = 'passcode-last-model'
 
@@ -612,6 +612,8 @@ const TimelineRow = memo(function TimelineRow({
   const isShell = item.toolName === 'bash' || item.toolName === 'powershell'
   const resultSummary = item.status !== 'running' ? summarizeToolResult(item.toolName, item.result) : null
   const runOutput = isShell && typeof item.result === 'string' ? truncateOutput(item.result) : null
+  const stat =
+    item.status !== 'running' ? computeToolDiffStats(item.toolName, item.args) : null
 
   return (
     <div className="timeline-row">
@@ -619,6 +621,12 @@ const TimelineRow = memo(function TimelineRow({
       <button className="timeline-row-header" onClick={handleToggle}>
         <span className="timeline-row-title">{toolActionLabel(item.toolName)}</span>
         {summary && <span className="timeline-row-summary">{summary}</span>}
+        {stat && (
+          <span className="timeline-row-diffstat">
+            {stat.adds > 0 && <span className="is-add">+{stat.adds}</span>}
+            {stat.dels > 0 && <span className="is-del">-{stat.dels}</span>}
+          </span>
+        )}
         {duration && <span className="timeline-row-duration">{duration}</span>}
         <ChevronIcon className={`chevron${expanded ? ' is-open' : ''}`} />
       </button>
@@ -720,6 +728,29 @@ function summarizeToolResult(toolName: string, result: unknown): string | null {
     default:
       return null
   }
+}
+
+/** Added/removed line counts for edit/write calls, shown as a "+N -N"
+ * badge in the row header -- visible without expanding the row. */
+function computeToolDiffStats(toolName: string, args: unknown): { adds: number; dels: number } | null {
+  const a = args as { content?: string; edits?: { oldText: string; newText: string }[] } | undefined
+
+  if (toolName === 'edit' && a?.edits?.length) {
+    let adds = 0
+    let dels = 0
+    for (const edit of a.edits) {
+      const stat = diffStats(edit.oldText, edit.newText)
+      adds += stat.adds
+      dels += stat.dels
+    }
+    return { adds, dels }
+  }
+
+  if (toolName === 'write' && typeof a?.content === 'string') {
+    return diffStats('', a.content)
+  }
+
+  return null
 }
 
 function renderToolDetail(toolName: string, args: unknown, result: unknown): JSX.Element {
