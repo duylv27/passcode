@@ -13,10 +13,25 @@ export interface Repo {
 
 export interface SessionRecord {
   id: string
+  /** The session's cwd/session-file-owning repo -- for a project-scoped
+   * session (projectId set) this is just its "primary" repo, not the only
+   * repo it can touch. */
   repoId: string
+  /** Set when this session spans every repo in the project, not just repoId. */
+  projectId: string | null
   piSessionId: string
   title: string
   createdAt: string
+}
+
+export interface CreateProjectSessionResult {
+  ok: true
+  session: SessionRecord
+}
+
+export interface CreateProjectSessionError {
+  ok: false
+  error: string
 }
 
 export interface AuthStatus {
@@ -121,7 +136,12 @@ export interface Api {
   session: {
     list(repoId: string): Promise<SessionRecord[]>
     create(repoId: string, title?: string): Promise<SessionRecord>
-    getMostRecent(): Promise<{ session: SessionRecord; repo: Repo } | null>
+    listByProject(projectId: string): Promise<SessionRecord[]>
+    createProjectSession(
+      projectId: string,
+      title?: string
+    ): Promise<CreateProjectSessionResult | CreateProjectSessionError>
+    getMostRecent(): Promise<{ session: SessionRecord; repo: Repo; project: Project | null } | null>
     rename(sessionId: string, title: string): Promise<void>
     delete(sessionId: string): Promise<void>
     open(sessionId: string): Promise<void>

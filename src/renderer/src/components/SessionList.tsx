@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import type { Repo, SessionRecord } from '../../../shared/types'
+import type { SessionRecord } from '../../../shared/types'
+import type { Scope } from './RepoSwitcher'
 import { ChatIcon, EditIcon, PlusIcon, TrashIcon } from './icons'
 
 interface Props {
-  repo: Repo
+  scope: Scope
   activeSessionId: string | undefined
   onOpenSession: (session: SessionRecord) => void
   onSessionDeleted: (session: SessionRecord) => void
@@ -11,7 +12,7 @@ interface Props {
 }
 
 export function SessionList({
-  repo,
+  scope,
   activeSessionId,
   onOpenSession,
   onSessionDeleted,
@@ -20,20 +21,37 @@ export function SessionList({
   const [sessions, setSessions] = useState<SessionRecord[]>([])
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
+  const [error, setError] = useState<string | null>(null)
+
+  const scopeKey = scope.kind === 'repo' ? `repo:${scope.repo.id}` : `project:${scope.project.id}`
 
   async function refresh(): Promise<void> {
-    setSessions(await window.api.session.list(repo.id))
+    const list =
+      scope.kind === 'repo' ? await window.api.session.list(scope.repo.id) : await window.api.session.listByProject(scope.project.id)
+    setSessions(list)
   }
 
   useEffect(() => {
     refresh()
+    setError(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [repo.id])
+  }, [scopeKey])
 
   async function handleCreate(): Promise<void> {
-    const created = await window.api.session.create(repo.id)
+    if (scope.kind === 'repo') {
+      const created = await window.api.session.create(scope.repo.id)
+      await refresh()
+      onOpenSession(created)
+      return
+    }
+    setError(null)
+    const result = await window.api.session.createProjectSession(scope.project.id)
+    if (!result.ok) {
+      setError(result.error)
+      return
+    }
     await refresh()
-    onOpenSession(created)
+    onOpenSession(result.session)
   }
 
   async function handleDelete(session: SessionRecord): Promise<void> {
@@ -96,6 +114,7 @@ export function SessionList({
         <PlusIcon className="row-icon" />
         <span>New session</span>
       </button>
+      {error && <div className="error-text">{error}</div>}
     </div>
   )
 }

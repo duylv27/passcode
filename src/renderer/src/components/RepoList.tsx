@@ -37,8 +37,7 @@ export function RepoList({ project, selectedRepo, onSelectRepo }: Props): JSX.El
   }
 
   return (
-    <div className="picker-group">
-      <div className="picker-group-label">{project.name}</div>
+    <>
       {repos.map((r) => (
         <button
           key={r.id}
@@ -76,6 +75,6 @@ export function RepoList({ project, selectedRepo, onSelectRepo }: Props): JSX.El
         </button>
       )}
       {error && <div className="error-text">{error}</div>}
-    </div>
+    </>
   )
 }

@@ -3,8 +3,13 @@ import { randomUUID } from 'node:crypto'
 import type { SessionRecord } from '../../shared/types'
 
 export interface SessionsRepository {
-  create(repoId: string, piSessionId: string, title: string): SessionRecord
+  /** projectId set makes this a project-scoped session -- repoId is still
+   * its primary/cwd repo, but it isn't listed under that repo alone. */
+  create(repoId: string, piSessionId: string, title: string, projectId?: string | null): SessionRecord
+  /** Repo-scoped sessions only -- excludes project-scoped ones even if this
+   * repo happens to be their primary repo. */
   listByRepo(repoId: string): SessionRecord[]
+  listByProject(projectId: string): SessionRecord[]
   getById(id: string): SessionRecord | undefined
   /** The most recently opened session across every repo, falling back to
    * most recently created for a session that's never been opened -- used
@@ -20,29 +25,35 @@ export interface SessionsRepository {
 }
 
 const SELECT_COLUMNS =
-  'id, repo_id as repoId, pi_session_id as piSessionId, title, created_at as createdAt'
+  'id, repo_id as repoId, project_id as projectId, pi_session_id as piSessionId, title, created_at as createdAt'
 
 export function createSessionsRepository(db: DatabaseSync): SessionsRepository {
   return {
-    create(repoId: string, piSessionId: string, title: string): SessionRecord {
+    create(repoId: string, piSessionId: string, title: string, projectId: string | null = null): SessionRecord {
       const record: SessionRecord = {
         id: randomUUID(),
         repoId,
+        projectId,
         piSessionId,
         title,
         createdAt: new Date().toISOString()
       }
       db.prepare(
-        'INSERT INTO sessions (id, repo_id, pi_session_id, title, created_at) VALUES (?, ?, ?, ?, ?)'
-      ).run(record.id, record.repoId, record.piSessionId, record.title, record.createdAt)
+        'INSERT INTO sessions (id, repo_id, project_id, pi_session_id, title, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+      ).run(record.id, record.repoId, record.projectId, record.piSessionId, record.title, record.createdAt)
       return record
     },
     listByRepo(repoId: string): SessionRecord[] {
       return db
         .prepare(
-          `SELECT ${SELECT_COLUMNS} FROM sessions WHERE repo_id = ? ORDER BY created_at, rowid`
+          `SELECT ${SELECT_COLUMNS} FROM sessions WHERE repo_id = ? AND project_id IS NULL ORDER BY created_at, rowid`
         )
         .all(repoId) as unknown as SessionRecord[]
+    },
+    listByProject(projectId: string): SessionRecord[] {
+      return db
+        .prepare(`SELECT ${SELECT_COLUMNS} FROM sessions WHERE project_id = ? ORDER BY created_at, rowid`)
+        .all(projectId) as unknown as SessionRecord[]
     },
     getById(id: string): SessionRecord | undefined {
       return db.prepare(`SELECT ${SELECT_COLUMNS} FROM sessions WHERE id = ?`).get(id) as

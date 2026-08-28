@@ -8,13 +8,29 @@ import { readSkillFile } from './skills'
  * to display just the label instead of the full injected content. */
 export const PROMPT_CONTEXT_DELIMITER = '\n\n<<<pi-agent-context>>>\n\n'
 
+/** Server-computed extension of PromptOptions -- projectRepos is derived
+ * from the session's record, never sent by the renderer. */
+export interface BuildPromptTextOptions extends PromptOptions {
+  /** Every repo in the session's project, when this is a project-scoped
+   * session -- lets the model know it can touch more than just its cwd. */
+  projectRepos?: { name: string; path: string }[]
+}
+
 /** Builds what's actually sent to the model for a turn: a short label
  * (the skill reference plus the user's own text, e.g. "/code-review look
  * at this diff") followed by the delimiter and any injected context -- an
  * attached file's content, a picked skill's full instructions. */
-export async function buildPromptText(text: string, options?: PromptOptions): Promise<string> {
+export async function buildPromptText(text: string, options?: BuildPromptTextOptions): Promise<string> {
   const label = options?.skillName ? `/${options.skillName} ${text}` : text
   const contextParts: string[] = []
+
+  if (options?.projectRepos && options.projectRepos.length > 0) {
+    const list = options.projectRepos.map((r) => `- ${r.name}: ${r.path}`).join('\n')
+    contextParts.push(
+      `This session spans every repo in the project, not just your working directory. ` +
+        `You can read, edit, and run commands against any of them using their absolute paths:\n\n${list}`
+    )
+  }
 
   if (options?.attachedFilePath) {
     try {

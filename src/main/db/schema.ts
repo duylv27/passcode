@@ -43,4 +43,10 @@ export function initSchema(db: DatabaseSync): void {
   if (!columns.some((c) => c.name === 'last_opened_at')) {
     db.exec('ALTER TABLE sessions ADD COLUMN last_opened_at TEXT')
   }
+  // A project-scoped session still has repo_id pointing at a "primary" repo
+  // (used for its cwd and session file); project_id set marks it as
+  // spanning every repo in the project instead of just that one.
+  if (!columns.some((c) => c.name === 'project_id')) {
+    db.exec('ALTER TABLE sessions ADD COLUMN project_id TEXT')
+  }
 }

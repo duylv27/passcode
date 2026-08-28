@@ -2,12 +2,23 @@ import type { Model } from '@earendil-works/pi-ai'
 import type { RepoSession } from '../agent/piSession'
 import type { SessionsRepository } from '../db/sessionsRepository'
 import type { ReposRepository } from '../db/reposRepository'
-import type { ChatEvent, PromptOptions, Repo, SessionRecord } from '../../shared/types'
+import type { ProjectsRepository } from '../db/projectsRepository'
+import type { BuildPromptTextOptions } from '../agent/promptBuilder'
+import type {
+  ChatEvent,
+  CreateProjectSessionError,
+  CreateProjectSessionResult,
+  Project,
+  PromptOptions,
+  Repo,
+  SessionRecord
+} from '../../shared/types'
 
 export type { ChatEvent }
 
 export interface CreateSessionHandlersDeps {
   reposRepo: ReposRepository
+  projectsRepo: ProjectsRepository
   sessionsRepo: SessionsRepository
   openRepoSession: (
     cwd: string,
@@ -17,13 +28,15 @@ export interface CreateSessionHandlersDeps {
   onEvent: (sessionId: string, event: ChatEvent) => void
   requestApproval: (sessionId: string, toolName: string, input: unknown) => Promise<boolean>
   findModel: (provider: string, modelId: string) => Model<any> | undefined
-  buildPromptText: (text: string, options?: PromptOptions) => Promise<string>
+  buildPromptText: (text: string, options?: BuildPromptTextOptions) => Promise<string>
 }
 
 export interface SessionHandlers {
   listSessions(repoId: string): SessionRecord[]
   createSession(repoId: string, title?: string): SessionRecord
-  getMostRecentSession(): { session: SessionRecord; repo: Repo } | null
+  listProjectSessions(projectId: string): SessionRecord[]
+  createProjectSession(projectId: string, title?: string): CreateProjectSessionResult | CreateProjectSessionError
+  getMostRecentSession(): { session: SessionRecord; repo: Repo; project: Project | null } | null
   renameSession(sessionId: string, title: string): void
   deleteSession(sessionId: string): Promise<void>
   openSession(sessionId: string): Promise<void>
@@ -88,12 +101,33 @@ export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionH
       // first time (createRepoSession returns the real Pi SDK session id then).
       return deps.sessionsRepo.create(repoId, '', title?.trim() || 'New session')
     },
-    getMostRecentSession(): { session: SessionRecord; repo: Repo } | null {
+    listProjectSessions(projectId: string): SessionRecord[] {
+      return deps.sessionsRepo.listByProject(projectId)
+    },
+    createProjectSession(
+      projectId: string,
+      title?: string
+    ): CreateProjectSessionResult | CreateProjectSessionError {
+      // The primary repo is just the cwd/session-file anchor -- the model
+      // gets every repo's path via sendPrompt's projectRepos injection, not
+      // just this one.
+      const [primaryRepo] = deps.reposRepo.listByProject(projectId)
+      if (!primaryRepo) return { ok: false, error: 'Add a repo to this project first' }
+      const session = deps.sessionsRepo.create(
+        primaryRepo.id,
+        '',
+        title?.trim() || 'New session',
+        projectId
+      )
+      return { ok: true, session }
+    },
+    getMostRecentSession(): { session: SessionRecord; repo: Repo; project: Project | null } | null {
       const session = deps.sessionsRepo.getMostRecent()
       if (!session) return null
       const repo = deps.reposRepo.getById(session.repoId)
       if (!repo) return null
-      return { session, repo }
+      const project = session.projectId ? (deps.projectsRepo.getById(session.projectId) ?? null) : null
+      return { session, repo, project }
     },
     renameSession(sessionId: string, title: string): void {
       deps.sessionsRepo.rename(sessionId, title)
@@ -118,7 +152,13 @@ export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionH
     async sendPrompt(sessionId: string, text: string, options?: PromptOptions): Promise<void> {
       try {
         const session = await ensureSession(sessionId)
-        const promptText = await deps.buildPromptText(text, options)
+        const record = deps.sessionsRepo.getById(sessionId)
+        const projectRepos = record?.projectId
+          ? deps.reposRepo
+              .listByProject(record.projectId)
+              .map((r) => ({ name: r.name, path: r.path }))
+          : undefined
+        const promptText = await deps.buildPromptText(text, { ...options, projectRepos })
         await session.prompt(promptText)
       } catch (err) {
         deps.onEvent(sessionId, { type: 'error', message: (err as Error).message })

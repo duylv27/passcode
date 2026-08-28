@@ -93,6 +93,7 @@ app.whenReady().then(async () => {
     repos: createReposHandlers(reposRepo, isGitRepo),
     session: createSessionHandlers({
       reposRepo,
+      projectsRepo,
       sessionsRepo,
       openRepoSession: (cwd, requestApproval, resumeSessionFile) =>
         createRepoSession({ cwd, modelRuntime, requestApproval, resumeSessionFile }),
