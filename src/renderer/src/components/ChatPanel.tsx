@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ChatEvent, HistoryItem, ModelInfo, SessionRecord } from '../../../shared/types'
 import { ChevronIcon, SendIcon, StopIcon, SpinnerIcon, CheckIcon, ErrorIcon } from './icons'
+import { Markdown } from './Markdown'
 
 type TranscriptItem =
   | { kind: 'user'; id: string; text: string }
@@ -279,7 +280,13 @@ function TranscriptRow({
   onToggle: () => void
 }): JSX.Element {
   if (item.kind === 'user') return <div className="chat-line is-user">{item.text}</div>
-  if (item.kind === 'text') return <div className="chat-line is-text">{item.text}</div>
+  if (item.kind === 'text') {
+    return (
+      <div className="chat-line is-markdown">
+        <Markdown text={item.text} />
+      </div>
+    )
+  }
   if (item.kind === 'error') return <div className="chat-line is-error">{item.text}</div>
   if (item.kind === 'usage') {
     return (
