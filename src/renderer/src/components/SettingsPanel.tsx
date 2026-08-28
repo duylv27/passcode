@@ -2,6 +2,34 @@ import { useEffect, useState } from 'react'
 import type { AuthStatus, DeviceCodeChallenge, ToolApprovalPolicy } from '../../../shared/types'
 import { KNOWN_TOOL_NAMES } from '../../../shared/types'
 
+const TOOL_LABELS: Record<(typeof KNOWN_TOOL_NAMES)[number], string> = {
+  read: 'Read',
+  grep: 'Grep',
+  find: 'Find',
+  ls: 'List directory',
+  bash: 'Bash',
+  powershell: 'PowerShell',
+  edit: 'Edit',
+  write: 'Write'
+}
+
+function Switch({
+  checked,
+  onChange
+}: {
+  checked: boolean
+  onChange: () => void
+}): JSX.Element {
+  return (
+    <label className="switch">
+      <input type="checkbox" checked={checked} onChange={onChange} />
+      <span className="switch-track">
+        <span className="switch-thumb" />
+      </span>
+    </label>
+  )
+}
+
 export function SettingsPanel(): JSX.Element {
   const [apiKey, setApiKey] = useState('')
   const [status, setStatus] = useState<AuthStatus | null>(null)
@@ -57,67 +85,71 @@ export function SettingsPanel(): JSX.Element {
   }
 
   return (
-    <div className="settings">
-      <h3>Settings</h3>
+    <div className="settings-light">
+      <h2 className="settings-light-title">Settings</h2>
 
-      <div className="settings-card">
-        <div className="settings-card-header">
-          <span className={`status-dot${status?.anthropic ? ' is-connected' : ''}`} />
-          <span>Anthropic</span>
-        </div>
-        <div className="settings-card-row">
-          <input
-            className="field"
-            type="password"
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleSaveKey()
-            }}
-            placeholder="Anthropic API key"
-          />
-          <button className="btn" onClick={handleSaveKey}>
-            Save
-          </button>
-        </div>
-        {anthropicError && <div className="error-text">{anthropicError}</div>}
-      </div>
-
-      <div className="settings-card">
-        <div className="settings-card-header">
-          <span className={`status-dot${status?.copilot ? ' is-connected' : ''}`} />
-          <span>GitHub Copilot</span>
-        </div>
-        <button className="btn" onClick={handleCopilotLogin} disabled={loggingIn}>
-          {loggingIn ? 'Signing in…' : 'Sign in'}
-        </button>
-        {challenge && (
-          <div className="settings-challenge">
-            Go to {challenge.verificationUri} and enter code <strong>{challenge.userCode}</strong>
+      <div className="settings-group">
+        <div className="settings-row">
+          <div className="settings-row-text">
+            <span className="settings-row-title">Anthropic API Key</span>
+            <span className="settings-row-desc">
+              {status?.anthropic ? 'Connected' : 'Used for direct Anthropic model access'}
+            </span>
+            {anthropicError && <span className="settings-row-error">{anthropicError}</span>}
           </div>
-        )}
-        {copilotError && <div className="error-text">{copilotError}</div>}
-      </div>
+          <div className="settings-row-control settings-key-control">
+            <input
+              className="settings-input"
+              type="password"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleSaveKey()
+              }}
+              placeholder="sk-ant-..."
+            />
+            <button className="settings-btn" onClick={handleSaveKey}>
+              Save
+            </button>
+          </div>
+        </div>
 
-      <div className="settings-card">
-        <div className="settings-card-header">
-          <span>Tool Approval</span>
+        <div className="settings-row">
+          <div className="settings-row-text">
+            <span className="settings-row-title">GitHub Copilot</span>
+            <span className="settings-row-desc">
+              {status?.copilot ? 'Connected' : 'Sign in with a device code'}
+            </span>
+            {challenge && (
+              <span className="settings-row-hint">
+                Go to {challenge.verificationUri} and enter code <strong>{challenge.userCode}</strong>
+              </span>
+            )}
+            {copilotError && <span className="settings-row-error">{copilotError}</span>}
+          </div>
+          <div className="settings-row-control">
+            <button className="settings-btn" onClick={handleCopilotLogin} disabled={loggingIn}>
+              {loggingIn ? 'Signing in…' : 'Sign in'}
+            </button>
+          </div>
         </div>
-        <p className="settings-card-description">
-          Tools left unchecked run automatically. Checked tools pause and ask before running.
-        </p>
-        <div className="approval-policy-list">
-          {KNOWN_TOOL_NAMES.map((toolName) => (
-            <label key={toolName} className="approval-policy-row">
-              <input
-                type="checkbox"
-                checked={policy ? !policy.autoApprove[toolName] : false}
-                onChange={() => toggleAutoApprove(toolName)}
-              />
-              <span>{toolName}</span>
-            </label>
-          ))}
-        </div>
+
+        {KNOWN_TOOL_NAMES.map((toolName) => {
+          const requiresApproval = policy ? !policy.autoApprove[toolName] : false
+          return (
+            <div key={toolName} className="settings-row">
+              <div className="settings-row-text">
+                <span className="settings-row-title">{TOOL_LABELS[toolName]}</span>
+                <span className="settings-row-desc">
+                  {requiresApproval ? 'Pauses and asks before running' : 'Runs automatically'}
+                </span>
+              </div>
+              <div className="settings-row-control">
+                <Switch checked={requiresApproval} onChange={() => toggleAutoApprove(toolName)} />
+              </div>
+            </div>
+          )
+        })}
       </div>
     </div>
   )
