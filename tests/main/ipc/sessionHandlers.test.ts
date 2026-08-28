@@ -13,12 +13,14 @@ import {
   type SessionHandlers
 } from '../../../src/main/ipc/sessionHandlers'
 import type { RepoSession } from '../../../src/main/agent/piSession'
+import type { HistoryItem } from '../../../src/shared/types'
 
 describe('sessionHandlers', () => {
   let repoId: string
   let events: Array<{ sessionId: string; event: ChatEvent }>
   let promptMock: ReturnType<typeof vi.fn>
   let abortMock: ReturnType<typeof vi.fn>
+  let historyItems: HistoryItem[]
   let subscribeListener: ((event: unknown) => void) | undefined
   let handlers: SessionHandlers
   let sessionsRepo: SessionsRepository
@@ -36,6 +38,7 @@ describe('sessionHandlers', () => {
     events = []
     promptMock = vi.fn(async () => {})
     abortMock = vi.fn(async () => {})
+    historyItems = []
     subscribeListener = undefined
     const repoSession: RepoSession = {
       prompt: promptMock,
@@ -43,10 +46,15 @@ describe('sessionHandlers', () => {
         subscribeListener = listener
         return () => {}
       },
-      abort: abortMock
+      abort: abortMock,
+      getHistory: () => historyItems
     }
 
-    openRepoSessionMock = vi.fn(async () => ({ repoSession, sessionId: 'pi-session-1' }))
+    openRepoSessionMock = vi.fn(async () => ({
+      repoSession,
+      sessionId: 'pi-session-1',
+      sessionFile: '/fake/session/file.jsonl'
+    }))
 
     handlers = createSessionHandlers({
       reposRepo,
@@ -229,5 +237,42 @@ describe('sessionHandlers', () => {
     const [, approvalWrapper] = openRepoSessionMock.mock.calls[0]
     await approvalWrapper('bash', { command: 'ls' })
     expect(requestApproval).toHaveBeenCalledWith(session.id, 'bash', { command: 'ls' })
+  })
+
+  it('persists the real session file after opening, for future resume', async () => {
+    const session = handlers.createSession(repoId)
+    await handlers.openSession(session.id)
+    expect(sessionsRepo.getSessionFile(session.id)).toBe('/fake/session/file.jsonl')
+  })
+
+  it('passes the saved session file as the resume target on a later open', async () => {
+    const session = handlers.createSession(repoId)
+    sessionsRepo.setSessionFile(session.id, '/saved/from/before.jsonl')
+
+    await handlers.openSession(session.id)
+
+    const [, , resumeSessionFile] = openRepoSessionMock.mock.calls[0]
+    expect(resumeSessionFile).toBe('/saved/from/before.jsonl')
+  })
+
+  it('emits a history event when the resumed session has prior messages', async () => {
+    historyItems = [{ kind: 'user', text: 'earlier message' }]
+    const session = handlers.createSession(repoId)
+
+    await handlers.openSession(session.id)
+
+    expect(events).toContainEqual({
+      sessionId: session.id,
+      event: { type: 'history', items: [{ kind: 'user', text: 'earlier message' }] }
+    })
+  })
+
+  it('does not emit a history event for a brand-new session with no prior messages', async () => {
+    historyItems = []
+    const session = handlers.createSession(repoId)
+
+    await handlers.openSession(session.id)
+
+    expect(events.some((e) => e.event.type === 'history')).toBe(false)
   })
 })

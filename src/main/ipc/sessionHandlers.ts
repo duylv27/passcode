@@ -10,8 +10,9 @@ export interface CreateSessionHandlersDeps {
   sessionsRepo: SessionsRepository
   openRepoSession: (
     cwd: string,
-    requestApproval: (toolName: string, input: unknown) => Promise<boolean>
-  ) => Promise<{ repoSession: RepoSession; sessionId: string }>
+    requestApproval: (toolName: string, input: unknown) => Promise<boolean>,
+    resumeSessionFile?: string
+  ) => Promise<{ repoSession: RepoSession; sessionId: string; sessionFile: string | undefined }>
   onEvent: (sessionId: string, event: ChatEvent) => void
   requestApproval: (sessionId: string, toolName: string, input: unknown) => Promise<boolean>
 }
@@ -39,15 +40,27 @@ export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionH
     const repo = deps.reposRepo.getById(record.repoId)
     if (!repo) throw new Error(`Unknown repo: ${record.repoId}`)
 
-    const { repoSession, sessionId: piSessionId } = await deps.openRepoSession(repo.path, (toolName, input) =>
-      deps.requestApproval(sessionId, toolName, input)
+    const resumeSessionFile = deps.sessionsRepo.getSessionFile(sessionId)
+
+    const {
+      repoSession,
+      sessionId: piSessionId,
+      sessionFile
+    } = await deps.openRepoSession(
+      repo.path,
+      (toolName, input) => deps.requestApproval(sessionId, toolName, input),
+      resumeSessionFile
     )
     deps.sessionsRepo.setPiSessionId(sessionId, piSessionId)
+    if (sessionFile) deps.sessionsRepo.setSessionFile(sessionId, sessionFile)
 
     repoSession.subscribe((event) => {
       const mapped = mapAgentEvent(event)
       if (mapped) deps.onEvent(sessionId, mapped)
     })
+
+    const history = repoSession.getHistory()
+    if (history.length > 0) deps.onEvent(sessionId, { type: 'history', items: history })
 
     openSessions.set(sessionId, repoSession)
     return repoSession

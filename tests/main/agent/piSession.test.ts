@@ -1,12 +1,22 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const promptMock = vi.fn(async () => {})
 const subscribeMock = vi.fn(() => () => {})
 const abortMock = vi.fn(async () => {})
+const getSessionFileMock = vi.fn(() => '/fake/agent/sessions/repo/abc.jsonl')
+let mockMessages: unknown[] = []
 const createAgentSessionMock = vi.fn(async () => ({
-  session: { prompt: promptMock, subscribe: subscribeMock, abort: abortMock, sessionId: 'pi-session-1' }
+  session: {
+    prompt: promptMock,
+    subscribe: subscribeMock,
+    abort: abortMock,
+    sessionId: 'pi-session-1',
+    sessionManager: { getSessionFile: getSessionFileMock },
+    agent: { state: { get messages() { return mockMessages } } }
+  }
 }))
 const getAgentDirMock = vi.fn(() => '/fake/agent/dir')
+const sessionManagerOpenMock = vi.fn((path: string) => ({ __opened: path }))
 let capturedResourceLoaderOptions: {
   cwd: string
   agentDir: string
@@ -22,7 +32,8 @@ const DefaultResourceLoaderMock = vi.fn(function (
 vi.mock('@earendil-works/pi-coding-agent', () => ({
   createAgentSession: createAgentSessionMock,
   DefaultResourceLoader: DefaultResourceLoaderMock,
-  getAgentDir: getAgentDirMock
+  getAgentDir: getAgentDirMock,
+  SessionManager: { open: sessionManagerOpenMock }
 }))
 
 import { createRepoSession } from '../../../src/main/agent/piSession'
@@ -32,6 +43,10 @@ function noApproval(): Promise<boolean> {
 }
 
 describe('createRepoSession', () => {
+  beforeEach(() => {
+    mockMessages = []
+  })
+
   it('creates a session scoped to the repo cwd with the expected tools', async () => {
     const { repoSession } = await createRepoSession({
       cwd: '/repo/path',
@@ -104,5 +119,78 @@ describe('createRepoSession', () => {
     const result = await onHandlers['tool_call']({ toolName: 'write', input: { path: 'x.txt' } })
 
     expect(result).toEqual({ block: true, reason: 'Denied by user' })
+  })
+
+  it('returns the underlying session file so the caller can persist it for later resume', async () => {
+    const { sessionFile } = await createRepoSession({
+      cwd: '/repo/path',
+      modelRuntime: {} as never,
+      requestApproval: noApproval
+    })
+    expect(sessionFile).toBe('/fake/agent/sessions/repo/abc.jsonl')
+  })
+
+  it('does not pass a sessionManager to createAgentSession when not resuming', async () => {
+    await createRepoSession({ cwd: '/repo/path', modelRuntime: {} as never, requestApproval: noApproval })
+    const call = createAgentSessionMock.mock.calls[createAgentSessionMock.mock.calls.length - 1][0]
+    expect(call).not.toHaveProperty('sessionManager')
+  })
+
+  it('opens the saved session file via SessionManager.open when resuming', async () => {
+    await createRepoSession({
+      cwd: '/repo/path',
+      modelRuntime: {} as never,
+      requestApproval: noApproval,
+      resumeSessionFile: '/fake/agent/sessions/repo/abc.jsonl'
+    })
+
+    expect(sessionManagerOpenMock).toHaveBeenCalledWith('/fake/agent/sessions/repo/abc.jsonl')
+    const call = createAgentSessionMock.mock.calls[createAgentSessionMock.mock.calls.length - 1][0]
+    expect(call.sessionManager).toEqual({ __opened: '/fake/agent/sessions/repo/abc.jsonl' })
+  })
+
+  it('returns an empty history for a brand-new session', async () => {
+    mockMessages = []
+    const { repoSession } = await createRepoSession({
+      cwd: '/repo/path',
+      modelRuntime: {} as never,
+      requestApproval: noApproval
+    })
+    expect(repoSession.getHistory()).toEqual([])
+  })
+
+  it('reconstructs user text, assistant text, and completed tool calls from history', async () => {
+    mockMessages = [
+      { role: 'user', content: 'add a health check' },
+      {
+        role: 'assistant',
+        content: [
+          { type: 'text', text: "I'll run the tests first." },
+          { type: 'toolCall', id: 'call-1', name: 'bash', arguments: { command: 'npm test' } }
+        ]
+      },
+      { role: 'toolResult', toolCallId: 'call-1', isError: false, content: [{ type: 'text', text: '32 passed' }] },
+      { role: 'assistant', content: [{ type: 'text', text: 'Tests pass.' }] }
+    ]
+
+    const { repoSession } = await createRepoSession({
+      cwd: '/repo/path',
+      modelRuntime: {} as never,
+      requestApproval: noApproval
+    })
+
+    expect(repoSession.getHistory()).toEqual([
+      { kind: 'user', text: 'add a health check' },
+      { kind: 'text', text: "I'll run the tests first." },
+      {
+        kind: 'tool',
+        toolCallId: 'call-1',
+        toolName: 'bash',
+        input: { command: 'npm test' },
+        result: '32 passed',
+        isError: false
+      },
+      { kind: 'text', text: 'Tests pass.' }
+    ])
   })
 })

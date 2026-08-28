@@ -48,6 +48,17 @@ describe('SessionsRepository', () => {
     expect(sessions.getById(created.id)?.piSessionId).toBe('pi-session-real-id')
   })
 
+  it('returns undefined for the session file of a session that has never been opened', () => {
+    const created = sessions.create(repoId, '', 'New session')
+    expect(sessions.getSessionFile(created.id)).toBeUndefined()
+  })
+
+  it('persists and retrieves the session file once a session has been opened', () => {
+    const created = sessions.create(repoId, '', 'New session')
+    sessions.setSessionFile(created.id, '/home/user/.pi/agent/sessions/abc/def.jsonl')
+    expect(sessions.getSessionFile(created.id)).toBe('/home/user/.pi/agent/sessions/abc/def.jsonl')
+  })
+
   it('deletes a session', () => {
     const created = sessions.create(repoId, 'pi-session-1', 'a')
     sessions.delete(created.id)

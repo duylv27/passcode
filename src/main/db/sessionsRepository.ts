@@ -8,6 +8,9 @@ export interface SessionsRepository {
   getById(id: string): SessionRecord | undefined
   rename(id: string, title: string): void
   setPiSessionId(id: string, piSessionId: string): void
+  /** The Pi SDK session file backing this session, if it has ever been opened. */
+  getSessionFile(id: string): string | undefined
+  setSessionFile(id: string, sessionFile: string): void
   delete(id: string): void
 }
 
@@ -46,6 +49,15 @@ export function createSessionsRepository(db: DatabaseSync): SessionsRepository {
     },
     setPiSessionId(id: string, piSessionId: string): void {
       db.prepare('UPDATE sessions SET pi_session_id = ? WHERE id = ?').run(piSessionId, id)
+    },
+    getSessionFile(id: string): string | undefined {
+      const row = db.prepare('SELECT session_file as sessionFile FROM sessions WHERE id = ?').get(id) as
+        | { sessionFile: string | null }
+        | undefined
+      return row?.sessionFile ?? undefined
+    },
+    setSessionFile(id: string, sessionFile: string): void {
+      db.prepare('UPDATE sessions SET session_file = ? WHERE id = ?').run(sessionFile, id)
     },
     delete(id: string): void {
       db.prepare('DELETE FROM sessions WHERE id = ?').run(id)

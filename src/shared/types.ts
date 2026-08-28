@@ -51,12 +51,18 @@ export interface TokenUsage {
   output: number
 }
 
+export type HistoryItem =
+  | { kind: 'user'; text: string }
+  | { kind: 'text'; text: string }
+  | { kind: 'tool'; toolCallId: string; toolName: string; input: unknown; result?: unknown; isError?: boolean }
+
 export type ChatEvent =
   | { type: 'text_delta'; delta: string }
   | { type: 'tool_start'; toolCallId: string; toolName: string; args: unknown }
   | { type: 'tool_end'; toolCallId: string; toolName: string; isError: boolean; result: unknown }
   | { type: 'turn_end'; usage?: TokenUsage }
   | { type: 'error'; message: string }
+  | { type: 'history'; items: HistoryItem[] }
 
 /** Known built-in tool names an approval policy can key on. Any other
  * (e.g. custom) tool name defaults to requiring approval. */

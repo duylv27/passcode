@@ -588,24 +588,6 @@ button {
   color: var(--fg-dim);
 }
 
-.composer-stop {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px var(--space-2);
-  border-radius: 4px;
-  background: none;
-  border: 1px solid var(--danger);
-  color: var(--danger);
-  font-size: 11px;
-  white-space: nowrap;
-}
-
-.composer-stop:hover {
-  background: var(--danger);
-  color: var(--fg-bright);
-}
-
 .composer-send {
   display: flex;
   align-items: center;
@@ -620,6 +602,15 @@ button {
 
 .composer-send:hover:not(:disabled) {
   background: var(--button-hover);
+}
+
+.composer-send.is-stop {
+  background: var(--danger);
+  border-radius: 6px;
+}
+
+.composer-send.is-stop:hover {
+  background: #e5534b;
 }
 
 .composer-send:disabled {

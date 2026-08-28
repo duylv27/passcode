@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
-import type { ChatEvent, SessionRecord } from '../../../shared/types'
+import { useEffect, useState } from 'react'
+import type { ChatEvent, HistoryItem, SessionRecord } from '../../../shared/types'
 import { ChevronIcon, SendIcon, StopIcon, SpinnerIcon, CheckIcon, ErrorIcon } from './icons'
 
 type TranscriptItem =
@@ -118,6 +118,8 @@ export function ChatPanel({ session, repoName, onTurnEnd }: Props): JSX.Element 
           })
         }
         onTurnEnd?.()
+      } else if (event.type === 'history') {
+        setItems(mapHistory(event.items))
       }
     })
 
@@ -194,18 +196,13 @@ export function ChatPanel({ session, repoName, onTurnEnd }: Props): JSX.Element 
           <span className="composer-hint">
             {queue.length > 0 ? `${queue.length} queued` : session.title}
           </span>
-          {busy && (
-            <button className="composer-stop" onClick={handleStop} title="Stop now">
-              <StopIcon /> Stop
-            </button>
-          )}
           <button
-            className="composer-send"
-            onClick={handleSend}
-            disabled={!input.trim()}
-            title={busy ? 'Queue message' : 'Send'}
+            className={`composer-send${busy ? ' is-stop' : ''}`}
+            onClick={busy ? handleStop : handleSend}
+            disabled={!busy && !input.trim()}
+            title={busy ? 'Stop' : 'Send'}
           >
-            <SendIcon />
+            {busy ? <StopIcon /> : <SendIcon />}
           </button>
         </div>
       </div>
@@ -256,6 +253,23 @@ function TranscriptRow({
       )}
     </div>
   )
+}
+
+function mapHistory(items: HistoryItem[]): TranscriptItem[] {
+  return items.map((item) => {
+    if (item.kind === 'user') return { kind: 'user', id: newId(), text: item.text }
+    if (item.kind === 'text') return { kind: 'text', id: newId(), text: item.text }
+    return {
+      kind: 'tool',
+      id: newId(),
+      toolCallId: item.toolCallId,
+      toolName: item.toolName,
+      args: item.input,
+      status: item.result === undefined ? 'running' : item.isError ? 'error' : 'done',
+      result: item.result,
+      startedAt: Date.now()
+    }
+  })
 }
 
 function stringifyDetail(value: unknown): string {

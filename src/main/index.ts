@@ -61,7 +61,8 @@ app.whenReady().then(async () => {
     session: createSessionHandlers({
       reposRepo,
       sessionsRepo,
-      openRepoSession: (cwd, requestApproval) => createRepoSession({ cwd, modelRuntime, requestApproval }),
+      openRepoSession: (cwd, requestApproval, resumeSessionFile) =>
+        createRepoSession({ cwd, modelRuntime, requestApproval, resumeSessionFile }),
       onEvent: (sessionId, event) => {
         if (!mainWindow.isDestroyed()) mainWindow.webContents.send('session:event', sessionId, event)
       },
