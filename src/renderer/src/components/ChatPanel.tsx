@@ -63,9 +63,14 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
   const [attachedFile, setAttachedFile] = useState<string | null>(null)
   const [autoMode, setAutoMode] = useState(false)
   const [thinkingWord, setThinkingWord] = useState(THINKING_WORDS[0])
+  const chatScrollRef = useRef<HTMLDivElement>(null)
 
   async function sendNow(text: string): Promise<void> {
-    setItems((prev) => [...prev, { kind: 'user', id: newId(), text }])
+    // Matches what the main process actually shows for this turn once
+    // history is reconstructed (see promptBuilder.ts's label) -- a skill
+    // reference plus the typed text, not the skill's full instructions.
+    const label = selectedSkill ? `/${selectedSkill.name} ${text}` : text
+    setItems((prev) => [...prev, { kind: 'user', id: newId(), text: label }])
     setBusy(true)
     setThinking(true)
     const options = {
@@ -103,6 +108,10 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
     }, 1800)
     return () => clearInterval(interval)
   }, [thinking])
+
+  useEffect(() => {
+    chatScrollRef.current?.scrollTo({ top: chatScrollRef.current.scrollHeight })
+  }, [items, thinking])
 
   useEffect(() => {
     if (!modelMenuOpen) return
@@ -243,6 +252,13 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
   async function handleSend(): Promise<void> {
     const text = input.trim()
     if (!text) return
+    // Typing "/" opens the skill picker inline; Enter here should pick a
+    // skill (when there's exactly one match) rather than send "/query" as
+    // a literal message.
+    if (input.startsWith('/')) {
+      if (filteredSkills.length === 1) handleSelectSkill(filteredSkills[0])
+      return
+    }
     setInput('')
     if (busy) {
       setQueue((prev) => [...prev, text])
@@ -267,6 +283,10 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
   function handleSelectSkill(skill: SkillInfo): void {
     setSelectedSkill(skill)
     setSkillMenuOpen(false)
+    // A skill picked while typing "/name" leaves the query behind as a chip
+    // represents it now; a skill picked via the toolbar icon shouldn't
+    // clobber whatever the user was otherwise typing.
+    if (input.startsWith('/')) setInput('')
   }
 
   async function handleAttachFile(): Promise<void> {
@@ -293,9 +313,22 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
 
   const visibleItems = items.filter((item) => !(item.kind === 'thinking' && !item.text.trim()))
 
+  // Typing "/" as the start of the message opens the skill picker inline,
+  // filtered by whatever follows -- the standard slash-command convention.
+  const slashQuery = input.startsWith('/') ? input.slice(1) : null
+  const filteredSkills =
+    slashQuery === null
+      ? skills
+      : skills.filter(
+          (s) =>
+            s.name.toLowerCase().includes(slashQuery.toLowerCase()) ||
+            s.description.toLowerCase().includes(slashQuery.toLowerCase())
+        )
+  const showSkillMenu = skills.length > 0 && (skillMenuOpen || slashQuery !== null) && filteredSkills.length > 0
+
   return (
     <div className="chat">
-      <div className="chat-scroll">
+      <div className="chat-scroll" ref={chatScrollRef}>
         {visibleItems.length === 0 && !thinking ? (
           <div className="chat-empty">Ask it to explore the code, run something, or make a change.</div>
         ) : (
@@ -323,6 +356,48 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
         )}
       </div>
       <div className={`composer${busy ? ' is-busy' : ''}`}>
+        <div className="composer-topbar">
+          <button
+            type="button"
+            className={`composer-auto-btn${autoMode ? ' is-active' : ''}`}
+            onClick={handleToggleAuto}
+            title="Toggle auto-approve for all tools"
+          >
+            {autoMode ? 'Auto' : 'Manual'}
+          </button>
+          {models.length > 0 && (
+            <div className="model-picker" ref={modelPickerRef}>
+              <button
+                type="button"
+                className="model-picker-trigger"
+                onClick={() => setModelMenuOpen((v) => !v)}
+                title="Model"
+              >
+                <span className="model-picker-label">{currentModel ? currentModel.name : 'Model…'}</span>
+                <ChevronIcon className={`chevron model-picker-chevron${modelMenuOpen ? ' is-open' : ''}`} />
+              </button>
+              {modelMenuOpen && (
+                <div className="model-picker-menu" role="listbox">
+                  {models.map((m) => {
+                    const isSelected = currentModel?.provider === m.provider && currentModel?.id === m.id
+                    return (
+                      <button
+                        key={`${m.provider}/${m.id}`}
+                        type="button"
+                        role="option"
+                        aria-selected={isSelected}
+                        className={`model-picker-option${isSelected ? ' is-selected' : ''}`}
+                        onClick={() => handleModelChange(m)}
+                      >
+                        {m.name}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
         {(selectedSkill || attachedFile) && (
           <div className="composer-chips">
             {selectedSkill && (
@@ -376,9 +451,9 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
               >
                 <SlashIcon />
               </button>
-              {skillMenuOpen && (
+              {showSkillMenu && (
                 <div className="skill-picker-menu" role="listbox">
-                  {skills.map((skill) => (
+                  {filteredSkills.map((skill) => (
                     <button
                       key={skill.filePath}
                       type="button"
@@ -397,47 +472,6 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
           <span className="composer-hint">
             {queue.length > 0 ? `${queue.length} queued` : session.title}
           </span>
-          <button
-            type="button"
-            className={`composer-auto-btn${autoMode ? ' is-active' : ''}`}
-            onClick={handleToggleAuto}
-            title="Toggle auto-approve for all tools"
-          >
-            {autoMode ? 'Auto' : 'Manual'}
-          </button>
-          {models.length > 0 && (
-            <div className="model-picker" ref={modelPickerRef}>
-              <button
-                type="button"
-                className="model-picker-trigger"
-                onClick={() => setModelMenuOpen((v) => !v)}
-                title="Model"
-              >
-                <span className="model-picker-label">{currentModel ? currentModel.name : 'Model…'}</span>
-                <ChevronIcon className={`chevron model-picker-chevron${modelMenuOpen ? ' is-open' : ''}`} />
-              </button>
-              {modelMenuOpen && (
-                <div className="model-picker-menu" role="listbox">
-                  {models.map((m) => {
-                    const isSelected =
-                      currentModel?.provider === m.provider && currentModel?.id === m.id
-                    return (
-                      <button
-                        key={`${m.provider}/${m.id}`}
-                        type="button"
-                        role="option"
-                        aria-selected={isSelected}
-                        className={`model-picker-option${isSelected ? ' is-selected' : ''}`}
-                        onClick={() => handleModelChange(m)}
-                      >
-                        {m.name}
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          )}
           <button
             className={`composer-send${busy ? ' is-stop' : ''}`}
             onClick={busy ? handleStop : handleSend}

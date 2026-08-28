@@ -2,6 +2,7 @@ import type { AgentSessionEvent, ModelRuntime } from '@earendil-works/pi-coding-
 import type { Model } from '@earendil-works/pi-ai'
 import type { HistoryItem } from '../../shared/types'
 import { getAdditionalSkillPaths } from './skills'
+import { PROMPT_CONTEXT_DELIMITER } from './promptBuilder'
 
 export interface RepoSession {
   prompt(text: string): Promise<void>
@@ -82,7 +83,10 @@ function buildHistory(messages: readonly unknown[]): HistoryItem[] {
     const message = raw as { role?: string; content?: unknown; toolCallId?: string; isError?: boolean }
 
     if (message.role === 'user') {
-      const text = extractText(message.content)
+      // Everything after the delimiter is context injected for the model
+      // (a skill's instructions, an attached file's content) -- the
+      // transcript only ever shows the short label ahead of it.
+      const text = extractText(message.content).split(PROMPT_CONTEXT_DELIMITER)[0]
       if (text) items.push({ kind: 'user', text })
     } else if (message.role === 'assistant') {
       const parts = Array.isArray(message.content) ? message.content : []

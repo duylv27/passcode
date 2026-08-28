@@ -199,6 +199,24 @@ describe('createRepoSession', () => {
     ])
   })
 
+  it('shows only the label for a user turn that injected skill/attachment context, not the full injected text', async () => {
+    mockMessages = [
+      {
+        role: 'user',
+        content:
+          '/reviewer look at this diff\n\n<<<pi-agent-context>>>\n\nUse the "reviewer" skill for this request. Its full instructions:\n\nCheck for bugs.\n\n---\n\nlook at this diff'
+      }
+    ]
+
+    const { repoSession } = await createRepoSession({
+      cwd: '/repo/path',
+      modelRuntime: {} as never,
+      requestApproval: noApproval
+    })
+
+    expect(repoSession.getHistory()).toEqual([{ kind: 'user', text: '/reviewer look at this diff' }])
+  })
+
   it('reconstructs thinking content alongside text and tool calls', async () => {
     mockMessages = [
       { role: 'user', content: 'why is this failing' },

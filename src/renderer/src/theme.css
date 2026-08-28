@@ -472,10 +472,10 @@ button {
 .chat-scroll {
   flex: 1;
   overflow-y: auto;
-  padding: var(--space-4);
+  padding: var(--space-4) var(--space-4) var(--space-3);
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-3);
   max-width: 900px;
   width: 100%;
   margin: 0 auto;
@@ -995,10 +995,18 @@ button {
   width: calc(100% - var(--space-4) * 2);
   margin: var(--space-3) auto;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 10px;
   background: var(--input-bg);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
   flex-shrink: 0;
-  transition: border-color 200ms ease;
+  transition:
+    border-color 200ms ease,
+    box-shadow 200ms ease;
+}
+
+.composer:focus-within {
+  border-color: var(--fg-dim);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .composer.is-busy {
@@ -1013,6 +1021,13 @@ button {
   50% {
     border-color: var(--accent);
   }
+}
+
+.composer-topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3) 0;
 }
 
 .composer-chips {
@@ -1220,7 +1235,7 @@ button {
 .model-picker-menu {
   position: absolute;
   bottom: calc(100% + 4px);
-  right: 0;
+  left: 0;
   min-width: 180px;
   max-height: 240px;
   overflow-y: auto;
@@ -1257,29 +1272,45 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  background: var(--button-bg);
+  background: #0969da;
   border: none;
-  color: var(--fg-bright);
+  color: #ffffff;
+  box-shadow: 0 1px 3px rgba(9, 105, 218, 0.35);
+  transition:
+    background 150ms ease,
+    transform 100ms ease,
+    box-shadow 150ms ease;
 }
 
 .composer-send:hover:not(:disabled) {
-  background: var(--button-hover);
+  background: #0860c9;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(9, 105, 218, 0.4);
+}
+
+.composer-send:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 .composer-send.is-stop {
   background: var(--danger);
-  border-radius: 6px;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(205, 49, 49, 0.35);
 }
 
 .composer-send.is-stop:hover {
-  background: #e5534b;
+  background: #b3261e;
+  box-shadow: 0 2px 6px rgba(205, 49, 49, 0.4);
 }
 
 .composer-send:disabled {
-  opacity: 0.4;
+  background: var(--border);
+  color: var(--fg-dim);
+  box-shadow: none;
+  transform: none;
   cursor: default;
 }
 

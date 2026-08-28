@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { buildPromptText } from '../../../src/main/agent/promptBuilder'
+import { buildPromptText, PROMPT_CONTEXT_DELIMITER } from '../../../src/main/agent/promptBuilder'
 
 describe('buildPromptText', () => {
   let dir: string
@@ -19,38 +19,41 @@ describe('buildPromptText', () => {
     expect(await buildPromptText('hello')).toBe('hello')
   })
 
-  it('prepends an attached file\'s content before the user text', async () => {
+  it("puts an attached file's content after the delimiter, keeping the label as the plain text", async () => {
     const filePath = join(dir, 'notes.txt')
     writeFileSync(filePath, 'line one\nline two')
 
     const result = await buildPromptText('summarize this', { attachedFilePath: filePath })
+    const [label, context] = result.split(PROMPT_CONTEXT_DELIMITER)
 
-    expect(result).toContain(filePath)
-    expect(result).toContain('line one\nline two')
-    expect(result.endsWith('summarize this')).toBe(true)
+    expect(label).toBe('summarize this')
+    expect(context).toContain(filePath)
+    expect(context).toContain('line one\nline two')
   })
 
-  it('falls back to a bracketed error note when the attached file cannot be read', async () => {
+  it('falls back to a bracketed error note in the context when the attached file cannot be read', async () => {
     const missingPath = join(dir, 'missing.txt')
 
     const result = await buildPromptText('summarize this', { attachedFilePath: missingPath })
+    const [label, context] = result.split(PROMPT_CONTEXT_DELIMITER)
 
-    expect(result).toContain('Could not read attached file')
-    expect(result.endsWith('summarize this')).toBe(true)
+    expect(label).toBe('summarize this')
+    expect(context).toContain('Could not read attached file')
   })
 
-  it('wraps the text in the skill\'s instructions when a skill is picked', async () => {
+  it('labels a skill-invoked turn as "/skill-name text" and puts the full instructions after the delimiter', async () => {
     const filePath = join(dir, 'SKILL.md')
     writeFileSync(filePath, '---\nname: reviewer\ndescription: reviews code\n---\n\nCheck for bugs.')
 
     const result = await buildPromptText('look at this diff', { skillFilePath: filePath, skillName: 'reviewer' })
+    const [label, context] = result.split(PROMPT_CONTEXT_DELIMITER)
 
-    expect(result).toContain('Use the "reviewer" skill')
-    expect(result).toContain('Check for bugs.')
-    expect(result.endsWith('look at this diff')).toBe(true)
+    expect(label).toBe('/reviewer look at this diff')
+    expect(context).toContain('Use the "reviewer" skill')
+    expect(context).toContain('Check for bugs.')
   })
 
-  it('applies the attachment first and the skill wrapper around the whole result', async () => {
+  it('includes both the attachment and the skill instructions in the context when both are given', async () => {
     const attachPath = join(dir, 'notes.txt')
     writeFileSync(attachPath, 'context notes')
     const skillPath = join(dir, 'SKILL.md')
@@ -61,11 +64,10 @@ describe('buildPromptText', () => {
       skillFilePath: skillPath,
       skillName: 'reviewer'
     })
+    const [label, context] = result.split(PROMPT_CONTEXT_DELIMITER)
 
-    const skillWrapperIndex = result.indexOf('Use the "reviewer" skill')
-    const attachmentIndex = result.indexOf('context notes')
-    expect(skillWrapperIndex).toBeGreaterThanOrEqual(0)
-    expect(attachmentIndex).toBeGreaterThan(skillWrapperIndex)
-    expect(result.endsWith('look at this')).toBe(true)
+    expect(label).toBe('/reviewer look at this')
+    expect(context).toContain('context notes')
+    expect(context).toContain('Check for bugs.')
   })
 })

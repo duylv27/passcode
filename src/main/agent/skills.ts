@@ -23,11 +23,8 @@ export async function listSkillsForRepo(cwd: string): Promise<SkillInfo[]> {
   return skills.map((s) => ({ name: s.name, description: s.description, filePath: s.filePath }))
 }
 
-/** Builds the prompt text for a turn that explicitly invokes a skill: the
- * skill's full instructions precede the user's own message, matching how an
- * explicitly-picked skill (as opposed to one the model discovers on its own)
- * is meant to apply for that turn. */
-export async function buildSkillPrompt(skillFilePath: string, skillName: string, userText: string): Promise<string> {
-  const content = await readFile(skillFilePath, 'utf-8')
-  return `Use the "${skillName}" skill for this request. Its full instructions:\n\n${content}\n\n---\n\n${userText}`
+/** Reads a skill's SKILL.md content, for injecting into a prompt when the
+ * skill was explicitly picked rather than left for the model to discover. */
+export async function readSkillFile(skillFilePath: string): Promise<string> {
+  return readFile(skillFilePath, 'utf-8')
 }

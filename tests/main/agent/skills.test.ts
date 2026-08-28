@@ -11,7 +11,7 @@ vi.mock('@earendil-works/pi-coding-agent', () => ({
   getAgentDir: getAgentDirMock
 }))
 
-import { getAdditionalSkillPaths, buildSkillPrompt, listSkillsForRepo } from '../../../src/main/agent/skills'
+import { getAdditionalSkillPaths, readSkillFile, listSkillsForRepo } from '../../../src/main/agent/skills'
 
 describe('getAdditionalSkillPaths', () => {
   it('points at both the Claude and Copilot per-user skill directories', () => {
@@ -20,7 +20,7 @@ describe('getAdditionalSkillPaths', () => {
   })
 })
 
-describe('buildSkillPrompt', () => {
+describe('readSkillFile', () => {
   let dir: string
 
   beforeEach(() => {
@@ -31,16 +31,13 @@ describe('buildSkillPrompt', () => {
     rmSync(dir, { recursive: true, force: true })
   })
 
-  it('reads the skill file and puts its content ahead of the user message', async () => {
+  it('reads the raw content of the skill file', async () => {
     const filePath = join(dir, 'SKILL.md')
     writeFileSync(filePath, '---\nname: my-skill\ndescription: does a thing\n---\n\nDo the thing carefully.')
 
-    const result = await buildSkillPrompt(filePath, 'my-skill', 'please help')
+    const content = await readSkillFile(filePath)
 
-    expect(result).toContain('Use the "my-skill" skill for this request')
-    expect(result).toContain('Do the thing carefully.')
-    expect(result.indexOf('Do the thing carefully.')).toBeLessThan(result.indexOf('please help'))
-    expect(result.endsWith('please help')).toBe(true)
+    expect(content).toContain('Do the thing carefully.')
   })
 })
 
