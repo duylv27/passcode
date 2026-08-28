@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ChatEvent, HistoryItem, ModelInfo, SessionRecord } from '../../../shared/types'
-import { ChevronIcon, SendIcon, StopIcon, SpinnerIcon, CheckIcon, ErrorIcon } from './icons'
+import { ChevronIcon, SendIcon, StopIcon, SpinnerIcon } from './icons'
 import { Markdown } from './Markdown'
 import { DiffView } from './DiffView'
 
@@ -293,18 +293,38 @@ function TranscriptRow({
   expanded: boolean
   onToggle: () => void
 }): JSX.Element {
-  if (item.kind === 'user') return <div className="chat-line is-user">{item.text}</div>
+  if (item.kind === 'user') {
+    return (
+      <div className="chat-line is-user">
+        <div className="turn-header">
+          <span className="turn-dot is-user" />
+          You
+        </div>
+        <div className="turn-bubble">{item.text}</div>
+      </div>
+    )
+  }
   if (item.kind === 'text') {
     return (
       <div className="chat-line is-markdown">
-        <Markdown text={item.text} />
+        <div className="turn-header">
+          <span className="turn-dot is-agent" />
+          Agent
+        </div>
+        <div className="md-body">
+          <Markdown text={item.text} />
+        </div>
       </div>
     )
   }
   if (item.kind === 'thinking') {
+    // A thinking block with no content yet (the delta stream just started,
+    // or ended up empty) has nothing worth showing.
+    if (!item.text.trim()) return <></>
     return (
       <div className="thinking-card">
         <button className="thinking-card-header" onClick={onToggle}>
+          <span className="turn-dot is-reasoning" />
           <span className="thinking-card-label">Reasoning</span>
           <ChevronIcon className={`chevron${expanded ? ' is-open' : ''}`} />
         </button>
@@ -330,10 +350,8 @@ function TranscriptRow({
   return (
     <div className="tool-card">
       <button className="tool-card-header" onClick={onToggle}>
-        {item.status === 'running' && <SpinnerIcon className="spin tool-status is-running" />}
-        {item.status === 'done' && <CheckIcon className="tool-status is-done" />}
-        {item.status === 'error' && <ErrorIcon className="tool-status is-error" />}
-        <span className="tool-card-name">{item.toolName}</span>
+        <span className={`status-dot is-${item.status}`} />
+        <span className="tool-card-name">{toolActionLabel(item.toolName)}</span>
         {summary && <span className="tool-card-summary">{summary}</span>}
         {duration && <span className="tool-card-duration">{duration}</span>}
         <ChevronIcon className={`chevron${expanded ? ' is-open' : ''}`} />
@@ -341,6 +359,23 @@ function TranscriptRow({
       {expanded && <div className="tool-card-body">{renderToolDetail(item.toolName, item.args, item.result)}</div>}
     </div>
   )
+}
+
+const TOOL_ACTION_LABELS: Record<string, string> = {
+  read: 'Read file',
+  edit: 'Edit file',
+  write: 'Create file',
+  grep: 'Search text',
+  find: 'Find files',
+  ls: 'List directory',
+  bash: 'Run command',
+  powershell: 'Run command'
+}
+
+/** A plain-English name for the action, shown in place of the raw tool
+ * identifier so the card reads as "what happened" at a glance. */
+function toolActionLabel(toolName: string): string {
+  return TOOL_ACTION_LABELS[toolName] ?? toolName
 }
 
 /** A short, human-readable description of what the call is doing, shown
