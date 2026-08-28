@@ -355,7 +355,23 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
           </div>
         )}
       </div>
-      <div className={`composer${busy ? ' is-busy' : ''}`}>
+      <div className={`composer${busy ? ' is-busy' : ''}`} ref={skillPickerRef}>
+        {showSkillMenu && (
+          <div className="skill-picker-menu" role="listbox">
+            {filteredSkills.map((skill) => (
+              <button
+                key={skill.filePath}
+                type="button"
+                role="option"
+                className="skill-picker-option"
+                onClick={() => handleSelectSkill(skill)}
+              >
+                <span className="skill-picker-option-name">{skill.name}</span>
+                <span className="skill-picker-option-desc">{skill.description}</span>
+              </button>
+            ))}
+          </div>
+        )}
         <div className="composer-topbar">
           <button
             type="button"
@@ -442,32 +458,14 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
             <PlusIcon />
           </button>
           {skills.length > 0 && (
-            <div className="skill-picker" ref={skillPickerRef}>
-              <button
-                type="button"
-                className="composer-icon-btn"
-                onClick={() => setSkillMenuOpen((v) => !v)}
-                title="Use a skill"
-              >
-                <SlashIcon />
-              </button>
-              {showSkillMenu && (
-                <div className="skill-picker-menu" role="listbox">
-                  {filteredSkills.map((skill) => (
-                    <button
-                      key={skill.filePath}
-                      type="button"
-                      role="option"
-                      className="skill-picker-option"
-                      onClick={() => handleSelectSkill(skill)}
-                    >
-                      <span className="skill-picker-option-name">{skill.name}</span>
-                      <span className="skill-picker-option-desc">{skill.description}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            <button
+              type="button"
+              className="composer-icon-btn"
+              onClick={() => setSkillMenuOpen((v) => !v)}
+              title="Use a skill"
+            >
+              <SlashIcon />
+            </button>
           )}
           <span className="composer-hint">
             {queue.length > 0 ? `${queue.length} queued` : session.title}
@@ -568,8 +566,7 @@ function TimelineRow({
   const duration = item.endedAt ? ((item.endedAt - item.startedAt) / 1000).toFixed(1) + 's' : null
   const summary = summarizeToolCall(item.toolName, item.args)
   const isShell = item.toolName === 'bash' || item.toolName === 'powershell'
-  const resultSummary =
-    !isShell && item.status !== 'running' ? summarizeToolResult(item.toolName, item.result) : null
+  const resultSummary = item.status !== 'running' ? summarizeToolResult(item.toolName, item.result) : null
   const runOutput = isShell && typeof item.result === 'string' ? truncateOutput(item.result) : null
 
   return (
@@ -577,11 +574,12 @@ function TimelineRow({
       <span className={`timeline-dot is-${item.status}`} />
       <button className="timeline-row-header" onClick={onToggle}>
         <span className="timeline-row-title">{toolActionLabel(item.toolName)}</span>
-        {!isShell && summary && <span className="timeline-row-summary">{summary}</span>}
+        {summary && <span className="timeline-row-summary">{summary}</span>}
         {duration && <span className="timeline-row-duration">{duration}</span>}
         <ChevronIcon className={`chevron${expanded ? ' is-open' : ''}`} />
       </button>
-      {isShell && (summary || runOutput) && !expanded && (
+      {resultSummary && !expanded && <div className="timeline-row-result">{resultSummary}</div>}
+      {expanded && isShell && (summary || runOutput) && (
         <div className="timeline-terminal">
           {summary && (
             <div className="timeline-terminal-row">
@@ -597,8 +595,7 @@ function TimelineRow({
           )}
         </div>
       )}
-      {resultSummary && !expanded && <div className="timeline-row-result">{resultSummary}</div>}
-      {expanded && (
+      {expanded && !isShell && (
         <div className="timeline-row-body">{renderToolDetail(item.toolName, item.args, item.result)}</div>
       )}
     </div>
