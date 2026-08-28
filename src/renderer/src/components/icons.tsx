@@ -39,8 +39,17 @@ export function RepoIcon({ className }: IconProps): JSX.Element {
 
 export function ExplorerIcon({ className }: IconProps): JSX.Element {
   return (
-    <svg className={className} width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
-      <path d="M2 2h4.5l1 1H14v9.5a.5.5 0 0 1-.5.5H2.5a.5.5 0 0 1-.5-.5V2z" />
+    <svg
+      className={className}
+      width="20"
+      height="20"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.3"
+    >
+      <rect x="2.5" y="4.5" width="9" height="9" rx="1.2" opacity="0.55" />
+      <rect x="4.5" y="2.5" width="9" height="9" rx="1.2" />
     </svg>
   )
 }

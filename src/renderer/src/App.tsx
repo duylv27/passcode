@@ -16,7 +16,17 @@ export default function App(): JSX.Element {
   const [selectedSession, setSelectedSession] = useState<SessionRecord | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
   const [activity, setActivity] = useState<Activity>('explorer')
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [branch, setBranch] = useState<GitStatus['branch'] | null>(null)
+
+  function handleExplorerClick(): void {
+    if (activity === 'explorer') {
+      setSidebarCollapsed((collapsed) => !collapsed)
+    } else {
+      setActivity('explorer')
+      setSidebarCollapsed(false)
+    }
+  }
 
   const handleTurnEnd = useCallback(() => setRefreshKey((k) => k + 1), [])
 
@@ -55,9 +65,9 @@ export default function App(): JSX.Element {
       <div className="workbench">
         <div className="activitybar">
           <button
-            className={`activitybar-icon${activity === 'explorer' ? ' is-active' : ''}`}
-            onClick={() => setActivity('explorer')}
-            title="Explorer"
+            className={`activitybar-icon${activity === 'explorer' && !sidebarCollapsed ? ' is-active' : ''}`}
+            onClick={handleExplorerClick}
+            title={activity === 'explorer' && !sidebarCollapsed ? 'Hide Explorer' : 'Explorer'}
           >
             <ExplorerIcon />
           </button>
@@ -72,7 +82,7 @@ export default function App(): JSX.Element {
         </div>
 
         {activity === 'explorer' && (
-          <div className="sidebar">
+          <div className={`sidebar${sidebarCollapsed ? ' is-collapsed' : ''}`}>
             <div className="sidebar-header">EXPLORER</div>
             <div className="sidebar-scroll">
               <ProjectTree
