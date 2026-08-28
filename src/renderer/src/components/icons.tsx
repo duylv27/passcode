@@ -4,7 +4,7 @@ interface IconProps {
 
 export function LogoIcon({ className }: IconProps): JSX.Element {
   return (
-    <svg className={className} width="12" height="12" viewBox="0 0 512 512" fill="currentColor">
+    <svg className={className} width="16" height="16" viewBox="0 0 512 512" fill="currentColor">
       <circle cx="228" cy="204" r="74" />
       <path d="M204 258 L296 258 L340 400 L232 400 Z" />
       <circle cx="228" cy="204" r="30" fill="var(--statusbar-bg, #fbfbf9)" />

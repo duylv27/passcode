@@ -1590,7 +1590,7 @@ button {
    Status bar
    --------------------------------------------------------------------- */
 .statusbar {
-  height: 26px;
+  height: 32px;
   flex-shrink: 0;
   background: var(--statusbar-bg);
   color: var(--statusbar-fg);
@@ -1613,8 +1613,10 @@ button {
 .statusbar-brand {
   display: flex;
   align-items: center;
-  gap: 5px;
-  color: var(--fg-faint);
+  gap: 7px;
+  color: var(--fg-dim);
+  font-size: 13px;
+  font-weight: 600;
   letter-spacing: 0.02em;
 }
 
