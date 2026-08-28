@@ -32,7 +32,6 @@ type TranscriptItem =
       endedAt?: number
     }
   | { kind: 'error'; id: string; text: string }
-  | { kind: 'usage'; id: string; input: number; output: number; label: string }
 
 interface Props {
   session: SessionRecord
@@ -143,34 +142,76 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
     setCurrentModel(null)
     window.api.session.open(session.id)
 
+    // Streamed text/thinking arrives token-by-token; applying each token as
+    // its own state update forces a full markdown re-parse + re-highlight
+    // per token, which is what made streamed responses feel janky. Buffer
+    // consecutive deltas and flush at most once per animation frame instead.
+    const pendingRef: { current: { kind: 'text' | 'thinking'; text: string } | null } = { current: null }
+    let rafId: number | null = null
+
+    function flushPending(): void {
+      const pending = pendingRef.current
+      if (!pending) return
+      pendingRef.current = null
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId)
+        rafId = null
+      }
+      if (pending.kind === 'text') {
+        setItems((prev) => {
+          const next = [...prev]
+          const last = next[next.length - 1]
+          if (last && last.kind === 'text') {
+            next[next.length - 1] = { ...last, text: last.text + pending.text }
+          } else {
+            next.push({ kind: 'text', id: newId(), text: pending.text })
+          }
+          return next
+        })
+      } else {
+        setItems((prev) => {
+          const next = [...prev]
+          const last = next[next.length - 1]
+          if (last && last.kind === 'thinking') {
+            next[next.length - 1] = { ...last, text: last.text + pending.text }
+          } else {
+            next.push({ kind: 'thinking', id: newId(), text: pending.text, startedAt: Date.now() })
+          }
+          return next
+        })
+      }
+    }
+
+    function scheduleFlush(): void {
+      if (rafId !== null) return
+      rafId = requestAnimationFrame(() => {
+        rafId = null
+        flushPending()
+      })
+    }
+
     const unsubscribe = window.api.session.onEvent((eventSessionId, event: ChatEvent) => {
       if (eventSessionId !== session.id) return
 
       if (event.type === 'text_delta') {
         setThinking(false)
-        setItems((prev) => {
-          const next = [...prev]
-          const last = next[next.length - 1]
-          if (last && last.kind === 'text') {
-            next[next.length - 1] = { ...last, text: last.text + event.delta }
-          } else {
-            next.push({ kind: 'text', id: newId(), text: event.delta })
-          }
-          return next
-        })
-      } else if (event.type === 'thinking_delta') {
+        if (pendingRef.current?.kind === 'thinking') flushPending()
+        pendingRef.current = { kind: 'text', text: (pendingRef.current?.text ?? '') + event.delta }
+        scheduleFlush()
+        return
+      }
+
+      if (event.type === 'thinking_delta') {
         setThinking(false)
-        setItems((prev) => {
-          const next = [...prev]
-          const last = next[next.length - 1]
-          if (last && last.kind === 'thinking') {
-            next[next.length - 1] = { ...last, text: last.text + event.delta }
-          } else {
-            next.push({ kind: 'thinking', id: newId(), text: event.delta, startedAt: Date.now() })
-          }
-          return next
-        })
-      } else if (event.type === 'thinking_end') {
+        if (pendingRef.current?.kind === 'text') flushPending()
+        pendingRef.current = { kind: 'thinking', text: (pendingRef.current?.text ?? '') + event.delta }
+        scheduleFlush()
+        return
+      }
+
+      flushPending()
+
+      if (event.type === 'thinking_end') {
         setItems((prev) => {
           const next = [...prev]
           for (let i = next.length - 1; i >= 0; i--) {
@@ -216,21 +257,6 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
       } else if (event.type === 'turn_end') {
         setThinking(false)
         setBusy(false)
-        if (event.usage) {
-          const usage = event.usage
-          setItems((prev) => {
-            let label = 'Response'
-            for (let i = prev.length - 1; i >= 0; i--) {
-              const prior = prev[i]
-              if (prior.kind === 'usage') break
-              if (prior.kind === 'tool') {
-                label = prior.toolName
-                break
-              }
-            }
-            return [...prev, { kind: 'usage', id: newId(), input: usage.input, output: usage.output, label }]
-          })
-        }
       } else if (event.type === 'history') {
         setItems(mapHistory(event.items))
       } else if (event.type === 'model') {
@@ -238,7 +264,10 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
       }
     })
 
-    return unsubscribe
+    return () => {
+      if (rafId !== null) cancelAnimationFrame(rafId)
+      unsubscribe()
+    }
   }, [session.id])
 
   useEffect(() => {
@@ -508,15 +537,7 @@ const TranscriptRow = memo(function TranscriptRow({ item }: { item: SingleItem }
       </div>
     )
   }
-  if (item.kind === 'error') return <div className="chat-line is-error">{item.text}</div>
-  return (
-    <div className="usage-card">
-      <span className="usage-card-label">{item.label}</span>
-      <span className="usage-card-tokens">
-        ↑ {item.input.toLocaleString()} · ↓ {item.output.toLocaleString()}
-      </span>
-    </div>
-  )
+  return <div className="chat-line is-error">{item.text}</div>
 })
 
 type RenderGroup = { type: 'timeline'; items: TimelineItem[] } | { type: 'single'; item: SingleItem }

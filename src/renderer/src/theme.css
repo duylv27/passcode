@@ -824,28 +824,6 @@ button {
   color: var(--danger);
 }
 
-.usage-card {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  border: 1px solid var(--border-subtle);
-  border-radius: 4px;
-  background: var(--sidebar-bg);
-  padding: 6px var(--space-2);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--fg-dim);
-}
-
-.usage-card-label {
-  font-weight: 600;
-  color: var(--fg);
-}
-
-.usage-card-tokens {
-  margin-left: auto;
-}
-
 .chat-line.is-thinking {
   display: flex;
   align-items: center;
