@@ -125,6 +125,19 @@ describe('sessionHandlers', () => {
     })
   })
 
+  it('maps and forwards a thinking_delta event, keyed by session id', async () => {
+    const session = handlers.createSession(repoId)
+    await handlers.openSession(session.id)
+    subscribeListener?.({
+      type: 'message_update',
+      assistantMessageEvent: { type: 'thinking_delta', delta: 'Checking the stack trace' }
+    })
+    expect(events).toContainEqual({
+      sessionId: session.id,
+      event: { type: 'thinking_delta', delta: 'Checking the stack trace' }
+    })
+  })
+
   it('maps a tool_execution_start event with its args', async () => {
     const session = handlers.createSession(repoId)
     await handlers.openSession(session.id)

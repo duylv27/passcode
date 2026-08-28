@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from 'react'
 import type { ChatEvent, HistoryItem, ModelInfo, SessionRecord } from '../../../shared/types'
 import { ChevronIcon, SendIcon, StopIcon, SpinnerIcon, CheckIcon, ErrorIcon } from './icons'
 import { Markdown } from './Markdown'
+import { DiffView } from './DiffView'
 
 type TranscriptItem =
   | { kind: 'user'; id: string; text: string }
   | { kind: 'text'; id: string; text: string }
+  | { kind: 'thinking'; id: string; text: string }
   | {
       kind: 'tool'
       id: string
@@ -85,6 +87,18 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
             next[next.length - 1] = { ...last, text: last.text + event.delta }
           } else {
             next.push({ kind: 'text', id: newId(), text: event.delta })
+          }
+          return next
+        })
+      } else if (event.type === 'thinking_delta') {
+        setThinking(false)
+        setItems((prev) => {
+          const next = [...prev]
+          const last = next[next.length - 1]
+          if (last && last.kind === 'thinking') {
+            next[next.length - 1] = { ...last, text: last.text + event.delta }
+          } else {
+            next.push({ kind: 'thinking', id: newId(), text: event.delta })
           }
           return next
         })
@@ -287,6 +301,17 @@ function TranscriptRow({
       </div>
     )
   }
+  if (item.kind === 'thinking') {
+    return (
+      <div className="thinking-card">
+        <button className="thinking-card-header" onClick={onToggle}>
+          <span className="thinking-card-label">Reasoning</span>
+          <ChevronIcon className={`chevron${expanded ? ' is-open' : ''}`} />
+        </button>
+        {expanded && <div className="thinking-card-body">{item.text}</div>}
+      </div>
+    )
+  }
   if (item.kind === 'error') return <div className="chat-line is-error">{item.text}</div>
   if (item.kind === 'usage') {
     return (
@@ -300,6 +325,7 @@ function TranscriptRow({
   }
 
   const duration = item.endedAt ? ((item.endedAt - item.startedAt) / 1000).toFixed(1) + 's' : null
+  const summary = summarizeToolCall(item.toolName, item.args)
 
   return (
     <div className="tool-card">
@@ -308,16 +334,60 @@ function TranscriptRow({
         {item.status === 'done' && <CheckIcon className="tool-status is-done" />}
         {item.status === 'error' && <ErrorIcon className="tool-status is-error" />}
         <span className="tool-card-name">{item.toolName}</span>
+        {summary && <span className="tool-card-summary">{summary}</span>}
         {duration && <span className="tool-card-duration">{duration}</span>}
         <ChevronIcon className={`chevron${expanded ? ' is-open' : ''}`} />
       </button>
-      {expanded && (
-        <div className="tool-card-body">
-          <pre>{stringifyDetail(item.args)}</pre>
-          {item.result !== undefined && <pre>{stringifyDetail(item.result)}</pre>}
-        </div>
-      )}
+      {expanded && <div className="tool-card-body">{renderToolDetail(item.toolName, item.args, item.result)}</div>}
     </div>
+  )
+}
+
+/** A short, human-readable description of what the call is doing, shown
+ * inline in the tool card's header so the action is legible without
+ * expanding it. */
+function summarizeToolCall(toolName: string, args: unknown): string | null {
+  const a = args as Record<string, unknown> | undefined
+  if (!a) return null
+  switch (toolName) {
+    case 'bash':
+    case 'powershell':
+      return typeof a.command === 'string' ? a.command : null
+    case 'read':
+    case 'edit':
+    case 'write':
+    case 'ls':
+      return typeof a.path === 'string' ? a.path : null
+    case 'grep':
+    case 'find':
+      return typeof a.pattern === 'string' ? a.pattern : null
+    default:
+      return null
+  }
+}
+
+function renderToolDetail(toolName: string, args: unknown, result: unknown): JSX.Element {
+  const a = args as { path?: string; content?: string; edits?: { oldText: string; newText: string }[] } | undefined
+
+  if (toolName === 'edit' && a?.edits?.length) {
+    return (
+      <>
+        {a.edits.map((edit, i) => (
+          <DiffView key={i} oldText={edit.oldText} newText={edit.newText} />
+        ))}
+      </>
+    )
+  }
+
+  if (toolName === 'write' && typeof a?.content === 'string') {
+    return <DiffView oldText="" newText={a.content} />
+  }
+
+  return (
+    <>
+      <pre>{stringifyDetail(args)}</pre>
+      {result !== undefined && <pre>{stringifyDetail(result)}</pre>}
+    </>
   )
 }
 
@@ -325,6 +395,7 @@ function mapHistory(items: HistoryItem[]): TranscriptItem[] {
   return items.map((item) => {
     if (item.kind === 'user') return { kind: 'user', id: newId(), text: item.text }
     if (item.kind === 'text') return { kind: 'text', id: newId(), text: item.text }
+    if (item.kind === 'thinking') return { kind: 'thinking', id: newId(), text: item.text }
     return {
       kind: 'tool',
       id: newId(),

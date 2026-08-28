@@ -199,6 +199,31 @@ describe('createRepoSession', () => {
     ])
   })
 
+  it('reconstructs thinking content alongside text and tool calls', async () => {
+    mockMessages = [
+      { role: 'user', content: 'why is this failing' },
+      {
+        role: 'assistant',
+        content: [
+          { type: 'thinking', thinking: 'Let me check the stack trace first.' },
+          { type: 'text', text: 'It looks like a null pointer.' }
+        ]
+      }
+    ]
+
+    const { repoSession } = await createRepoSession({
+      cwd: '/repo/path',
+      modelRuntime: {} as never,
+      requestApproval: noApproval
+    })
+
+    expect(repoSession.getHistory()).toEqual([
+      { kind: 'user', text: 'why is this failing' },
+      { kind: 'thinking', text: 'Let me check the stack trace first.' },
+      { kind: 'text', text: 'It looks like a null pointer.' }
+    ])
+  })
+
   it('exposes the current model from the underlying session', async () => {
     const { repoSession } = await createRepoSession({
       cwd: '/repo/path',

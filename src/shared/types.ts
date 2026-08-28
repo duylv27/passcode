@@ -47,10 +47,12 @@ export interface TokenUsage {
 export type HistoryItem =
   | { kind: 'user'; text: string }
   | { kind: 'text'; text: string }
+  | { kind: 'thinking'; text: string }
   | { kind: 'tool'; toolCallId: string; toolName: string; input: unknown; result?: unknown; isError?: boolean }
 
 export type ChatEvent =
   | { type: 'text_delta'; delta: string }
+  | { type: 'thinking_delta'; delta: string }
   | { type: 'tool_start'; toolCallId: string; toolName: string; args: unknown }
   | { type: 'tool_end'; toolCallId: string; toolName: string; isError: boolean; result: unknown }
   | { type: 'turn_end'; usage?: TokenUsage }

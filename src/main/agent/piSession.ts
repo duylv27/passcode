@@ -85,9 +85,18 @@ function buildHistory(messages: readonly unknown[]): HistoryItem[] {
     } else if (message.role === 'assistant') {
       const parts = Array.isArray(message.content) ? message.content : []
       for (const raw2 of parts) {
-        const part = raw2 as { type?: string; text?: string; id?: string; name?: string; arguments?: unknown }
+        const part = raw2 as {
+          type?: string
+          text?: string
+          thinking?: string
+          id?: string
+          name?: string
+          arguments?: unknown
+        }
         if (part.type === 'text' && part.text) {
           items.push({ kind: 'text', text: part.text })
+        } else if (part.type === 'thinking' && part.thinking) {
+          items.push({ kind: 'thinking', text: part.thinking })
         } else if (part.type === 'toolCall') {
           items.push({
             kind: 'tool',

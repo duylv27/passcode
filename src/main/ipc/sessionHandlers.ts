@@ -148,6 +148,9 @@ function mapAgentEvent(event: unknown): ChatEvent | null {
   if (e.type === 'message_update' && e.assistantMessageEvent?.type === 'text_delta') {
     return { type: 'text_delta', delta: e.assistantMessageEvent.delta ?? '' }
   }
+  if (e.type === 'message_update' && e.assistantMessageEvent?.type === 'thinking_delta') {
+    return { type: 'thinking_delta', delta: e.assistantMessageEvent.delta ?? '' }
+  }
   if (e.type === 'tool_execution_start') {
     return {
       type: 'tool_start',
