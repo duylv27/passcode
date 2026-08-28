@@ -40,6 +40,23 @@ function createWindow(): BrowserWindow {
     win.webContents.setZoomFactor(1.7)
   })
 
+  // Electron's default menu accelerator for zoom is unreliable across
+  // keyboard layouts (Ctrl+Plus needs Shift, and "+" isn't always what
+  // the accelerator parser sees) -- handle it directly instead.
+  const ZOOM_STEP = 0.1
+  const MIN_ZOOM = 0.5
+  const MAX_ZOOM = 3
+  win.webContents.on('before-input-event', (_event, input) => {
+    if (!input.control || input.type !== 'keyDown') return
+    if (input.key === '=' || input.key === '+') {
+      win.webContents.setZoomFactor(Math.min(MAX_ZOOM, win.webContents.getZoomFactor() + ZOOM_STEP))
+    } else if (input.key === '-') {
+      win.webContents.setZoomFactor(Math.max(MIN_ZOOM, win.webContents.getZoomFactor() - ZOOM_STEP))
+    } else if (input.key === '0') {
+      win.webContents.setZoomFactor(1)
+    }
+  })
+
   if (process.env['ELECTRON_RENDERER_URL']) {
     win.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
