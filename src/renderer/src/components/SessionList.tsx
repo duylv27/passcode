@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import type { SessionRecord } from '../../../shared/types'
+import type { Repo, SessionRecord } from '../../../shared/types'
 import type { Scope } from './RepoSwitcher'
-import { ChatIcon, EditIcon, PlusIcon, TrashIcon } from './icons'
+import { ChatIcon, EditIcon, PlusIcon, RepoIcon, TrashIcon } from './icons'
 
 interface Props {
   scope: Scope
@@ -19,6 +19,7 @@ export function SessionList({
   onSessionRenamed
 }: Props): JSX.Element {
   const [sessions, setSessions] = useState<SessionRecord[]>([])
+  const [projectRepos, setProjectRepos] = useState<Repo[]>([])
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -34,6 +35,11 @@ export function SessionList({
   useEffect(() => {
     refresh()
     setError(null)
+    if (scope.kind === 'project') {
+      window.api.repos.list(scope.project.id).then(setProjectRepos)
+    } else {
+      setProjectRepos([])
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scopeKey])
 
@@ -76,6 +82,17 @@ export function SessionList({
 
   return (
     <div className="tree-sessions">
+      {scope.kind === 'project' && projectRepos.length > 0 && (
+        <div className="scope-repos">
+          <div className="scope-repos-label">Repo roommates</div>
+          {projectRepos.map((r) => (
+            <div key={r.id} className="scope-repos-item">
+              <RepoIcon className="row-icon is-repo" />
+              <span>{r.name}</span>
+            </div>
+          ))}
+        </div>
+      )}
       {sessions.map((s) =>
         editingId === s.id ? (
           <div key={s.id} className="session-row is-editing">
