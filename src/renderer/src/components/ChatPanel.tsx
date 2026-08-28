@@ -517,6 +517,7 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
               <SlashIcon />
             </button>
           )}
+          {busy && <SpinnerIcon className="spin composer-busy-spinner" />}
           <span className="composer-hint">
             {queue.length > 0 ? `${queue.length} queued` : session.title}
           </span>
