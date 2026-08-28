@@ -20,14 +20,6 @@ export function ChevronIcon({ className }: IconProps): JSX.Element {
   )
 }
 
-export function FolderIcon({ className }: IconProps): JSX.Element {
-  return (
-    <svg className={className} width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-      <path d="M1.5 3h4l1.5 1.5H14a.5.5 0 0 1 .5.5v8a.5.5 0 0 1-.5.5H1.5a.5.5 0 0 1-.5-.5V3.5A.5.5 0 0 1 1.5 3z" />
-    </svg>
-  )
-}
-
 export function RepoIcon({ className }: IconProps): JSX.Element {
   return (
     <svg
