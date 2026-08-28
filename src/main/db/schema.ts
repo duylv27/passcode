@@ -30,13 +30,17 @@ export function initSchema(db: DatabaseSync): void {
     );
   `)
 
-  // sessions.session_file was added after the sessions table already shipped;
-  // CREATE TABLE IF NOT EXISTS above does nothing for a table that already
-  // exists without this column, so add it explicitly for existing databases.
+  // sessions.session_file and sessions.last_opened_at were added after the
+  // sessions table already shipped; CREATE TABLE IF NOT EXISTS above does
+  // nothing for a table that already exists without these columns, so add
+  // them explicitly for existing databases.
   const columns = db.prepare("SELECT name FROM pragma_table_info('sessions')").all() as Array<{
     name: string
   }>
   if (!columns.some((c) => c.name === 'session_file')) {
     db.exec('ALTER TABLE sessions ADD COLUMN session_file TEXT')
+  }
+  if (!columns.some((c) => c.name === 'last_opened_at')) {
+    db.exec('ALTER TABLE sessions ADD COLUMN last_opened_at TEXT')
   }
 }

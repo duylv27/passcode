@@ -15,6 +15,7 @@ const api: Api = {
   session: {
     list: (repoId) => ipcRenderer.invoke('session:list', repoId),
     create: (repoId, title) => ipcRenderer.invoke('session:create', repoId, title),
+    getMostRecent: () => ipcRenderer.invoke('session:getMostRecent'),
     rename: (sessionId, title) => ipcRenderer.invoke('session:rename', sessionId, title),
     delete: (sessionId) => ipcRenderer.invoke('session:delete', sessionId),
     open: (sessionId) => ipcRenderer.invoke('session:open', sessionId),

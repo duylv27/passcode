@@ -6,11 +6,16 @@ export interface SessionsRepository {
   create(repoId: string, piSessionId: string, title: string): SessionRecord
   listByRepo(repoId: string): SessionRecord[]
   getById(id: string): SessionRecord | undefined
+  /** The most recently opened session across every repo, falling back to
+   * most recently created for a session that's never been opened -- used
+   * to land on the last thing you were working on instead of an empty state. */
+  getMostRecent(): SessionRecord | undefined
   rename(id: string, title: string): void
   setPiSessionId(id: string, piSessionId: string): void
   /** The Pi SDK session file backing this session, if it has ever been opened. */
   getSessionFile(id: string): string | undefined
   setSessionFile(id: string, sessionFile: string): void
+  touchOpened(id: string): void
   delete(id: string): void
 }
 
@@ -44,6 +49,13 @@ export function createSessionsRepository(db: DatabaseSync): SessionsRepository {
         | SessionRecord
         | undefined
     },
+    getMostRecent(): SessionRecord | undefined {
+      return db
+        .prepare(
+          `SELECT ${SELECT_COLUMNS} FROM sessions ORDER BY COALESCE(last_opened_at, created_at) DESC, rowid DESC LIMIT 1`
+        )
+        .get() as SessionRecord | undefined
+    },
     rename(id: string, title: string): void {
       db.prepare('UPDATE sessions SET title = ? WHERE id = ?').run(title, id)
     },
@@ -58,6 +70,9 @@ export function createSessionsRepository(db: DatabaseSync): SessionsRepository {
     },
     setSessionFile(id: string, sessionFile: string): void {
       db.prepare('UPDATE sessions SET session_file = ? WHERE id = ?').run(sessionFile, id)
+    },
+    touchOpened(id: string): void {
+      db.prepare('UPDATE sessions SET last_opened_at = ? WHERE id = ?').run(new Date().toISOString(), id)
     },
     delete(id: string): void {
       db.prepare('DELETE FROM sessions WHERE id = ?').run(id)

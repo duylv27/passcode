@@ -121,6 +121,7 @@ export interface Api {
   session: {
     list(repoId: string): Promise<SessionRecord[]>
     create(repoId: string, title?: string): Promise<SessionRecord>
+    getMostRecent(): Promise<{ session: SessionRecord; repo: Repo } | null>
     rename(sessionId: string, title: string): Promise<void>
     delete(sessionId: string): Promise<void>
     open(sessionId: string): Promise<void>

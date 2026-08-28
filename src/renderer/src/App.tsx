@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { Repo, SessionRecord } from '../../shared/types'
-import { ProjectTree } from './components/ProjectTree'
+import { RepoSwitcher } from './components/RepoSwitcher'
+import { SessionList } from './components/SessionList'
 import { SessionTabs } from './components/SessionTabs'
 import { ChatPanel } from './components/ChatPanel'
 import { SettingsPanel } from './components/SettingsPanel'
@@ -31,6 +32,15 @@ export default function App(): JSX.Element {
     setSelectedSession(tabsForRepo.length > 0 ? tabsForRepo[tabsForRepo.length - 1] : null)
   }
 
+  // Land on whatever was last worked in, instead of an empty state, every
+  // time the app starts.
+  useEffect(() => {
+    window.api.session.getMostRecent().then((result) => {
+      if (result) handleOpenSession(result.session, result.repo)
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   function handleOpenSession(session: SessionRecord, repo: Repo): void {
     setSelectedRepo(repo)
     setOpenSessions((prev) => (prev.some((s) => s.id === session.id) ? prev : [...prev, session]))
@@ -49,6 +59,11 @@ export default function App(): JSX.Element {
   function handleSessionDeleted(session: SessionRecord): void {
     setOpenSessions((prev) => prev.filter((s) => s.id !== session.id))
     setSelectedSession((prev) => (prev?.id === session.id ? null : prev))
+  }
+
+  function handleSessionRenamed(session: SessionRecord): void {
+    setOpenSessions((prev) => prev.map((s) => (s.id === session.id ? session : s)))
+    setSelectedSession((prev) => (prev?.id === session.id ? session : prev))
   }
 
   const sessionsForSelectedRepo = selectedRepo
@@ -78,15 +93,20 @@ export default function App(): JSX.Element {
 
         {activity === 'explorer' && (
           <div className={`sidebar${sidebarCollapsed ? ' is-collapsed' : ''}`}>
-            <div className="sidebar-header">EXPLORER</div>
+            <div className="sidebar-header">SESSIONS</div>
+            <RepoSwitcher selectedRepo={selectedRepo} onSelectRepo={handleSelectRepo} />
             <div className="sidebar-scroll">
-              <ProjectTree
-                selectedRepo={selectedRepo}
-                selectedSession={selectedSession}
-                onSelectRepo={handleSelectRepo}
-                onOpenSession={handleOpenSession}
-                onSessionDeleted={handleSessionDeleted}
-              />
+              {selectedRepo ? (
+                <SessionList
+                  repo={selectedRepo}
+                  activeSessionId={selectedSession?.id}
+                  onOpenSession={(session) => handleOpenSession(session, selectedRepo)}
+                  onSessionDeleted={handleSessionDeleted}
+                  onSessionRenamed={handleSessionRenamed}
+                />
+              ) : (
+                <div className="sidebar-empty">Pick a repo above to see its sessions.</div>
+              )}
             </div>
           </div>
         )}

@@ -2,7 +2,7 @@ import type { Model } from '@earendil-works/pi-ai'
 import type { RepoSession } from '../agent/piSession'
 import type { SessionsRepository } from '../db/sessionsRepository'
 import type { ReposRepository } from '../db/reposRepository'
-import type { ChatEvent, PromptOptions, SessionRecord } from '../../shared/types'
+import type { ChatEvent, PromptOptions, Repo, SessionRecord } from '../../shared/types'
 
 export type { ChatEvent }
 
@@ -23,6 +23,7 @@ export interface CreateSessionHandlersDeps {
 export interface SessionHandlers {
   listSessions(repoId: string): SessionRecord[]
   createSession(repoId: string, title?: string): SessionRecord
+  getMostRecentSession(): { session: SessionRecord; repo: Repo } | null
   renameSession(sessionId: string, title: string): void
   deleteSession(sessionId: string): Promise<void>
   openSession(sessionId: string): Promise<void>
@@ -87,6 +88,13 @@ export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionH
       // first time (createRepoSession returns the real Pi SDK session id then).
       return deps.sessionsRepo.create(repoId, '', title?.trim() || 'New session')
     },
+    getMostRecentSession(): { session: SessionRecord; repo: Repo } | null {
+      const session = deps.sessionsRepo.getMostRecent()
+      if (!session) return null
+      const repo = deps.reposRepo.getById(session.repoId)
+      if (!repo) return null
+      return { session, repo }
+    },
     renameSession(sessionId: string, title: string): void {
       deps.sessionsRepo.rename(sessionId, title)
     },
@@ -100,6 +108,7 @@ export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionH
     },
     async openSession(sessionId: string): Promise<void> {
       try {
+        deps.sessionsRepo.touchOpened(sessionId)
         const session = await ensureSession(sessionId)
         emitCurrentState(sessionId, session)
       } catch (err) {

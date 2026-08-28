@@ -179,6 +179,14 @@ export function ChatIcon({ className }: IconProps): JSX.Element {
   )
 }
 
+export function EditIcon({ className }: IconProps): JSX.Element {
+  return (
+    <svg className={className} width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <path d="M10.5 2.5 13.5 5.5 5.5 13.5H2.5V10.5Z" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 export function TrashIcon({ className }: IconProps): JSX.Element {
   return (
     <svg className={className} width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">

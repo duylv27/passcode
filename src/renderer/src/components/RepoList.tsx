@@ -1,29 +1,17 @@
 import { useEffect, useState } from 'react'
-import type { Project, Repo, SessionRecord } from '../../../shared/types'
-import { ChevronIcon, RepoIcon } from './icons'
-import { SessionList } from './SessionList'
+import type { Project, Repo } from '../../../shared/types'
+import { RepoIcon } from './icons'
 
 interface Props {
   project: Project
   selectedRepo: Repo | null
-  selectedSession: SessionRecord | null
   onSelectRepo: (repo: Repo) => void
-  onOpenSession: (session: SessionRecord, repo: Repo) => void
-  onSessionDeleted: (session: SessionRecord) => void
 }
 
-export function RepoList({
-  project,
-  selectedRepo,
-  selectedSession,
-  onSelectRepo,
-  onOpenSession,
-  onSessionDeleted
-}: Props): JSX.Element {
+export function RepoList({ project, selectedRepo, onSelectRepo }: Props): JSX.Element {
   const [repos, setRepos] = useState<Repo[]>([])
   const [path, setPath] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
   async function refresh(): Promise<void> {
     setRepos(await window.api.repos.list(project.id))
@@ -46,43 +34,18 @@ export function RepoList({
     await refresh()
   }
 
-  function handleRepoClick(r: Repo): void {
-    const wasSelected = selectedRepo?.id === r.id
-    onSelectRepo(r)
-    setExpanded((prev) => {
-      const next = new Set(prev)
-      const isOpen = next.has(r.id)
-      if (wasSelected && isOpen) next.delete(r.id)
-      else next.add(r.id)
-      return next
-    })
-  }
-
   return (
     <div>
-      {repos.map((r) => {
-        const isOpen = expanded.has(r.id)
-        return (
-          <div key={r.id}>
-            <button
-              className={`tree-row${selectedRepo?.id === r.id ? ' is-selected' : ''}`}
-              onClick={() => handleRepoClick(r)}
-            >
-              <ChevronIcon className={`chevron${isOpen ? ' is-open' : ''}`} />
-              <RepoIcon className="row-icon is-repo" />
-              <span>{r.name}</span>
-            </button>
-            {isOpen && (
-              <SessionList
-                repo={r}
-                activeSessionId={selectedRepo?.id === r.id ? (selectedSession?.id ?? undefined) : undefined}
-                onOpenSession={(session) => onOpenSession(session, r)}
-                onSessionDeleted={onSessionDeleted}
-              />
-            )}
-          </div>
-        )
-      })}
+      {repos.map((r) => (
+        <button
+          key={r.id}
+          className={`tree-row${selectedRepo?.id === r.id ? ' is-selected' : ''}`}
+          onClick={() => onSelectRepo(r)}
+        >
+          <RepoIcon className="row-icon is-repo" />
+          <span>{r.name}</span>
+        </button>
+      ))}
       <div className="tree-add">
         <input
           className="field"
