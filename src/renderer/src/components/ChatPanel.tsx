@@ -5,6 +5,8 @@ import { ChevronIcon, SendIcon, StopIcon, SpinnerIcon, PlusIcon, SlashIcon } fro
 import { Markdown } from './Markdown'
 import { DiffView } from './DiffView'
 
+const LAST_MODEL_KEY = 'passcode-last-model'
+
 const THINKING_WORDS = [
   'Thinking',
   'Scheming',
@@ -85,6 +87,24 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
   useEffect(() => {
     window.api.models.list().then(setModels)
   }, [])
+
+  // A brand-new session (never opened, so the SDK has no model choice of
+  // its own yet) defaults to whatever model was last picked, so switching
+  // repos doesn't mean re-picking a model every time. A resumed session's
+  // own model always wins -- this never runs once one's been set.
+  useEffect(() => {
+    if (session.piSessionId || currentModel || models.length === 0) return
+    const stored = localStorage.getItem(LAST_MODEL_KEY)
+    if (!stored) return
+    try {
+      const { provider, id } = JSON.parse(stored) as { provider: string; id: string }
+      const match = models.find((m) => m.provider === provider && m.id === id)
+      if (match) handleModelChange(match)
+    } catch {
+      // ignore malformed storage
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session.id, models])
 
   useEffect(() => {
     window.api.skills.list(session.repoId).then(setSkills)
@@ -307,6 +327,7 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
     setCurrentModel(model)
     setModelMenuOpen(false)
     window.api.session.setModel(session.id, model.provider, model.id)
+    localStorage.setItem(LAST_MODEL_KEY, JSON.stringify({ provider: model.provider, id: model.id }))
   }
 
   function handleSelectSkill(skill: SkillInfo): void {
