@@ -66,7 +66,11 @@ export async function createRepoSession(
     sessionId: session.sessionId,
     sessionFile: session.sessionManager.getSessionFile(),
     repoSession: {
-      prompt: (text: string) => session.prompt(text),
+      // "steer" interrupts an in-flight turn with this message rather than
+      // requiring the caller to wait or queue -- streamingBehavior is only
+      // consulted when a turn is actually in flight, so this is a no-op
+      // otherwise and safe to always pass.
+      prompt: (text: string) => session.prompt(text, { streamingBehavior: 'steer' }),
       subscribe: (listener) => session.subscribe(listener),
       abort: () => session.abort(),
       getHistory: () => buildHistory(session.agent.state.messages),
