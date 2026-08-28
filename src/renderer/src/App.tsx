@@ -1,12 +1,11 @@
-import { useCallback, useState } from 'react'
-import type { GitStatus, Repo, SessionRecord } from '../../shared/types'
+import { useState } from 'react'
+import type { Repo, SessionRecord } from '../../shared/types'
 import { ProjectTree } from './components/ProjectTree'
 import { SessionTabs } from './components/SessionTabs'
 import { ChatPanel } from './components/ChatPanel'
-import { GitStatusPanel } from './components/GitStatusPanel'
 import { SettingsPanel } from './components/SettingsPanel'
 import { ApprovalDialog } from './components/ApprovalDialog'
-import { ExplorerIcon, GearIcon, BranchIcon } from './components/icons'
+import { ExplorerIcon, GearIcon } from './components/icons'
 
 type Activity = 'explorer' | 'settings'
 
@@ -14,10 +13,8 @@ export default function App(): JSX.Element {
   const [selectedRepo, setSelectedRepo] = useState<Repo | null>(null)
   const [openSessions, setOpenSessions] = useState<SessionRecord[]>([])
   const [selectedSession, setSelectedSession] = useState<SessionRecord | null>(null)
-  const [refreshKey, setRefreshKey] = useState(0)
   const [activity, setActivity] = useState<Activity>('explorer')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const [branch, setBranch] = useState<GitStatus['branch'] | null>(null)
 
   function handleExplorerClick(): void {
     if (activity === 'explorer') {
@@ -27,8 +24,6 @@ export default function App(): JSX.Element {
       setSidebarCollapsed(false)
     }
   }
-
-  const handleTurnEnd = useCallback(() => setRefreshKey((k) => k + 1), [])
 
   function handleSelectRepo(repo: Repo): void {
     setSelectedRepo(repo)
@@ -109,12 +104,11 @@ export default function App(): JSX.Element {
               />
               <div style={{ flex: 1, minHeight: 0 }}>
                 {selectedSession ? (
-                  <ChatPanel session={selectedSession} repoName={selectedRepo.name} onTurnEnd={handleTurnEnd} />
+                  <ChatPanel session={selectedSession} repoName={selectedRepo.name} />
                 ) : (
                   <div className="editor-empty">Pick or create a session for this repo in the sidebar</div>
                 )}
               </div>
-              <GitStatusPanel repo={selectedRepo} refreshKey={refreshKey} onStatus={setBranch} />
             </>
           ) : (
             <div className="editor-empty">Select a repo to start a session</div>
@@ -123,12 +117,6 @@ export default function App(): JSX.Element {
       </div>
 
       <div className="statusbar">
-        {selectedRepo && branch && (
-          <div className="statusbar-item">
-            <BranchIcon />
-            <span>{branch}</span>
-          </div>
-        )}
         {selectedRepo && <div className="statusbar-item">{selectedRepo.name}</div>}
       </div>
 

@@ -22,7 +22,6 @@ type TranscriptItem =
 interface Props {
   session: SessionRecord
   repoName: string
-  onTurnEnd?: () => void
 }
 
 let idCounter = 0
@@ -31,7 +30,7 @@ function newId(): string {
   return `item-${idCounter}`
 }
 
-export function ChatPanel({ session, repoName, onTurnEnd }: Props): JSX.Element {
+export function ChatPanel({ session, repoName }: Props): JSX.Element {
   const [items, setItems] = useState<TranscriptItem[]>([])
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
@@ -137,7 +136,6 @@ export function ChatPanel({ session, repoName, onTurnEnd }: Props): JSX.Element 
             return [...prev, { kind: 'usage', id: newId(), input: usage.input, output: usage.output, label }]
           })
         }
-        onTurnEnd?.()
       } else if (event.type === 'history') {
         setItems(mapHistory(event.items))
       } else if (event.type === 'model') {
@@ -146,7 +144,7 @@ export function ChatPanel({ session, repoName, onTurnEnd }: Props): JSX.Element 
     })
 
     return unsubscribe
-  }, [session.id, onTurnEnd])
+  }, [session.id])
 
   useEffect(() => {
     if (busy || queue.length === 0) return

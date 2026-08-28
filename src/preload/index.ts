@@ -31,9 +31,6 @@ const api: Api = {
   models: {
     list: () => ipcRenderer.invoke('models:list')
   },
-  git: {
-    status: (repoId) => ipcRenderer.invoke('git:status', repoId)
-  },
   settings: {
     setAnthropicApiKey: (apiKey) => ipcRenderer.invoke('settings:setAnthropicApiKey', apiKey),
     getAuthStatus: () => ipcRenderer.invoke('settings:getAuthStatus'),

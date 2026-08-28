@@ -9,7 +9,6 @@ import { createAppSettingsRepository } from './db/appSettingsRepository'
 import { createProjectsHandlers } from './ipc/projectsHandlers'
 import { createReposHandlers } from './ipc/reposHandlers'
 import { createSessionHandlers } from './ipc/sessionHandlers'
-import { createGitHandlers } from './ipc/gitHandlers'
 import { createSettingsHandlers } from './ipc/settingsHandlers'
 import { createApprovalHandlers } from './ipc/approvalHandlers'
 import { createModelsHandlers } from './ipc/modelsHandlers'
@@ -73,7 +72,6 @@ app.whenReady().then(async () => {
         approvalHandlers.requestApproval(sessionId, toolName, input),
       findModel: (provider, modelId) => modelRegistry.find(provider, modelId)
     }),
-    git: createGitHandlers(reposRepo),
     settings: createSettingsHandlers(modelRuntime),
     models: createModelsHandlers(modelRegistry),
     approvals: approvalHandlers

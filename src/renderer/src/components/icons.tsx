@@ -160,21 +160,3 @@ export function TrashIcon({ className }: IconProps): JSX.Element {
   )
 }
 
-export function BranchIcon({ className }: IconProps): JSX.Element {
-  return (
-    <svg
-      className={className}
-      width="12"
-      height="12"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.4"
-    >
-      <circle cx="4" cy="3.5" r="1.6" />
-      <circle cx="4" cy="12.5" r="1.6" />
-      <circle cx="12" cy="8" r="1.6" />
-      <path d="M4 5.1v5.8M4 8c4 0 4-3.2 6.5-3.2" strokeLinecap="round" />
-    </svg>
-  )
-}

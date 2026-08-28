@@ -2,7 +2,6 @@ import { ipcMain } from 'electron'
 import type { ProjectsHandlers } from './projectsHandlers'
 import type { ReposHandlers } from './reposHandlers'
 import type { SessionHandlers } from './sessionHandlers'
-import type { GitHandlers } from './gitHandlers'
 import type { SettingsHandlers } from './settingsHandlers'
 import type { ApprovalHandlers } from './approvalHandlers'
 import type { ModelsHandlers } from './modelsHandlers'
@@ -12,7 +11,6 @@ export interface IpcHandlers {
   projects: ProjectsHandlers
   repos: ReposHandlers
   session: SessionHandlers
-  git: GitHandlers
   settings: SettingsHandlers
   models: ModelsHandlers
   approvals: ApprovalHandlers
@@ -47,8 +45,6 @@ export function registerIpcHandlers(handlers: IpcHandlers): void {
   )
 
   ipcMain.handle('models:list', () => handlers.models.listModels())
-
-  ipcMain.handle('git:status', (_e, repoId: string) => handlers.git.status(repoId))
 
   ipcMain.handle('settings:setAnthropicApiKey', (_e, apiKey: string) =>
     handlers.settings.setAnthropicApiKey(apiKey)

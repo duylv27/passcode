@@ -19,13 +19,6 @@ export interface SessionRecord {
   createdAt: string
 }
 
-export interface GitStatus {
-  branch: string
-  changed: string[]
-  added: string[]
-  deleted: string[]
-}
-
 export interface AuthStatus {
   anthropic: boolean
   copilot: boolean
@@ -119,9 +112,6 @@ export interface Api {
   }
   models: {
     list(): Promise<ModelInfo[]>
-  }
-  git: {
-    status(repoId: string): Promise<GitStatus>
   }
   settings: {
     setAnthropicApiKey(apiKey: string): Promise<{ ok: true } | { ok: false; error: string }>

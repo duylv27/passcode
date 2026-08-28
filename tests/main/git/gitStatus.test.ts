@@ -3,7 +3,7 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import simpleGit from 'simple-git'
-import { isGitRepo, getGitStatus } from '../../../src/main/git/gitStatus'
+import { isGitRepo } from '../../../src/main/git/gitStatus'
 
 describe('gitStatus', () => {
   let dir: string
@@ -31,14 +31,5 @@ describe('gitStatus', () => {
 
   it('reports a valid git repo', async () => {
     expect(await isGitRepo(dir)).toBe(true)
-  })
-
-  it('reports branch and changed files', async () => {
-    writeFileSync(join(dir, 'a.txt'), 'changed')
-    writeFileSync(join(dir, 'b.txt'), 'new file')
-    const status = await getGitStatus(dir)
-    expect(status.branch).toBeTruthy()
-    expect(status.changed).toContain('a.txt')
-    expect(status.added).toContain('b.txt')
   })
 })
