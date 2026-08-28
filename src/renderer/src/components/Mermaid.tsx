@@ -2,28 +2,52 @@ import { useEffect, useState } from 'react'
 
 let diagramCounter = 0
 
+/** While a reply is still streaming, `chart` mutates on nearly every frame --
+ * a fenced ```mermaid block is syntactically invalid until its closing
+ * fence arrives. mermaid.render() doesn't throw for that; it resolves with
+ * a built-in "bomb + Syntax error" SVG instead, and internally renders
+ * through a temporary node appended to document.body that isn't reliably
+ * cleaned up when a new render starts before the previous one settles --
+ * calling it on every keystroke leaked a stack of those nodes straight
+ * into the page, outside React's tree entirely. Debouncing so a diagram
+ * only renders once its source has been stable for a moment avoids both
+ * problems: far fewer render() calls, and no concurrent ones. */
+const RENDER_DEBOUNCE_MS = 500
+
 export function Mermaid({ chart }: { chart: string }): JSX.Element {
   const [svg, setSvg] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
-    diagramCounter += 1
-    const id = `mermaid-diagram-${diagramCounter}`
+    const timer = setTimeout(() => {
+      diagramCounter += 1
+      const id = `mermaid-diagram-${diagramCounter}`
 
-    import('mermaid').then(async (mod) => {
-      const mermaid = mod.default
-      mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: 'default' })
-      try {
-        const result = await mermaid.render(id, chart)
-        if (!cancelled) setSvg(result.svg)
-      } catch (err) {
-        if (!cancelled) setError((err as Error).message)
-      }
-    })
+      import('mermaid').then(async (mod) => {
+        if (cancelled) return
+        const mermaid = mod.default
+        mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: 'default' })
+        try {
+          const result = await mermaid.render(id, chart)
+          if (cancelled) return
+          // mermaid resolves (doesn't throw) with its own error diagram on
+          // invalid syntax -- treat that the same as a thrown error instead
+          // of rendering its bomb-icon SVG.
+          if (result.svg.includes('Syntax error in text')) {
+            setError('Invalid diagram syntax')
+          } else {
+            setSvg(result.svg)
+          }
+        } catch (err) {
+          if (!cancelled) setError((err as Error).message)
+        }
+      })
+    }, RENDER_DEBOUNCE_MS)
 
     return () => {
       cancelled = true
+      clearTimeout(timer)
     }
   }, [chart])
 
