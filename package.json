@@ -1,5 +1,5 @@
 {
-  "name": "pi-agent-desktop",
+  "name": "passcode-desktop",
   "version": "0.1.0",
   "description": "Project-oriented coding agent desktop app built on the Pi SDK",
   "author": "Duy Le",
@@ -15,8 +15,8 @@
     "test": "vitest run"
   },
   "build": {
-    "appId": "com.duyle.pi-agent-desktop",
-    "productName": "Pi Agent Desktop",
+    "appId": "com.duyle.passcode-desktop",
+    "productName": "PassCode",
     "directories": {
       "output": "release"
     },
@@ -24,7 +24,8 @@
       "out/**/*"
     ],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "build/icon.png"
     }
   },
   "dependencies": {

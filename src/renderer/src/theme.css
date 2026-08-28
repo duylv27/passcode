@@ -1,46 +1,86 @@
 /* ---------------------------------------------------------------------
-   Tokens — VS Code's real Light+ palette and layout language: a dark
-   Activity Bar rail (VS Code keeps this dark even in its light theme)
-   against an otherwise light Explorer sidebar, editor-style tabs, and
-   a blue status bar. Chrome uses the OS UI font (matching VS Code's
-   own choice of native fonts over a custom webfont); a monospace
-   stack is reserved for tool-execution log lines, echoing VS Code's
-   integrated terminal.
+   Tokens — a warm, editorial palette instead of an IDE's dark chrome:
+   cream paper background, off-white "sheet" cards on hairline borders,
+   a single violet accent, and a type mix of IBM Plex Sans (UI), Mono
+   (data/labels), and Serif italic (the occasional accent word) rather
+   than VS Code's native-OS-font convention.
    --------------------------------------------------------------------- */
 :root {
   color-scheme: light;
 
-  --activitybar-bg: #2c2c2c;
-  --activitybar-fg: #b3b3b3;
-  --activitybar-fg-active: #ffffff;
-  --sidebar-bg: #f3f3f3;
-  --sidebar-header-fg: #6f6f6f;
+  --bg: #ffffff;
+  --sheet-bg: #fbfbf9;
+
+  --activitybar-bg: #fbfbf9;
+  --activitybar-fg: #9b9c99;
+  --activitybar-fg-active: #6c38e8;
+  --sidebar-bg: #fbfbf9;
+  --sidebar-header-fg: #9b9c99;
   --editor-bg: #ffffff;
-  --titlebar-bg: #dddddd;
-  --statusbar-bg: #007acc;
-  --statusbar-fg: #ffffff;
-  --border: #d4d4d4;
-  --border-subtle: #e5e5e5;
-  --fg: #3b3b3b;
-  --fg-dim: #6f6f6f;
+  --titlebar-bg: #ffffff;
+  --statusbar-bg: #fbfbf9;
+  --statusbar-fg: #5f6066;
+  --border: #d9dad5;
+  --border-subtle: #e6e6e1;
+  --fg: #17181c;
+  --fg-dim: #5f6066;
+  --fg-faint: #9b9c99;
   --fg-bright: #000000;
-  --accent: #005fb8;
-  --list-hover: #e8e8e8;
-  --list-active: #e4e6f1;
+  --accent: #6c38e8;
+  --accent-wash: rgba(108, 56, 232, 0.08);
+  --list-hover: #eeeeec;
+  --list-active: rgba(108, 56, 232, 0.09);
   --input-bg: #ffffff;
-  --button-bg: #005fb8;
-  --button-hover: #0258a8;
+  --button-bg: #6c38e8;
+  --button-hover: #5b2ad1;
 
-  --success: #3e9142;
-  --danger: #cd3131;
+  --success: #2e7d32;
+  --danger: #c0392b;
 
-  --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Ubuntu', sans-serif;
-  --font-mono: Consolas, 'Cascadia Code', ui-monospace, 'SFMono-Regular', monospace;
+  --font-ui: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', Consolas, 'Cascadia Code', ui-monospace, monospace;
+  --font-serif: 'IBM Plex Serif', Georgia, 'Times New Roman', serif;
 
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
+}
+
+/* GitHub Dark High Contrast-inspired palette — deliberately near-black
+   rather than the softer GitHub Dark default, per an explicit request
+   for an "extremely dark" mode. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: #010409;
+  --sheet-bg: #0d1117;
+
+  --activitybar-bg: #0d1117;
+  --activitybar-fg: #6e7681;
+  --activitybar-fg-active: #58a6ff;
+  --sidebar-bg: #0d1117;
+  --sidebar-header-fg: #6e7681;
+  --editor-bg: #010409;
+  --titlebar-bg: #010409;
+  --statusbar-bg: #0d1117;
+  --statusbar-fg: #8b949e;
+  --border: #3d444d;
+  --border-subtle: #21262d;
+  --fg: #f0f6fc;
+  --fg-dim: #9198a1;
+  --fg-faint: #6e7681;
+  --fg-bright: #ffffff;
+  --accent: #58a6ff;
+  --accent-wash: rgba(88, 166, 255, 0.12);
+  --list-hover: #161b22;
+  --list-active: rgba(88, 166, 255, 0.15);
+  --input-bg: #0d1117;
+  --button-bg: #1f6feb;
+  --button-hover: #388bfd;
+
+  --success: #3fb950;
+  --danger: #f85149;
 }
 
 * {
@@ -55,7 +95,7 @@ body,
 }
 
 body {
-  background: var(--editor-bg);
+  background: var(--bg);
   color: var(--fg);
   font-family: var(--font-ui);
   font-size: 13px;
@@ -106,6 +146,7 @@ button {
   width: 48px;
   flex-shrink: 0;
   background: var(--activitybar-bg);
+  border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -138,7 +179,7 @@ button {
 }
 
 .sidebar {
-  width: 260px;
+  width: 240px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
@@ -152,8 +193,9 @@ button {
 }
 
 .sidebar-header {
-  padding: var(--space-2) var(--space-3);
-  font-size: 11px;
+  padding: var(--space-2) var(--space-3) var(--space-1);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.08em;
   color: var(--sidebar-header-fg);
@@ -163,7 +205,7 @@ button {
 .sidebar-scroll {
   flex: 1;
   overflow-y: auto;
-  padding-bottom: var(--space-3);
+  padding-bottom: var(--space-2);
 }
 
 .editor-area {
@@ -171,7 +213,13 @@ button {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  background: var(--editor-bg);
+  background-color: var(--editor-bg);
+  background-image: radial-gradient(rgba(23, 24, 28, 0.025) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+:root[data-theme='dark'] .editor-area {
+  background-image: radial-gradient(rgba(240, 246, 252, 0.035) 1px, transparent 1px);
 }
 
 .editor-empty {
@@ -180,7 +228,9 @@ button {
   align-items: center;
   justify-content: center;
   color: var(--fg-dim);
-  font-size: 13px;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 15px;
 }
 
 /* ---------------------------------------------------------------------
@@ -192,11 +242,11 @@ button {
   gap: 4px;
   width: 100%;
   text-align: left;
-  padding: 3px var(--space-2);
+  padding: 2px var(--space-2);
   background: none;
   border: none;
   color: var(--fg);
-  font-size: 13px;
+  font-size: 12.5px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -233,11 +283,11 @@ button {
 }
 
 .tree-repos {
-  padding-left: 20px;
+  padding-left: 14px;
 }
 
 .tree-sessions {
-  padding-left: 20px;
+  padding-left: 0;
 }
 
 .session-row {
@@ -261,7 +311,7 @@ button {
   flex: 1;
   min-width: 0;
   text-align: left;
-  padding: 3px var(--space-2);
+  padding: 2px var(--space-2);
   background: none;
   border: none;
   color: var(--fg);
@@ -305,7 +355,7 @@ button {
 }
 
 .session-row.is-add {
-  padding: 3px var(--space-2);
+  padding: 2px var(--space-2);
   gap: 4px;
   color: var(--fg-dim);
   background: none;
@@ -322,7 +372,7 @@ button {
 .tree-add {
   display: flex;
   gap: 4px;
-  padding: 3px var(--space-2) 3px 20px;
+  padding: 2px var(--space-2);
 }
 
 .tree-add.is-project {
@@ -487,7 +537,9 @@ button {
   align-items: center;
   justify-content: center;
   color: var(--fg-dim);
-  font-size: 13px;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 15px;
   text-align: center;
 }
 
@@ -715,6 +767,57 @@ button {
   background: #eaffea;
 }
 
+:root[data-theme='dark'] .hljs-keyword,
+:root[data-theme='dark'] .hljs-selector-tag,
+:root[data-theme='dark'] .hljs-literal,
+:root[data-theme='dark'] .hljs-tag {
+  color: #ff7b72;
+}
+
+:root[data-theme='dark'] .hljs-string,
+:root[data-theme='dark'] .hljs-attr,
+:root[data-theme='dark'] .hljs-template-tag,
+:root[data-theme='dark'] .hljs-template-variable {
+  color: #a5d6ff;
+}
+
+:root[data-theme='dark'] .hljs-number,
+:root[data-theme='dark'] .hljs-symbol,
+:root[data-theme='dark'] .hljs-bullet {
+  color: #79c0ff;
+}
+
+:root[data-theme='dark'] .hljs-comment,
+:root[data-theme='dark'] .hljs-quote {
+  color: #8b949e;
+}
+
+:root[data-theme='dark'] .hljs-title,
+:root[data-theme='dark'] .hljs-title.function_,
+:root[data-theme='dark'] .hljs-title.class_,
+:root[data-theme='dark'] .hljs-section {
+  color: #d2a8ff;
+}
+
+:root[data-theme='dark'] .hljs-variable,
+:root[data-theme='dark'] .hljs-name,
+:root[data-theme='dark'] .hljs-attribute {
+  color: #ffa657;
+}
+
+:root[data-theme='dark'] .hljs-built_in,
+:root[data-theme='dark'] .hljs-type {
+  color: #79c0ff;
+}
+
+:root[data-theme='dark'] .hljs-deletion {
+  background: rgba(248, 81, 73, 0.15);
+}
+
+:root[data-theme='dark'] .hljs-addition {
+  background: rgba(63, 185, 80, 0.15);
+}
+
 .chat-line.is-error {
   font-family: var(--font-mono);
   font-size: 12px;
@@ -795,7 +898,7 @@ button {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #9061f9;
+  background: var(--accent);
   z-index: 1;
 }
 
@@ -973,6 +1076,16 @@ button {
 .diff-line.is-del {
   background: #ffecec;
   color: #c00f2f;
+}
+
+:root[data-theme='dark'] .diff-line.is-add {
+  background: rgba(63, 185, 80, 0.15);
+  color: #3fb950;
+}
+
+:root[data-theme='dark'] .diff-line.is-del {
+  background: rgba(248, 81, 73, 0.15);
+  color: #f85149;
 }
 
 .diff-gutter {
@@ -1271,10 +1384,10 @@ button {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: #0969da;
+  background: var(--accent);
   border: none;
   color: #ffffff;
-  box-shadow: 0 1px 3px rgba(9, 105, 218, 0.35);
+  box-shadow: 0 1px 3px rgba(108, 56, 232, 0.35);
   transition:
     background 150ms ease,
     transform 100ms ease,
@@ -1282,9 +1395,9 @@ button {
 }
 
 .composer-send:hover:not(:disabled) {
-  background: #0860c9;
+  background: var(--button-hover);
   transform: translateY(-1px);
-  box-shadow: 0 2px 6px rgba(9, 105, 218, 0.4);
+  box-shadow: 0 2px 6px rgba(108, 56, 232, 0.4);
 }
 
 .composer-send:active:not(:disabled) {
@@ -1314,14 +1427,17 @@ button {
    Status bar
    --------------------------------------------------------------------- */
 .statusbar {
-  height: 22px;
+  height: 26px;
   flex-shrink: 0;
   background: var(--statusbar-bg);
   color: var(--statusbar-fg);
+  border-top: 1px solid var(--border);
   display: flex;
   align-items: center;
-  padding: 0 var(--space-2);
-  font-size: 12px;
+  justify-content: space-between;
+  padding: 0 var(--space-3);
+  font-family: var(--font-mono);
+  font-size: 11px;
   gap: var(--space-3);
 }
 
@@ -1329,6 +1445,18 @@ button {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+.statusbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--fg-faint);
+  letter-spacing: 0.02em;
+}
+
+.statusbar-brand svg {
+  color: var(--accent);
 }
 
 /* ---------------------------------------------------------------------
@@ -1358,6 +1486,36 @@ button {
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
   overflow: hidden;
+}
+
+.settings-group + .settings-group {
+  margin-top: var(--space-3);
+}
+
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.segmented-option {
+  background: none;
+  border: none;
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 12px;
+  color: var(--fg-dim);
+}
+
+.segmented-option:hover {
+  color: var(--fg-bright);
+}
+
+.segmented-option.is-selected {
+  background: var(--accent);
+  color: #ffffff;
 }
 
 .settings-row {

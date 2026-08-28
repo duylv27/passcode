@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react'
 import type { AuthStatus, DeviceCodeChallenge, ToolApprovalPolicy } from '../../../shared/types'
 import { KNOWN_TOOL_NAMES } from '../../../shared/types'
+import { useTheme, type ThemePreference } from '../hooks/useTheme'
+
+const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+  { value: 'system', label: 'System' }
+]
 
 const TOOL_LABELS: Record<(typeof KNOWN_TOOL_NAMES)[number], string> = {
   read: 'Read',
@@ -38,6 +45,7 @@ export function SettingsPanel(): JSX.Element {
   const [challenge, setChallenge] = useState<DeviceCodeChallenge | null>(null)
   const [loggingIn, setLoggingIn] = useState(false)
   const [policy, setPolicy] = useState<ToolApprovalPolicy | null>(null)
+  const [theme, setTheme] = useTheme()
 
   async function refresh(): Promise<void> {
     setStatus(await window.api.settings.getAuthStatus())
@@ -87,6 +95,29 @@ export function SettingsPanel(): JSX.Element {
   return (
     <div className="settings-light">
       <h2 className="settings-light-title">Settings</h2>
+
+      <div className="settings-group">
+        <div className="settings-row">
+          <div className="settings-row-text">
+            <span className="settings-row-title">Appearance</span>
+            <span className="settings-row-desc">Color scheme for the app window</span>
+          </div>
+          <div className="settings-row-control">
+            <div className="segmented">
+              {THEME_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  className={`segmented-option${theme === opt.value ? ' is-selected' : ''}`}
+                  onClick={() => setTheme(opt.value)}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div className="settings-group">
         <div className="settings-row">

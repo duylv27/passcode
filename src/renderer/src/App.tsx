@@ -5,7 +5,7 @@ import { SessionTabs } from './components/SessionTabs'
 import { ChatPanel } from './components/ChatPanel'
 import { SettingsPanel } from './components/SettingsPanel'
 import { ApprovalDialog } from './components/ApprovalDialog'
-import { ExplorerIcon, GearIcon } from './components/icons'
+import { ExplorerIcon, GearIcon, LogoIcon } from './components/icons'
 
 type Activity = 'explorer' | 'settings'
 
@@ -117,6 +117,10 @@ export default function App(): JSX.Element {
       </div>
 
       <div className="statusbar">
+        <span className="statusbar-brand">
+          <LogoIcon />
+          PassCode
+        </span>
         {selectedRepo && <div className="statusbar-item">{selectedRepo.name}</div>}
       </div>
 

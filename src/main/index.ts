@@ -1,5 +1,6 @@
 import { app, BrowserWindow, dialog } from 'electron'
 import { join } from 'node:path'
+import { existsSync } from 'node:fs'
 import type { ModelRuntime } from '@earendil-works/pi-coding-agent'
 import { openDatabase } from './db/db'
 import { createProjectsRepository } from './db/projectsRepository'
@@ -20,9 +21,15 @@ import { createRepoSession } from './agent/piSession'
 import { buildPromptText } from './agent/promptBuilder'
 
 function createWindow(): BrowserWindow {
+  // The packaged .exe carries its icon from electron-builder's `win.icon`
+  // config automatically; this only matters for `npm run dev`, where
+  // Windows has no embedded icon to fall back on.
+  const devIconPath = join(__dirname, '../../build/icon.png')
+
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
+    ...(existsSync(devIconPath) ? { icon: devIconPath } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false

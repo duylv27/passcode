@@ -2,7 +2,23 @@
 <html>
   <head>
     <meta charset="UTF-8" />
-    <title>Pi Agent Desktop</title>
+    <title>PassCode</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Serif:ital,wght@0,400;0,600;1,400&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      ;(function () {
+        try {
+          var stored = localStorage.getItem('passcode-theme') || 'system'
+          var isDark =
+            stored === 'dark' || (stored === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+          if (isDark) document.documentElement.setAttribute('data-theme', 'dark')
+        } catch (e) {}
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>
