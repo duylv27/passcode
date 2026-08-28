@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog } from 'electron'
+import { app, BrowserWindow, dialog, Menu } from 'electron'
 import { join } from 'node:path'
 import { existsSync } from 'node:fs'
 import type { ModelRuntime } from '@earendil-works/pi-coding-agent'
@@ -19,6 +19,11 @@ import { registerIpcHandlers } from './ipc/register'
 import { isGitRepo } from './git/gitStatus'
 import { createRepoSession } from './agent/piSession'
 import { buildPromptText } from './agent/promptBuilder'
+
+// PassCode has its own title bar / status bar chrome; Electron's default
+// File/Edit/View/Window menu bar doesn't fit that and exposes actions
+// (reload, DevTools) not meant for end users.
+Menu.setApplicationMenu(null)
 
 function createWindow(): BrowserWindow {
   // The packaged .exe carries its icon from electron-builder's `win.icon`
