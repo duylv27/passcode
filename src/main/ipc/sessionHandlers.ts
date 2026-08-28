@@ -62,14 +62,19 @@ export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionH
       if (mapped) deps.onEvent(sessionId, mapped)
     })
 
+    openSessions.set(sessionId, repoSession)
+    return repoSession
+  }
+
+  // Re-synced every time the UI switches to a session (not just on first
+  // open), so returning to a session you already opened once still shows
+  // its transcript -- the frontend clears its own state on every switch.
+  function emitCurrentState(sessionId: string, repoSession: RepoSession): void {
     const history = repoSession.getHistory()
     if (history.length > 0) deps.onEvent(sessionId, { type: 'history', items: history })
 
     const model = repoSession.getModel()
     if (model) deps.onEvent(sessionId, { type: 'model', provider: model.provider, id: model.id, name: model.name })
-
-    openSessions.set(sessionId, repoSession)
-    return repoSession
   }
 
   return {
@@ -94,7 +99,8 @@ export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionH
     },
     async openSession(sessionId: string): Promise<void> {
       try {
-        await ensureSession(sessionId)
+        const session = await ensureSession(sessionId)
+        emitCurrentState(sessionId, session)
       } catch (err) {
         deps.onEvent(sessionId, { type: 'error', message: (err as Error).message })
       }

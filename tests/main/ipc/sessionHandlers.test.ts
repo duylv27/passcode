@@ -293,6 +293,21 @@ describe('sessionHandlers', () => {
     expect(events.some((e) => e.event.type === 'history')).toBe(false)
   })
 
+  it('re-emits history on a second open of an already-open session, so switching back to it repopulates the transcript', async () => {
+    historyItems = [{ kind: 'user', text: 'earlier message' }]
+    const session = handlers.createSession(repoId)
+
+    await handlers.openSession(session.id)
+    events.length = 0
+    await handlers.openSession(session.id)
+
+    expect(events).toContainEqual({
+      sessionId: session.id,
+      event: { type: 'history', items: [{ kind: 'user', text: 'earlier message' }] }
+    })
+    expect(openRepoSessionMock).toHaveBeenCalledTimes(1)
+  })
+
   it('emits a model event on open when the resumed session already has a model', async () => {
     currentModel = { provider: 'anthropic', id: 'claude-opus-4-5', name: 'Claude Opus 4.5' } as Model<any>
     const session = handlers.createSession(repoId)

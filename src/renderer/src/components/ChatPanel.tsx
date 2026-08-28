@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ChatEvent, HistoryItem, ModelInfo, SessionRecord } from '../../../shared/types'
 import { ChevronIcon, SendIcon, StopIcon, SpinnerIcon, CheckIcon, ErrorIcon } from './icons'
 
@@ -40,6 +40,8 @@ export function ChatPanel({ session, repoName, onTurnEnd }: Props): JSX.Element 
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const [models, setModels] = useState<ModelInfo[]>([])
   const [currentModel, setCurrentModel] = useState<ModelInfo | null>(null)
+  const [modelMenuOpen, setModelMenuOpen] = useState(false)
+  const modelPickerRef = useRef<HTMLDivElement>(null)
 
   async function sendNow(text: string): Promise<void> {
     setItems((prev) => [...prev, { kind: 'user', id: newId(), text }])
@@ -51,6 +53,17 @@ export function ChatPanel({ session, repoName, onTurnEnd }: Props): JSX.Element 
   useEffect(() => {
     window.api.models.list().then(setModels)
   }, [])
+
+  useEffect(() => {
+    if (!modelMenuOpen) return
+    function handleClickOutside(e: MouseEvent): void {
+      if (modelPickerRef.current && !modelPickerRef.current.contains(e.target as Node)) {
+        setModelMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [modelMenuOpen])
 
   useEffect(() => {
     setItems([])
@@ -161,10 +174,9 @@ export function ChatPanel({ session, repoName, onTurnEnd }: Props): JSX.Element 
     await window.api.session.abort(session.id)
   }
 
-  function handleModelChange(value: string): void {
-    const model = models.find((m) => `${m.provider}/${m.id}` === value)
-    if (!model) return
+  function handleModelChange(model: ModelInfo): void {
     setCurrentModel(model)
+    setModelMenuOpen(false)
     window.api.session.setModel(session.id, model.provider, model.id)
   }
 
@@ -213,19 +225,37 @@ export function ChatPanel({ session, repoName, onTurnEnd }: Props): JSX.Element 
             {queue.length > 0 ? `${queue.length} queued` : session.title}
           </span>
           {models.length > 0 && (
-            <select
-              className="composer-model"
-              value={currentModel ? `${currentModel.provider}/${currentModel.id}` : ''}
-              onChange={(e) => handleModelChange(e.target.value)}
-              title="Model"
-            >
-              {!currentModel && <option value="">Model…</option>}
-              {models.map((m) => (
-                <option key={`${m.provider}/${m.id}`} value={`${m.provider}/${m.id}`}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
+            <div className="model-picker" ref={modelPickerRef}>
+              <button
+                type="button"
+                className="model-picker-trigger"
+                onClick={() => setModelMenuOpen((v) => !v)}
+                title="Model"
+              >
+                <span className="model-picker-label">{currentModel ? currentModel.name : 'Model…'}</span>
+                <ChevronIcon className={`chevron model-picker-chevron${modelMenuOpen ? ' is-open' : ''}`} />
+              </button>
+              {modelMenuOpen && (
+                <div className="model-picker-menu" role="listbox">
+                  {models.map((m) => {
+                    const isSelected =
+                      currentModel?.provider === m.provider && currentModel?.id === m.id
+                    return (
+                      <button
+                        key={`${m.provider}/${m.id}`}
+                        type="button"
+                        role="option"
+                        aria-selected={isSelected}
+                        className={`model-picker-option${isSelected ? ' is-selected' : ''}`}
+                        onClick={() => handleModelChange(m)}
+                      >
+                        {m.name}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
           )}
           <button
             className={`composer-send${busy ? ' is-stop' : ''}`}
