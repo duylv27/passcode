@@ -52,7 +52,8 @@ describe('sessionHandlers', () => {
       reposRepo,
       sessionsRepo,
       openRepoSession: openRepoSessionMock,
-      onEvent: (id, event) => events.push({ sessionId: id, event })
+      onEvent: (id, event) => events.push({ sessionId: id, event }),
+      requestApproval: async () => true
     })
   })
 
@@ -196,5 +197,37 @@ describe('sessionHandlers', () => {
     await handlers.deleteSession(session.id)
     expect(abortMock).not.toHaveBeenCalled()
     expect(sessionsRepo.getById(session.id)).toBeUndefined()
+  })
+
+  it('aborts an open session without deleting it', async () => {
+    const session = handlers.createSession(repoId)
+    await handlers.openSession(session.id)
+    await handlers.abortSession(session.id)
+    expect(abortMock).toHaveBeenCalled()
+    expect(sessionsRepo.getById(session.id)).toBeDefined()
+  })
+
+  it('does nothing when aborting a session that was never opened', async () => {
+    const session = handlers.createSession(repoId)
+    await handlers.abortSession(session.id)
+    expect(abortMock).not.toHaveBeenCalled()
+  })
+
+  it("passes a per-session requestApproval wrapper to openRepoSession", async () => {
+    const requestApproval = vi.fn(async () => true)
+    const localHandlers = createSessionHandlers({
+      reposRepo: { getById: () => ({ id: repoId, projectId: 'p1', path: '/repo/path', name: 'demo-repo' }) } as never,
+      sessionsRepo,
+      openRepoSession: openRepoSessionMock,
+      onEvent: () => {},
+      requestApproval
+    })
+
+    const session = localHandlers.createSession(repoId)
+    await localHandlers.openSession(session.id)
+
+    const [, approvalWrapper] = openRepoSessionMock.mock.calls[0]
+    await approvalWrapper('bash', { command: 'ls' })
+    expect(requestApproval).toHaveBeenCalledWith(session.id, 'bash', { command: 'ls' })
   })
 })

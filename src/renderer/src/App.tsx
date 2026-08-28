@@ -5,6 +5,7 @@ import { SessionTabs } from './components/SessionTabs'
 import { ChatPanel } from './components/ChatPanel'
 import { GitStatusPanel } from './components/GitStatusPanel'
 import { SettingsPanel } from './components/SettingsPanel'
+import { ApprovalDialog } from './components/ApprovalDialog'
 import { ExplorerIcon, GearIcon, BranchIcon } from './components/icons'
 
 type Activity = 'explorer' | 'settings'
@@ -80,6 +81,8 @@ export default function App(): JSX.Element {
         )}
         {selectedRepo && <div className="statusbar-item">{selectedRepo.name}</div>}
       </div>
+
+      <ApprovalDialog />
     </div>
   )
 }

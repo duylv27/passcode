@@ -4,6 +4,8 @@ import type { ReposHandlers } from './reposHandlers'
 import type { SessionHandlers } from './sessionHandlers'
 import type { GitHandlers } from './gitHandlers'
 import type { SettingsHandlers } from './settingsHandlers'
+import type { ApprovalHandlers } from './approvalHandlers'
+import type { ToolApprovalPolicy } from '../../shared/types'
 
 export interface IpcHandlers {
   projects: ProjectsHandlers
@@ -11,6 +13,7 @@ export interface IpcHandlers {
   session: SessionHandlers
   git: GitHandlers
   settings: SettingsHandlers
+  approvals: ApprovalHandlers
 }
 
 export function registerIpcHandlers(handlers: IpcHandlers): void {
@@ -36,6 +39,7 @@ export function registerIpcHandlers(handlers: IpcHandlers): void {
   ipcMain.handle('session:prompt', (_e, sessionId: string, text: string) =>
     handlers.session.sendPrompt(sessionId, text)
   )
+  ipcMain.handle('session:abort', (_e, sessionId: string) => handlers.session.abortSession(sessionId))
 
   ipcMain.handle('git:status', (_e, repoId: string) => handlers.git.status(repoId))
 
@@ -45,5 +49,13 @@ export function registerIpcHandlers(handlers: IpcHandlers): void {
   ipcMain.handle('settings:getAuthStatus', () => handlers.settings.getAuthStatus())
   ipcMain.handle('settings:loginCopilot', (event) =>
     handlers.settings.loginCopilot((challenge) => event.sender.send('settings:copilotChallenge', challenge))
+  )
+
+  ipcMain.handle('approvals:getPolicy', () => handlers.approvals.getPolicy())
+  ipcMain.handle('approvals:setPolicy', (_e, policy: ToolApprovalPolicy) =>
+    handlers.approvals.setPolicy(policy)
+  )
+  ipcMain.handle('approvals:respond', (_e, requestId: string, approved: boolean) =>
+    handlers.approvals.respond(requestId, approved)
   )
 }

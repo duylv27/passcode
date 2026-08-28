@@ -58,6 +58,30 @@ export type ChatEvent =
   | { type: 'turn_end'; usage?: TokenUsage }
   | { type: 'error'; message: string }
 
+/** Known built-in tool names an approval policy can key on. Any other
+ * (e.g. custom) tool name defaults to requiring approval. */
+export const KNOWN_TOOL_NAMES = [
+  'read',
+  'grep',
+  'find',
+  'ls',
+  'bash',
+  'powershell',
+  'edit',
+  'write'
+] as const
+
+export interface ToolApprovalPolicy {
+  autoApprove: Record<string, boolean>
+}
+
+export interface ApprovalRequest {
+  requestId: string
+  sessionId: string
+  toolName: string
+  input: unknown
+}
+
 export interface Api {
   projects: {
     create(name: string): Promise<Project>
@@ -76,6 +100,7 @@ export interface Api {
     delete(sessionId: string): Promise<void>
     open(sessionId: string): Promise<void>
     prompt(sessionId: string, text: string): Promise<void>
+    abort(sessionId: string): Promise<void>
     onEvent(listener: (sessionId: string, event: ChatEvent) => void): () => void
   }
   git: {
@@ -86,5 +111,11 @@ export interface Api {
     getAuthStatus(): Promise<AuthStatus>
     loginCopilot(): Promise<{ ok: true } | { ok: false; error: string }>
     onCopilotChallenge(listener: (challenge: DeviceCodeChallenge) => void): () => void
+  }
+  approvals: {
+    getPolicy(): Promise<ToolApprovalPolicy>
+    setPolicy(policy: ToolApprovalPolicy): Promise<void>
+    respond(requestId: string, approved: boolean): Promise<void>
+    onRequest(listener: (request: ApprovalRequest) => void): () => void
   }
 }

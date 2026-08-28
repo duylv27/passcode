@@ -8,8 +8,12 @@ export type { ChatEvent }
 export interface CreateSessionHandlersDeps {
   reposRepo: ReposRepository
   sessionsRepo: SessionsRepository
-  openRepoSession: (cwd: string) => Promise<{ repoSession: RepoSession; sessionId: string }>
+  openRepoSession: (
+    cwd: string,
+    requestApproval: (toolName: string, input: unknown) => Promise<boolean>
+  ) => Promise<{ repoSession: RepoSession; sessionId: string }>
   onEvent: (sessionId: string, event: ChatEvent) => void
+  requestApproval: (sessionId: string, toolName: string, input: unknown) => Promise<boolean>
 }
 
 export interface SessionHandlers {
@@ -19,6 +23,7 @@ export interface SessionHandlers {
   deleteSession(sessionId: string): Promise<void>
   openSession(sessionId: string): Promise<void>
   sendPrompt(sessionId: string, text: string): Promise<void>
+  abortSession(sessionId: string): Promise<void>
 }
 
 export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionHandlers {
@@ -34,7 +39,9 @@ export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionH
     const repo = deps.reposRepo.getById(record.repoId)
     if (!repo) throw new Error(`Unknown repo: ${record.repoId}`)
 
-    const { repoSession, sessionId: piSessionId } = await deps.openRepoSession(repo.path)
+    const { repoSession, sessionId: piSessionId } = await deps.openRepoSession(repo.path, (toolName, input) =>
+      deps.requestApproval(sessionId, toolName, input)
+    )
     deps.sessionsRepo.setPiSessionId(sessionId, piSessionId)
 
     repoSession.subscribe((event) => {
@@ -80,6 +87,10 @@ export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionH
       } catch (err) {
         deps.onEvent(sessionId, { type: 'error', message: (err as Error).message })
       }
+    },
+    async abortSession(sessionId: string): Promise<void> {
+      const open = openSessions.get(sessionId)
+      if (open) await open.abort()
     }
   }
 }

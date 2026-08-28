@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { Api, ChatEvent, DeviceCodeChallenge } from '../shared/types'
+import type { Api, ApprovalRequest, ChatEvent, DeviceCodeChallenge, ToolApprovalPolicy } from '../shared/types'
 
 const api: Api = {
   projects: {
@@ -19,6 +19,7 @@ const api: Api = {
     delete: (sessionId) => ipcRenderer.invoke('session:delete', sessionId),
     open: (sessionId) => ipcRenderer.invoke('session:open', sessionId),
     prompt: (sessionId, text) => ipcRenderer.invoke('session:prompt', sessionId, text),
+    abort: (sessionId) => ipcRenderer.invoke('session:abort', sessionId),
     onEvent: (listener) => {
       const wrapped = (_e: unknown, sessionId: string, event: ChatEvent): void => listener(sessionId, event)
       ipcRenderer.on('session:event', wrapped)
@@ -36,6 +37,16 @@ const api: Api = {
       const wrapped = (_e: unknown, challenge: DeviceCodeChallenge): void => listener(challenge)
       ipcRenderer.on('settings:copilotChallenge', wrapped)
       return () => ipcRenderer.removeListener('settings:copilotChallenge', wrapped)
+    }
+  },
+  approvals: {
+    getPolicy: () => ipcRenderer.invoke('approvals:getPolicy'),
+    setPolicy: (policy: ToolApprovalPolicy) => ipcRenderer.invoke('approvals:setPolicy', policy),
+    respond: (requestId, approved) => ipcRenderer.invoke('approvals:respond', requestId, approved),
+    onRequest: (listener) => {
+      const wrapped = (_e: unknown, request: ApprovalRequest): void => listener(request)
+      ipcRenderer.on('approvals:request', wrapped)
+      return () => ipcRenderer.removeListener('approvals:request', wrapped)
     }
   }
 }

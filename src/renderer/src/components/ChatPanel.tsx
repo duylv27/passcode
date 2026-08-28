@@ -17,7 +17,7 @@ type TranscriptItem =
       endedAt?: number
     }
   | { kind: 'error'; id: string; text: string }
-  | { kind: 'usage'; id: string; input: number; output: number }
+  | { kind: 'usage'; id: string; input: number; output: number; label: string }
 
 interface Props {
   session: SessionRecord
@@ -103,10 +103,19 @@ export function ChatPanel({ session, repoName, onTurnEnd }: Props): JSX.Element 
         setThinking(false)
         setBusy(false)
         if (event.usage) {
-          setItems((prev) => [
-            ...prev,
-            { kind: 'usage', id: newId(), input: event.usage!.input, output: event.usage!.output }
-          ])
+          const usage = event.usage
+          setItems((prev) => {
+            let label = 'Response'
+            for (let i = prev.length - 1; i >= 0; i--) {
+              const prior = prev[i]
+              if (prior.kind === 'usage') break
+              if (prior.kind === 'tool') {
+                label = prior.toolName
+                break
+              }
+            }
+            return [...prev, { kind: 'usage', id: newId(), input: usage.input, output: usage.output, label }]
+          })
         }
         onTurnEnd?.()
       }
@@ -132,6 +141,13 @@ export function ChatPanel({ session, repoName, onTurnEnd }: Props): JSX.Element 
     } else {
       await sendNow(text)
     }
+  }
+
+  async function handleStop(): Promise<void> {
+    setQueue([])
+    setBusy(false)
+    setThinking(false)
+    await window.api.session.abort(session.id)
   }
 
   function toggleExpanded(id: string): void {
@@ -178,13 +194,18 @@ export function ChatPanel({ session, repoName, onTurnEnd }: Props): JSX.Element 
           <span className="composer-hint">
             {queue.length > 0 ? `${queue.length} queued` : session.title}
           </span>
+          {busy && (
+            <button className="composer-stop" onClick={handleStop} title="Stop now">
+              <StopIcon /> Stop
+            </button>
+          )}
           <button
             className="composer-send"
             onClick={handleSend}
             disabled={!input.trim()}
             title={busy ? 'Queue message' : 'Send'}
           >
-            {busy ? <StopIcon /> : <SendIcon />}
+            <SendIcon />
           </button>
         </div>
       </div>
@@ -206,8 +227,11 @@ function TranscriptRow({
   if (item.kind === 'error') return <div className="chat-line is-error">{item.text}</div>
   if (item.kind === 'usage') {
     return (
-      <div className="chat-line is-usage">
-        ↑ {item.input.toLocaleString()} tokens ↓ {item.output.toLocaleString()} tokens
+      <div className="usage-card">
+        <span className="usage-card-label">{item.label}</span>
+        <span className="usage-card-tokens">
+          ↑ {item.input.toLocaleString()} · ↓ {item.output.toLocaleString()}
+        </span>
       </div>
     )
   }
