@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import hljs from 'highlight.js'
 import { Mermaid } from './Mermaid'
+import { useZoomViewer } from './ZoomViewer'
 
 function CodeBlock({
   className,
@@ -36,6 +37,19 @@ function CodeBlock({
   )
 }
 
+function ZoomableImage({ src, alt }: { src?: string; alt?: string }): JSX.Element | null {
+  const { open } = useZoomViewer()
+  if (!src) return null
+  return (
+    <img
+      className="md-image"
+      src={src}
+      alt={alt ?? ''}
+      onClick={() => open({ type: 'image', src, alt })}
+    />
+  )
+}
+
 export const Markdown = memo(function Markdown({
   text,
   streaming
@@ -64,6 +78,7 @@ export const Markdown = memo(function Markdown({
           return <>{children}</>
         },
         code: ({ children }) => <code className="md-inline-code">{children}</code>,
+        img: ({ src, alt }) => <ZoomableImage src={src} alt={alt} />,
         a: ({ children, ...props }) => (
           <a {...props} target="_blank" rel="noreferrer">
             {children}
