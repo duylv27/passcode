@@ -84,27 +84,12 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
     await window.api.session.prompt(session.id, text, options)
   }
 
+  const modelsRef = useRef(models)
+  modelsRef.current = models
+
   useEffect(() => {
     window.api.models.list().then(setModels)
   }, [])
-
-  // A brand-new session (never opened, so the SDK has no model choice of
-  // its own yet) defaults to whatever model was last picked, so switching
-  // repos doesn't mean re-picking a model every time. A resumed session's
-  // own model always wins -- this never runs once one's been set.
-  useEffect(() => {
-    if (session.piSessionId || currentModel || models.length === 0) return
-    const stored = localStorage.getItem(LAST_MODEL_KEY)
-    if (!stored) return
-    try {
-      const { provider, id } = JSON.parse(stored) as { provider: string; id: string }
-      const match = models.find((m) => m.provider === provider && m.id === id)
-      if (match) handleModelChange(match)
-    } catch {
-      // ignore malformed storage
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session.id, models])
 
   useEffect(() => {
     window.api.skills.list(session.repoId).then(setSkills)
@@ -161,6 +146,16 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
     setQueue([])
     setCurrentModel(null)
     window.api.session.open(session.id)
+
+    // Whether this session has any prior turns, known only once the
+    // 'history' event (always sent before 'model' on open) arrives -- a
+    // session with none is "new" and should inherit the last-picked model
+    // rather than the SDK's own default. Applying this from the 'model'
+    // handler (instead of a separate effect keyed on `models`) guarantees
+    // our setModel call is always sequenced after the default one, so it
+    // can't lose a race with it.
+    let hasPriorTurns = false
+    let restoredModel = false
 
     // Streamed text/thinking arrives token-by-token; applying each token as
     // its own state update forces a full markdown re-parse + re-highlight
@@ -278,9 +273,25 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
         setThinking(false)
         setBusy(false)
       } else if (event.type === 'history') {
+        hasPriorTurns = event.items.length > 0
         setItems(mapHistory(event.items))
       } else if (event.type === 'model') {
         setCurrentModel({ provider: event.provider, id: event.id, name: event.name })
+        if (!restoredModel && !hasPriorTurns) {
+          restoredModel = true
+          const stored = localStorage.getItem(LAST_MODEL_KEY)
+          if (stored) {
+            try {
+              const { provider, id } = JSON.parse(stored) as { provider: string; id: string }
+              if (provider !== event.provider || id !== event.id) {
+                const match = modelsRef.current.find((m) => m.provider === provider && m.id === id)
+                if (match) handleModelChange(match)
+              }
+            } catch {
+              // ignore malformed storage
+            }
+          }
+        }
       } else if (event.type === 'busy') {
         // Restores the stop button/pulsing state after switching away from
         // a session and back while a turn was still running server-side --

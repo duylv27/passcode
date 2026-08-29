@@ -51,7 +51,16 @@ export function Mermaid({ chart }: { chart: string }): JSX.Element {
     }
   }, [chart])
 
-  if (error) return <pre className="md-pre mermaid-error">Diagram error: {error}</pre>
+  if (error) {
+    return (
+      <div className="mermaid-error">
+        <div className="mermaid-error-message">Couldn't render this diagram: {error}</div>
+        <pre className="md-pre">
+          <code>{chart}</code>
+        </pre>
+      </div>
+    )
+  }
   if (!svg) return <div className="mermaid-loading">Rendering diagram…</div>
   // eslint-disable-next-line react/no-danger
   return <div className="mermaid-diagram" dangerouslySetInnerHTML={{ __html: svg }} />

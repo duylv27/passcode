@@ -869,8 +869,10 @@ button {
   font-size: 12px;
 }
 
-.mermaid-error {
+.mermaid-error-message {
   color: var(--danger);
+  font-size: 12px;
+  margin-bottom: 6px;
 }
 
 /* highlight.js token colors, tuned to the app's own light palette

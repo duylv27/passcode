@@ -1,4 +1,4 @@
-import { memo, type ReactNode } from 'react'
+import { isValidElement, memo, type ReactNode } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import hljs from 'highlight.js'
@@ -33,13 +33,19 @@ export const Markdown = memo(function Markdown({ text }: { text: string }): JSX.
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}
       components={{
-        pre: ({ children }) => <>{children}</>,
-        code: ({ className, children }) => {
-          if (className?.includes('language-')) {
-            return <CodeBlock className={className}>{children}</CodeBlock>
+        // A fenced code block always arrives here as <pre><code>, even with no language
+        // (e.g. plain ``` ASCII art). Deciding block-vs-inline in `code` can't tell those
+        // apart from real inline code, since neither has a `language-` className, so the
+        // decision has to happen here where the wrapping `pre` is structurally guaranteed.
+        pre: ({ children }) => {
+          const codeEl = Array.isArray(children) ? children[0] : children
+          if (isValidElement(codeEl)) {
+            const codeProps = codeEl.props as { className?: string; children?: ReactNode }
+            return <CodeBlock className={codeProps.className}>{codeProps.children}</CodeBlock>
           }
-          return <code className="md-inline-code">{children}</code>
+          return <>{children}</>
         },
+        code: ({ children }) => <code className="md-inline-code">{children}</code>,
         a: ({ children, ...props }) => (
           <a {...props} target="_blank" rel="noreferrer">
             {children}
