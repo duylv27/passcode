@@ -6,10 +6,9 @@ import { SessionTabs } from './components/SessionTabs'
 import { ChatPanel } from './components/ChatPanel'
 import { SettingsPanel } from './components/SettingsPanel'
 import { ApprovalDialog } from './components/ApprovalDialog'
-import { ExplorerIcon, GearIcon, LogoIcon } from './components/icons'
 import { TitleBar } from './components/TitleBar'
-
-type Activity = 'explorer' | 'settings'
+import { AboutDialog } from './components/AboutDialog'
+import { ExplorerIcon, GearIcon, LogoIcon } from './components/icons'
 
 /** A session belongs either to one repo, or (projectId set) to every repo
  * in a project -- these two helpers keep that grouping consistent across
@@ -26,16 +25,16 @@ export default function App(): JSX.Element {
   const [scope, setScope] = useState<Scope | null>(null)
   const [openSessions, setOpenSessions] = useState<SessionRecord[]>([])
   const [selectedSession, setSelectedSession] = useState<SessionRecord | null>(null)
-  const [activity, setActivity] = useState<Activity>('explorer')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [aboutOpen, setAboutOpen] = useState(false)
+  // Bumped to force SessionList to refetch after a session is created from
+  // outside its own "+ New session" button (the hamburger menu) -- SessionList
+  // owns its own fetched list and has no other way to learn about that.
+  const [sessionListRefreshKey, setSessionListRefreshKey] = useState(0)
 
   function handleExplorerClick(): void {
-    if (activity === 'explorer') {
-      setSidebarCollapsed((collapsed) => !collapsed)
-    } else {
-      setActivity('explorer')
-      setSidebarCollapsed(false)
-    }
+    setSidebarCollapsed((collapsed) => !collapsed)
   }
 
   function selectScope(next: Scope): void {
@@ -91,52 +90,84 @@ export default function App(): JSX.Element {
   const sessionsInScope = scope ? openSessions.filter((s) => sessionMatchesScope(s, scope)) : []
   const scopeName = scope ? (scope.kind === 'project' ? `${scope.project.name} (project)` : scope.repo.name) : null
 
+  async function handleCreateSessionFromMenu(): Promise<void> {
+    if (!scope) return
+    if (scope.kind === 'repo') {
+      const created = await window.api.session.create(scope.repo.id)
+      handleOpenSession(created, scope)
+    } else {
+      const result = await window.api.session.createProjectSession(scope.project.id)
+      if (result.ok) handleOpenSession(result.session, scope)
+    }
+    setSessionListRefreshKey((k) => k + 1)
+  }
+
+  function handleCloseTabFromMenu(): void {
+    if (selectedSession) handleCloseTab(selectedSession)
+  }
+
+  function cycleTab(direction: 1 | -1): void {
+    if (sessionsInScope.length === 0) return
+    const currentIndex = selectedSession ? sessionsInScope.findIndex((s) => s.id === selectedSession.id) : -1
+    const nextIndex = (currentIndex + direction + sessionsInScope.length) % sessionsInScope.length
+    setSelectedSession(sessionsInScope[nextIndex])
+  }
+
   return (
     <div className="app-shell">
-      <TitleBar menuActions={{}} />
+      <TitleBar
+        menuActions={{
+          newSession: scope ? handleCreateSessionFromMenu : undefined,
+          closeTab: selectedSession ? handleCloseTabFromMenu : undefined,
+          quit: () => window.api.window.close(),
+          toggleSidebar: handleExplorerClick,
+          goExplorer: () => setSidebarCollapsed(false),
+          goSettings: () => setSettingsOpen(true),
+          nextTab: sessionsInScope.length > 0 ? () => cycleTab(1) : undefined,
+          previousTab: sessionsInScope.length > 0 ? () => cycleTab(-1) : undefined,
+          showAbout: () => setAboutOpen(true)
+        }}
+      />
       <div className="workbench">
         <div className="activitybar">
           <button
-            className={`activitybar-icon${activity === 'explorer' && !sidebarCollapsed ? ' is-active' : ''}`}
+            className={`activitybar-icon${!sidebarCollapsed ? ' is-active' : ''}`}
             onClick={handleExplorerClick}
-            title={activity === 'explorer' && !sidebarCollapsed ? 'Hide Explorer' : 'Explorer'}
+            title={!sidebarCollapsed ? 'Hide Explorer' : 'Explorer'}
           >
             <ExplorerIcon />
           </button>
           <div className="activitybar-spacer" />
           <button
-            className={`activitybar-icon${activity === 'settings' ? ' is-active' : ''}`}
-            onClick={() => setActivity('settings')}
+            className={`activitybar-icon${settingsOpen ? ' is-active' : ''}`}
+            onClick={() => setSettingsOpen(true)}
             title="Settings"
           >
             <GearIcon />
           </button>
         </div>
 
-        {activity === 'explorer' && (
-          <div className={`sidebar${sidebarCollapsed ? ' is-collapsed' : ''}`}>
-            <div className="sidebar-header">SESSIONS</div>
-            <RepoSwitcher scope={scope} onSelectRepo={handleSelectRepo} onSelectProject={handleSelectProject} />
-            <div className="sidebar-scroll">
-              {scope ? (
-                <SessionList
-                  scope={scope}
-                  activeSessionId={selectedSession?.id}
-                  onOpenSession={(session) => handleOpenSession(session, scope)}
-                  onSessionDeleted={handleSessionDeleted}
-                  onSessionRenamed={handleSessionRenamed}
-                />
-              ) : (
-                <div className="sidebar-empty">Pick a repo or project above to see its sessions.</div>
-              )}
-            </div>
+        <div className={`sidebar${sidebarCollapsed ? ' is-collapsed' : ''}`}>
+          <div className="sidebar-header">SESSIONS</div>
+          <RepoSwitcher scope={scope} onSelectRepo={handleSelectRepo} onSelectProject={handleSelectProject} />
+          <div className="sidebar-scroll">
+            {scope ? (
+              <SessionList
+                key={sessionListRefreshKey}
+                scope={scope}
+                activeSessionId={selectedSession?.id}
+                onOpenSession={(session) => handleOpenSession(session, scope)}
+                onSessionDeleted={handleSessionDeleted}
+                onSessionRenamed={handleSessionRenamed}
+              />
+            ) : (
+              <div className="sidebar-empty">Pick a repo or project above to see its sessions.</div>
+            )}
           </div>
-        )}
+        </div>
 
         <div className="editor-area">
-          {activity === 'settings' ? (
-            <SettingsPanel />
-          ) : scope ? (
+          {scope ? (
             <>
               <SessionTabs
                 sessions={sessionsInScope}
@@ -167,6 +198,8 @@ export default function App(): JSX.Element {
       </div>
 
       <ApprovalDialog />
+      {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
+      {aboutOpen && <AboutDialog onClose={() => setAboutOpen(false)} />}
     </div>
   )
 }
