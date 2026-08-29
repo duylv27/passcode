@@ -63,7 +63,7 @@ function ImageViewerOverlay({
       {/* Stops propagation so clicking/dragging the diagram itself doesn't
           also trigger the backdrop's onClose. */}
       <div className="zoom-viewer-content" onClick={(e) => e.stopPropagation()}>
-        <TransformWrapper initialScale={1} minScale={0.2} maxScale={8} wheel={{ step: 0.2 }} doubleClick={{ disabled: true }}>
+        <TransformWrapper initialScale={1} minScale={0.2} maxScale={4} wheel={{ step: 0.15 }} doubleClick={{ disabled: true }}>
           {({ zoomIn, zoomOut, resetTransform }) => (
             <>
               <div className="zoom-viewer-controls">
