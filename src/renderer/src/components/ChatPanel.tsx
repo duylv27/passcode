@@ -4,6 +4,7 @@ import { KNOWN_TOOL_NAMES } from '../../../shared/types'
 import { ChevronIcon, SendIcon, StopIcon, SpinnerIcon, PlusIcon, SlashIcon } from './icons'
 import { Markdown } from './Markdown'
 import { DiffView, diffStats } from './DiffView'
+import { ZoomViewerProvider } from './ZoomViewer'
 
 const LAST_MODEL_KEY = 'passcode-last-model'
 
@@ -393,7 +394,8 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
   const showSkillMenu = skills.length > 0 && (skillMenuOpen || slashQuery !== null) && filteredSkills.length > 0
 
   return (
-    <div className="chat">
+    <ZoomViewerProvider>
+      <div className="chat">
       <div className="chat-scroll" ref={chatScrollRef}>
         {visibleItems.length === 0 && !thinking ? (
           <div className="chat-empty">Ask it to explore the code, run something, or make a change.</div>
@@ -551,7 +553,8 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
           </button>
         </div>
       </div>
-    </div>
+      </div>
+    </ZoomViewerProvider>
   )
 }
 
