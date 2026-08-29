@@ -2026,3 +2026,67 @@ button {
   border-radius: 4px;
   cursor: zoom-in;
 }
+
+/* ---------------------------------------------------------------------
+   Title bar -- replaces the native OS window frame (frame: false).
+   --------------------------------------------------------------------- */
+.titlebar {
+  display: flex;
+  align-items: center;
+  height: 36px;
+  flex-shrink: 0;
+  background: var(--titlebar-bg);
+  border-bottom: 1px solid var(--border);
+  padding: 0 4px;
+  -webkit-app-region: drag;
+}
+
+.titlebar-btn {
+  -webkit-app-region: no-drag;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  color: var(--fg-dim);
+}
+
+.titlebar-btn:hover {
+  background: var(--list-hover);
+  color: var(--fg);
+}
+
+.titlebar-drag {
+  flex: 1;
+  height: 100%;
+}
+
+.titlebar-winctrls {
+  -webkit-app-region: no-drag;
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+}
+
+.titlebar-winbtn {
+  width: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--fg-dim);
+}
+
+.titlebar-winbtn:hover {
+  background: var(--list-hover);
+  color: var(--fg);
+}
+
+.titlebar-winbtn.is-close:hover {
+  background: var(--danger);
+  color: #ffffff;
+}

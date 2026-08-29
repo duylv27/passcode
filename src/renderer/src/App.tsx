@@ -7,6 +7,7 @@ import { ChatPanel } from './components/ChatPanel'
 import { SettingsPanel } from './components/SettingsPanel'
 import { ApprovalDialog } from './components/ApprovalDialog'
 import { ExplorerIcon, GearIcon, LogoIcon } from './components/icons'
+import { TitleBar } from './components/TitleBar'
 
 type Activity = 'explorer' | 'settings'
 
@@ -92,6 +93,7 @@ export default function App(): JSX.Element {
 
   return (
     <div className="app-shell">
+      <TitleBar />
       <div className="workbench">
         <div className="activitybar">
           <button

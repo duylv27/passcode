@@ -213,3 +213,36 @@ export function ZoomOutIcon({ className }: IconProps): JSX.Element {
   )
 }
 
+export function MenuIcon({ className }: IconProps): JSX.Element {
+  return (
+    <svg className={className} width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+export function MinimizeIcon({ className }: IconProps): JSX.Element {
+  return (
+    <svg className={className} width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
+      <path d="M3 12h10" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+export function MaximizeIcon({ className }: IconProps): JSX.Element {
+  return (
+    <svg className={className} width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
+      <rect x="3.5" y="3.5" width="9" height="9" rx="0.5" />
+    </svg>
+  )
+}
+
+export function RestoreIcon({ className }: IconProps): JSX.Element {
+  return (
+    <svg className={className} width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
+      <rect x="5.5" y="2.5" width="7" height="7" rx="0.5" />
+      <path d="M3.5 5.5v7a1 1 0 0 0 1 1h7" />
+    </svg>
+  )
+}
+
