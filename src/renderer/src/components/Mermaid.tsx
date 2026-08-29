@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useZoomViewer } from './ZoomViewer'
 
 let diagramCounter = 0
 
@@ -18,6 +19,7 @@ const RENDER_DEBOUNCE_MS = 500
 export function Mermaid({ chart, streaming }: { chart: string; streaming?: boolean }): JSX.Element {
   const [svg, setSvg] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const { open } = useZoomViewer()
 
   useEffect(() => {
     if (streaming) return
@@ -65,6 +67,18 @@ export function Mermaid({ chart, streaming }: { chart: string; streaming?: boole
     )
   }
   if (!svg) return <div className="mermaid-loading">Rendering diagram…</div>
-  // eslint-disable-next-line react/no-danger
-  return <div className="mermaid-diagram" dangerouslySetInnerHTML={{ __html: svg }} />
+  return (
+    <div
+      className="mermaid-diagram is-zoomable"
+      role="button"
+      tabIndex={0}
+      title="Click to zoom"
+      onClick={() => open({ type: 'svg', markup: svg })}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') open({ type: 'svg', markup: svg })
+      }}
+      // eslint-disable-next-line react/no-danger
+      dangerouslySetInnerHTML={{ __html: svg }}
+    />
+  )
 }
