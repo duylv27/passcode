@@ -175,4 +175,14 @@ export interface Api {
     respond(requestId: string, approved: boolean): Promise<void>
     onRequest(listener: (request: ApprovalRequest) => void): () => void
   }
+  window: {
+    minimize(): Promise<void>
+    toggleMaximize(): Promise<void>
+    close(): Promise<void>
+    isMaximized(): Promise<boolean>
+    onMaximizeChange(listener: (maximized: boolean) => void): () => void
+  }
+  app: {
+    getVersion(): Promise<string>
+  }
 }

@@ -60,6 +60,20 @@ const api: Api = {
       ipcRenderer.on('approvals:request', wrapped)
       return () => ipcRenderer.removeListener('approvals:request', wrapped)
     }
+  },
+  window: {
+    minimize: () => ipcRenderer.invoke('window:minimize'),
+    toggleMaximize: () => ipcRenderer.invoke('window:toggleMaximize'),
+    close: () => ipcRenderer.invoke('window:close'),
+    isMaximized: () => ipcRenderer.invoke('window:isMaximized'),
+    onMaximizeChange: (listener) => {
+      const wrapped = (_e: unknown, maximized: boolean): void => listener(maximized)
+      ipcRenderer.on('window:maximizeChanged', wrapped)
+      return () => ipcRenderer.removeListener('window:maximizeChanged', wrapped)
+    }
+  },
+  app: {
+    getVersion: () => ipcRenderer.invoke('app:getVersion')
   }
 }
 

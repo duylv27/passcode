@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron'
+import { app, ipcMain } from 'electron'
 import type { ProjectsHandlers } from './projectsHandlers'
 import type { ReposHandlers } from './reposHandlers'
 import type { SessionHandlers } from './sessionHandlers'
@@ -7,6 +7,7 @@ import type { ApprovalHandlers } from './approvalHandlers'
 import type { ModelsHandlers } from './modelsHandlers'
 import type { SkillsHandlers } from './skillsHandlers'
 import type { FilesHandlers } from './filesHandlers'
+import type { WindowHandlers } from './windowHandlers'
 import type { PromptOptions, ToolApprovalPolicy } from '../../shared/types'
 
 export interface IpcHandlers {
@@ -18,6 +19,7 @@ export interface IpcHandlers {
   skills: SkillsHandlers
   files: FilesHandlers
   approvals: ApprovalHandlers
+  window: WindowHandlers
 }
 
 export function registerIpcHandlers(handlers: IpcHandlers): void {
@@ -76,4 +78,11 @@ export function registerIpcHandlers(handlers: IpcHandlers): void {
   ipcMain.handle('approvals:respond', (_e, requestId: string, approved: boolean) =>
     handlers.approvals.respond(requestId, approved)
   )
+
+  ipcMain.handle('window:minimize', () => handlers.window.minimize())
+  ipcMain.handle('window:toggleMaximize', () => handlers.window.toggleMaximize())
+  ipcMain.handle('window:close', () => handlers.window.close())
+  ipcMain.handle('window:isMaximized', () => handlers.window.isMaximized())
+
+  ipcMain.handle('app:getVersion', () => app.getVersion())
 }

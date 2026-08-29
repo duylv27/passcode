@@ -15,6 +15,7 @@ import { createApprovalHandlers } from './ipc/approvalHandlers'
 import { createModelsHandlers } from './ipc/modelsHandlers'
 import { createSkillsHandlers } from './ipc/skillsHandlers'
 import { createFilesHandlers } from './ipc/filesHandlers'
+import { createWindowHandlers } from './ipc/windowHandlers'
 import { registerIpcHandlers } from './ipc/register'
 import { isGitRepo } from './git/gitStatus'
 import { createRepoSession } from './agent/piSession'
@@ -32,6 +33,7 @@ function createWindow(): BrowserWindow {
   const devIconPath = join(__dirname, '../../build/icon.png')
 
   const win = new BrowserWindow({
+    frame: false,
     width: 1200,
     height: 800,
     ...(existsSync(devIconPath) ? { icon: devIconPath } : {}),
@@ -84,6 +86,8 @@ app.whenReady().then(async () => {
   await modelRegistry.refresh()
 
   let mainWindow = createWindow()
+  mainWindow.on('maximize', () => mainWindow.webContents.send('window:maximizeChanged', true))
+  mainWindow.on('unmaximize', () => mainWindow.webContents.send('window:maximizeChanged', false))
 
   const approvalHandlers = createApprovalHandlers({
     getPolicy: () => appSettingsRepo.getToolApprovalPolicy(),
@@ -116,7 +120,8 @@ app.whenReady().then(async () => {
     files: createFilesHandlers({
       showOpenDialog: () => dialog.showOpenDialog(mainWindow, { properties: ['openFile'] })
     }),
-    approvals: approvalHandlers
+    approvals: approvalHandlers,
+    window: createWindowHandlers(() => mainWindow)
   })
 
   app.on('activate', () => {
