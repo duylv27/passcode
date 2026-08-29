@@ -93,7 +93,7 @@ export default function App(): JSX.Element {
 
   return (
     <div className="app-shell">
-      <TitleBar />
+      <TitleBar menuActions={{}} />
       <div className="workbench">
         <div className="activitybar">
           <button
