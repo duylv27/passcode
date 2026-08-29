@@ -2,23 +2,25 @@ import { useEffect, useState } from 'react'
 
 let diagramCounter = 0
 
-/** While a reply is still streaming, `chart` mutates on nearly every frame --
- * a fenced ```mermaid block is syntactically invalid until its closing
- * fence arrives. mermaid.render() doesn't throw for that; it resolves with
- * a built-in "bomb + Syntax error" SVG instead, and internally renders
+/** A fenced ```mermaid block is syntactically invalid until its closing
+ * fence arrives, and `chart` keeps mutating on nearly every streamed frame
+ * until then. mermaid.render() doesn't throw for that; it resolves with a
+ * built-in "bomb + Syntax error" SVG instead, and internally renders
  * through a temporary node appended to document.body that isn't reliably
  * cleaned up when a new render starts before the previous one settles --
- * calling it on every keystroke leaked a stack of those nodes straight
- * into the page, outside React's tree entirely. Debouncing so a diagram
- * only renders once its source has been stable for a moment avoids both
- * problems: far fewer render() calls, and no concurrent ones. */
+ * calling it on every streamed chunk leaked a stack of those nodes straight
+ * into the page, outside React's tree entirely, and flashed a bomb icon on
+ * every incomplete chunk in between. Callers pass `streaming: true` while
+ * the reply is still arriving so this waits for the real, final source
+ * instead of racing partial ones. */
 const RENDER_DEBOUNCE_MS = 500
 
-export function Mermaid({ chart }: { chart: string }): JSX.Element {
+export function Mermaid({ chart, streaming }: { chart: string; streaming?: boolean }): JSX.Element {
   const [svg, setSvg] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    if (streaming) return
     let cancelled = false
     const timer = setTimeout(() => {
       diagramCounter += 1
@@ -49,8 +51,9 @@ export function Mermaid({ chart }: { chart: string }): JSX.Element {
       cancelled = true
       clearTimeout(timer)
     }
-  }, [chart])
+  }, [chart, streaming])
 
+  if (streaming) return <div className="mermaid-loading">Waiting for diagram to finish…</div>
   if (error) {
     return (
       <div className="mermaid-error">

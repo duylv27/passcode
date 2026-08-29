@@ -411,7 +411,11 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
                 ))}
               </div>
             ) : (
-              <TranscriptRow key={group.item.id} item={group.item} />
+              <TranscriptRow
+                key={group.item.id}
+                item={group.item}
+                streaming={busy && group.item.id === visibleItems[visibleItems.length - 1]?.id}
+              />
             )
           )
         )}
@@ -558,7 +562,13 @@ type SingleItem = Exclude<TranscriptItem, { kind: 'thinking' | 'tool' }>
  * own turns (a shaded, right-aligned bubble) and the agent's prose replies
  * (plain, full-width) -- alignment and shading alone signal who's speaking,
  * with no "You"/"Agent" label needed. */
-const TranscriptRow = memo(function TranscriptRow({ item }: { item: SingleItem }): JSX.Element {
+const TranscriptRow = memo(function TranscriptRow({
+  item,
+  streaming
+}: {
+  item: SingleItem
+  streaming: boolean
+}): JSX.Element {
   if (item.kind === 'user') {
     return (
       <div className="chat-line is-user">
@@ -570,7 +580,7 @@ const TranscriptRow = memo(function TranscriptRow({ item }: { item: SingleItem }
     return (
       <div className="chat-line is-markdown">
         <div className="md-body">
-          <Markdown text={item.text} />
+          <Markdown text={item.text} streaming={streaming} />
         </div>
       </div>
     )

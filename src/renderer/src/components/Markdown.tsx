@@ -4,11 +4,19 @@ import remarkGfm from 'remark-gfm'
 import hljs from 'highlight.js'
 import { Mermaid } from './Mermaid'
 
-function CodeBlock({ className, children }: { className?: string; children?: ReactNode }): JSX.Element {
+function CodeBlock({
+  className,
+  children,
+  streaming
+}: {
+  className?: string
+  children?: ReactNode
+  streaming?: boolean
+}): JSX.Element {
   const raw = String(children ?? '').replace(/\n$/, '')
   const language = /language-(\w+)/.exec(className ?? '')?.[1]
 
-  if (language === 'mermaid') return <Mermaid chart={raw} />
+  if (language === 'mermaid') return <Mermaid chart={raw} streaming={streaming} />
 
   let html: string
   try {
@@ -28,7 +36,13 @@ function CodeBlock({ className, children }: { className?: string; children?: Rea
   )
 }
 
-export const Markdown = memo(function Markdown({ text }: { text: string }): JSX.Element {
+export const Markdown = memo(function Markdown({
+  text,
+  streaming
+}: {
+  text: string
+  streaming?: boolean
+}): JSX.Element {
   return (
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}
@@ -41,7 +55,11 @@ export const Markdown = memo(function Markdown({ text }: { text: string }): JSX.
           const codeEl = Array.isArray(children) ? children[0] : children
           if (isValidElement(codeEl)) {
             const codeProps = codeEl.props as { className?: string; children?: ReactNode }
-            return <CodeBlock className={codeProps.className}>{codeProps.children}</CodeBlock>
+            return (
+              <CodeBlock className={codeProps.className} streaming={streaming}>
+                {codeProps.children}
+              </CodeBlock>
+            )
           }
           return <>{children}</>
         },
