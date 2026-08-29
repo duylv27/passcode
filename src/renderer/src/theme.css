@@ -1952,6 +1952,7 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
   background: var(--sidebar-bg);
   border: 1px solid var(--border);
   border-radius: 6px;
