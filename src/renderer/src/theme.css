@@ -2213,3 +2213,138 @@ button {
 .about-close:hover {
   background: var(--button-hover);
 }
+
+/* ---------------------------------------------------------------------
+   Settings modal
+   --------------------------------------------------------------------- */
+.settings-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 150;
+}
+
+.settings-dialog {
+  width: 640px;
+  max-width: calc(100vw - 48px);
+  height: 480px;
+  max-height: calc(100vh - 48px);
+  background: var(--sheet-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+  display: flex;
+  overflow: hidden;
+}
+
+.settings-nav {
+  width: 170px;
+  flex-shrink: 0;
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--border);
+  padding: var(--space-3) var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-nav-item {
+  text-align: left;
+  padding: 7px 10px;
+  border-radius: 5px;
+  background: transparent;
+  border: none;
+  color: var(--fg-dim);
+  font-size: 13px;
+}
+
+.settings-nav-item:hover {
+  background: var(--list-hover);
+}
+
+.settings-nav-item.is-active {
+  background: var(--list-active);
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.settings-content {
+  flex: 1;
+  padding: var(--space-4);
+  overflow-y: auto;
+}
+
+.settings-content-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+}
+
+.settings-close {
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+  background: transparent;
+  border: none;
+  color: var(--fg-dim);
+}
+
+.settings-close:hover {
+  background: var(--list-hover);
+  color: var(--fg);
+}
+
+.provider-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-left: 8px;
+  border: 1.5px solid var(--border);
+  background: transparent;
+  vertical-align: middle;
+}
+
+.provider-dot.is-connected {
+  border-color: var(--success);
+  background: var(--success);
+}
+
+.theme-swatches {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.theme-swatch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: var(--space-2);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.theme-swatch.is-selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.theme-swatch-preview {
+  width: 100%;
+  height: 32px;
+  border-radius: 4px;
+  background: var(--border-subtle);
+}
+
+.theme-swatch-label {
+  font-size: 11.5px;
+  color: var(--fg-dim);
+}
