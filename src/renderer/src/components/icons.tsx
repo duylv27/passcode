@@ -187,3 +187,29 @@ export function TrashIcon({ className }: IconProps): JSX.Element {
   )
 }
 
+export function CloseIcon({ className }: IconProps): JSX.Element {
+  return (
+    <svg className={className} width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <path d="M4 4l8 8M12 4l-8 8" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+export function ZoomInIcon({ className }: IconProps): JSX.Element {
+  return (
+    <svg className={className} width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <circle cx="7" cy="7" r="4.5" />
+      <path d="M10.3 10.3 14 14M7 4.8v4.4M4.8 7h4.4" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+export function ZoomOutIcon({ className }: IconProps): JSX.Element {
+  return (
+    <svg className={className} width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <circle cx="7" cy="7" r="4.5" />
+      <path d="M10.3 10.3 14 14M4.8 7h4.4" strokeLinecap="round" />
+    </svg>
+  )
+}
+
