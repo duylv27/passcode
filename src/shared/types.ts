@@ -59,6 +59,12 @@ export interface GitStatus {
   dirty: boolean
 }
 
+export interface SessionWithScope {
+  session: SessionRecord
+  repo: Repo
+  project: Project | null
+}
+
 export interface TokenUsage {
   input: number
   output: number
@@ -152,6 +158,7 @@ export interface Api {
       title?: string
     ): Promise<CreateProjectSessionResult | CreateProjectSessionError>
     getMostRecent(): Promise<{ session: SessionRecord; repo: Repo; project: Project | null } | null>
+    listAll(): Promise<SessionWithScope[]>
     rename(sessionId: string, title: string): Promise<void>
     delete(sessionId: string): Promise<void>
     open(sessionId: string): Promise<void>

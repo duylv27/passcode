@@ -462,4 +462,65 @@ describe('sessionHandlers', () => {
     })
     expect(setModelMock).not.toHaveBeenCalled()
   })
+
+  it('listAllSessions resolves repo and project for every session, most-recently-opened first', () => {
+    const db = new Database(':memory:')
+    initSchema(db)
+    const projectsRepo = createProjectsRepository(db)
+    const reposRepo = createReposRepository(db)
+    const localSessionsRepo = createSessionsRepository(db)
+    const projectId = projectsRepo.create('Demo Project').id
+    const localRepoId = reposRepo.create(projectId, '/repo/path', 'demo-repo').id
+
+    const localHandlers = createSessionHandlers({
+      reposRepo,
+      projectsRepo,
+      sessionsRepo: localSessionsRepo,
+      openRepoSession: openRepoSessionMock,
+      onEvent: () => {},
+      requestApproval: async () => true,
+      findModel: findModelMock,
+      buildPromptText: async (text) => text
+    })
+
+    const repoScoped = localHandlers.createSession(localRepoId, 'Repo scoped')
+    const projectResult = localHandlers.createProjectSession(projectId, 'Project scoped')
+    if (!projectResult.ok) throw new Error('setup failed: ' + projectResult.error)
+
+    const all = localHandlers.listAllSessions()
+
+    expect(all).toHaveLength(2)
+    const repoEntry = all.find((s) => s.session.id === repoScoped.id)
+    expect(repoEntry?.repo.id).toBe(localRepoId)
+    expect(repoEntry?.project).toBe(null)
+    const projectEntry = all.find((s) => s.session.id === projectResult.session.id)
+    expect(projectEntry?.repo.id).toBe(localRepoId)
+    expect(projectEntry?.project?.id).toBe(projectId)
+  })
+
+  it('listAllSessions skips a session whose repo no longer exists', () => {
+    const db = new Database(':memory:')
+    initSchema(db)
+    const projectsRepo = createProjectsRepository(db)
+    const reposRepo = createReposRepository(db)
+    const localSessionsRepo = createSessionsRepository(db)
+    const projectId = projectsRepo.create('Demo Project').id
+    const localRepoId = reposRepo.create(projectId, '/repo/path', 'demo-repo').id
+
+    const localHandlers = createSessionHandlers({
+      reposRepo,
+      projectsRepo,
+      sessionsRepo: localSessionsRepo,
+      openRepoSession: openRepoSessionMock,
+      onEvent: () => {},
+      requestApproval: async () => true,
+      findModel: findModelMock,
+      buildPromptText: async (text) => text
+    })
+
+    localHandlers.createSession(localRepoId, 'Orphaned-to-be')
+    reposRepo.delete(localRepoId)
+
+    expect(localHandlers.listAllSessions()).toEqual([])
+  })
 })

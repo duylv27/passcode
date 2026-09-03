@@ -11,7 +11,8 @@ import type {
   Project,
   PromptOptions,
   Repo,
-  SessionRecord
+  SessionRecord,
+  SessionWithScope
 } from '../../shared/types'
 
 export type { ChatEvent }
@@ -37,6 +38,7 @@ export interface SessionHandlers {
   listProjectSessions(projectId: string): SessionRecord[]
   createProjectSession(projectId: string, title?: string): CreateProjectSessionResult | CreateProjectSessionError
   getMostRecentSession(): { session: SessionRecord; repo: Repo; project: Project | null } | null
+  listAllSessions(): SessionWithScope[]
   renameSession(sessionId: string, title: string): void
   deleteSession(sessionId: string): Promise<void>
   openSession(sessionId: string): Promise<void>
@@ -134,6 +136,17 @@ export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionH
       if (!repo) return null
       const project = session.projectId ? (deps.projectsRepo.getById(session.projectId) ?? null) : null
       return { session, repo, project }
+    },
+    listAllSessions(): SessionWithScope[] {
+      const sessions = deps.sessionsRepo.listAll()
+      const resolved: SessionWithScope[] = []
+      for (const session of sessions) {
+        const repo = deps.reposRepo.getById(session.repoId)
+        if (!repo) continue
+        const project = session.projectId ? (deps.projectsRepo.getById(session.projectId) ?? null) : null
+        resolved.push({ session, repo, project })
+      }
+      return resolved
     },
     renameSession(sessionId: string, title: string): void {
       deps.sessionsRepo.rename(sessionId, title)
