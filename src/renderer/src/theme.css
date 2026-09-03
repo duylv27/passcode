@@ -573,6 +573,16 @@ button {
   padding-left: 0;
 }
 
+.project-sessions-label {
+  padding: 4px var(--space-2) 2px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg-faint);
+}
+
 .session-group {
   margin: 0 var(--space-1);
   border: 1px solid var(--border-subtle);
@@ -587,29 +597,56 @@ button {
 .session-group-header {
   display: flex;
   align-items: center;
-  gap: 6px;
   width: 100%;
+  background: var(--list-hover);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.session-group-header:last-child {
+  border-bottom: none;
+}
+
+.session-group-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
   text-align: left;
   padding: 4px var(--space-2);
-  background: var(--list-hover);
+  background: none;
   border: none;
-  border-bottom: 1px solid var(--border-subtle);
   color: var(--fg-dim);
   font-size: 10px;
   font-weight: 500;
 }
 
-.session-group-header:hover {
+.session-group-toggle:hover {
   background: var(--list-active);
   color: var(--fg-bright);
 }
 
-.session-group-header .row-icon.is-repo {
+.session-group-toggle .row-icon.is-repo {
   color: #6a9955;
 }
 
-.session-group-header:last-child {
-  border-bottom: none;
+.session-group-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin-right: 4px;
+  background: none;
+  border: none;
+  border-radius: 3px;
+  color: var(--fg-dim);
+}
+
+.session-group-add:hover {
+  background: var(--list-active);
+  color: var(--fg-bright);
 }
 
 .session-group-label {
