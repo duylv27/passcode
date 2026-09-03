@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import type { Repo, SessionRecord } from '../../../shared/types'
 import type { Scope } from './RepoSwitcher'
-import { ChatIcon, EditIcon, PlusIcon, RepoIcon, TrashIcon } from './icons'
+import { groupSessionsByRepo } from '../lib/sessionGroups'
+import { ChatIcon, ChevronIcon, EditIcon, PlusIcon, RepoIcon, TrashIcon } from './icons'
 
 interface Props {
   scope: Scope
@@ -9,6 +10,19 @@ interface Props {
   onOpenSession: (session: SessionRecord) => void
   onSessionDeleted: (session: SessionRecord) => void
   onSessionRenamed: (session: SessionRecord) => void
+}
+
+function collapsedStorageKey(projectId: string): string {
+  return `passcode-session-groups-${projectId}`
+}
+
+function readCollapsed(projectId: string): Record<string, boolean> {
+  try {
+    const raw = localStorage.getItem(collapsedStorageKey(projectId))
+    return raw ? (JSON.parse(raw) as Record<string, boolean>) : {}
+  } catch {
+    return {}
+  }
 }
 
 export function SessionList({
@@ -23,6 +37,8 @@ export function SessionList({
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [busySessionIds, setBusySessionIds] = useState<Set<string>>(new Set())
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
 
   const scopeKey = scope.kind === 'repo' ? `repo:${scope.repo.id}` : `project:${scope.project.id}`
 
@@ -37,11 +53,38 @@ export function SessionList({
     setError(null)
     if (scope.kind === 'project') {
       window.api.repos.list(scope.project.id).then(setProjectRepos)
+      setCollapsed(readCollapsed(scope.project.id))
     } else {
       setProjectRepos([])
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scopeKey])
+
+  useEffect(() => {
+    return window.api.session.onEvent((sessionId, event) => {
+      if (event.type !== 'busy') return
+      setBusySessionIds((prev) => {
+        const next = new Set(prev)
+        if (event.busy) next.add(sessionId)
+        else next.delete(sessionId)
+        return next
+      })
+    })
+  }, [])
+
+  function toggleGroup(repoId: string): void {
+    if (scope.kind !== 'project') return
+    const projectId = scope.project.id
+    setCollapsed((prev) => {
+      const next = { ...prev, [repoId]: !prev[repoId] }
+      try {
+        localStorage.setItem(collapsedStorageKey(projectId), JSON.stringify(next))
+      } catch {
+        // ignore storage errors (e.g. private browsing)
+      }
+      return next
+    })
+  }
 
   async function handleCreate(): Promise<void> {
     if (scope.kind === 'repo') {
@@ -80,53 +123,55 @@ export function SessionList({
     onSessionRenamed({ ...session, title })
   }
 
+  function renderSessionRow(s: SessionRecord): JSX.Element {
+    if (editingId === s.id) {
+      return (
+        <div key={s.id} className="session-row is-editing">
+          <input
+            className="field session-row-edit-field"
+            autoFocus
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            onBlur={() => commitRename(s)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') e.currentTarget.blur()
+              else if (e.key === 'Escape') setEditingId(null)
+            }}
+          />
+        </div>
+      )
+    }
+    return (
+      <div key={s.id} className={`session-row${activeSessionId === s.id ? ' is-active' : ''}`}>
+        <button className="session-row-select" onClick={() => onOpenSession(s)}>
+          <ChatIcon className="row-icon is-session" />
+          {busySessionIds.has(s.id) && <span className="session-row-busy-dot" />}
+          <span className="session-row-title">{s.title}</span>
+        </button>
+        <button className="session-row-edit" onClick={() => startRename(s)} title="Rename session">
+          <EditIcon />
+        </button>
+        <button className="session-row-delete" onClick={() => handleDelete(s)} title="Delete session">
+          <TrashIcon />
+        </button>
+      </div>
+    )
+  }
+
   return (
     <div className="tree-sessions">
-      {scope.kind === 'project' && projectRepos.length > 0 && (
-        <div className="scope-repos">
-          <div className="scope-repos-label">Repo roommates</div>
-          {projectRepos.map((r) => (
-            <div key={r.id} className="scope-repos-item">
-              <RepoIcon className="row-icon is-repo" />
-              <span>{r.name}</span>
+      {scope.kind === 'project' && projectRepos.length > 0
+        ? groupSessionsByRepo(sessions, projectRepos).map((group) => (
+            <div key={group.repo.id} className="session-group">
+              <button className="session-group-header" onClick={() => toggleGroup(group.repo.id)}>
+                <ChevronIcon className={`session-group-chevron${collapsed[group.repo.id] ? '' : ' is-open'}`} />
+                <RepoIcon className="row-icon is-repo" />
+                <span className="session-group-label">{group.repo.name}</span>
+              </button>
+              {!collapsed[group.repo.id] && group.sessions.map(renderSessionRow)}
             </div>
-          ))}
-        </div>
-      )}
-      {sessions.map((s) =>
-        editingId === s.id ? (
-          <div key={s.id} className="session-row is-editing">
-            <input
-              className="field session-row-edit-field"
-              autoFocus
-              value={editValue}
-              onChange={(e) => setEditValue(e.target.value)}
-              onBlur={() => commitRename(s)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') e.currentTarget.blur()
-                else if (e.key === 'Escape') setEditingId(null)
-              }}
-            />
-          </div>
-        ) : (
-          <div key={s.id} className={`session-row${activeSessionId === s.id ? ' is-active' : ''}`}>
-            <button className="session-row-select" onClick={() => onOpenSession(s)}>
-              <ChatIcon className="row-icon is-session" />
-              <span className="session-row-title">{s.title}</span>
-            </button>
-            <button
-              className="session-row-edit"
-              onClick={() => startRename(s)}
-              title="Rename session"
-            >
-              <EditIcon />
-            </button>
-            <button className="session-row-delete" onClick={() => handleDelete(s)} title="Delete session">
-              <TrashIcon />
-            </button>
-          </div>
-        )
-      )}
+          ))
+        : sessions.map(renderSessionRow)}
       <button className="session-row is-add" onClick={handleCreate}>
         <PlusIcon className="row-icon" />
         <span>New session</span>
