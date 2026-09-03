@@ -692,7 +692,8 @@ button {
 .session-row-edit,
 .session-row-delete {
   flex-shrink: 0;
-  display: none;
+  visibility: hidden;
+  display: flex;
   align-items: center;
   justify-content: center;
   width: 20px;
@@ -706,7 +707,7 @@ button {
 
 .session-row:hover .session-row-edit,
 .session-row:hover .session-row-delete {
-  display: flex;
+  visibility: visible;
 }
 
 .session-row-edit:hover {
