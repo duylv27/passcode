@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { Project, Repo } from '../../../shared/types'
+import type { GitStatus, Project, Repo } from '../../../shared/types'
 import { PlusIcon, RepoIcon } from './icons'
 
 interface Props {
@@ -10,12 +10,18 @@ interface Props {
 
 export function RepoList({ project, selectedRepo, onSelectRepo }: Props): JSX.Element {
   const [repos, setRepos] = useState<Repo[]>([])
+  const [gitStatuses, setGitStatuses] = useState<Record<string, GitStatus | null>>({})
   const [adding, setAdding] = useState(false)
   const [path, setPath] = useState('')
   const [error, setError] = useState<string | null>(null)
 
   async function refresh(): Promise<void> {
-    setRepos(await window.api.repos.list(project.id))
+    const list = await window.api.repos.list(project.id)
+    setRepos(list)
+    const entries = await Promise.all(
+      list.map(async (r) => [r.id, await window.api.repos.gitStatus(r.id)] as const)
+    )
+    setGitStatuses(Object.fromEntries(entries))
   }
 
   useEffect(() => {
@@ -38,16 +44,25 @@ export function RepoList({ project, selectedRepo, onSelectRepo }: Props): JSX.El
 
   return (
     <>
-      {repos.map((r) => (
-        <button
-          key={r.id}
-          className={`picker-row${selectedRepo?.id === r.id ? ' is-selected' : ''}`}
-          onClick={() => onSelectRepo(r)}
-        >
-          <RepoIcon className="row-icon is-repo" />
-          <span>{r.name}</span>
-        </button>
-      ))}
+      {repos.map((r) => {
+        const status = gitStatuses[r.id]
+        return (
+          <button
+            key={r.id}
+            className={`picker-row${selectedRepo?.id === r.id ? ' is-selected' : ''}`}
+            onClick={() => onSelectRepo(r)}
+          >
+            <RepoIcon className="row-icon is-repo" />
+            <span className="picker-row-name">{r.name}</span>
+            {status && (
+              <span className="picker-row-git">
+                {status.branch && <span className="picker-row-branch">{status.branch}</span>}
+                <span className={`repo-status-dot${status.dirty ? ' is-dirty' : ''}`} />
+              </span>
+            )}
+          </button>
+        )
+      })}
       {adding ? (
         <div className="picker-inline-form">
           <input
