@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Project, Repo } from '../../../shared/types'
 import { ProjectTree } from './ProjectTree'
-import { ChevronIcon, RepoIcon } from './icons'
+import { ChevronIcon, PlusIcon, RepoIcon } from './icons'
 
 export type Scope = { kind: 'repo'; repo: Repo } | { kind: 'project'; project: Project }
 
@@ -9,13 +9,14 @@ interface Props {
   scope: Scope | null
   onSelectRepo: (repo: Repo) => void
   onSelectProject: (project: Project) => void
+  onCreateSession: () => void
 }
 
 /** A compact dropdown for picking what the sidebar's session list shows --
  * one repo, or a whole project spanning every repo in it. Projects/repos
  * are a picker, not permanent sidebar real estate, since sessions are what
  * you actually work in day to day. */
-export function RepoSwitcher({ scope, onSelectRepo, onSelectProject }: Props): JSX.Element {
+export function RepoSwitcher({ scope, onSelectRepo, onSelectProject, onCreateSession }: Props): JSX.Element {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -52,6 +53,15 @@ export function RepoSwitcher({ scope, onSelectRepo, onSelectProject }: Props): J
           <ProjectTree scope={scope} onSelectRepo={handleSelectRepo} onSelectProject={handleSelectProject} />
         </div>
       )}
+      <button
+        type="button"
+        className="repo-switcher-add"
+        onClick={onCreateSession}
+        disabled={!scope}
+        title="New session"
+      >
+        <PlusIcon />
+      </button>
     </div>
   )
 }

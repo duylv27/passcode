@@ -37,9 +37,9 @@ export default function App(): JSX.Element {
   })
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
-  // Bumped to force SessionList to refetch after a session is created from
-  // outside its own "+ New session" button (the hamburger menu) -- SessionList
-  // owns its own fetched list and has no other way to learn about that.
+  // Bumped to force SessionList to refetch after a session is created above
+  // it (the sidebar's "+" button or the hamburger menu) -- SessionList owns
+  // its own fetched list and has no other way to learn about that.
   const [sessionListRefreshKey, setSessionListRefreshKey] = useState(0)
 
   function handleExplorerClick(): void {
@@ -183,7 +183,12 @@ export default function App(): JSX.Element {
           style={{ width: sidebarWidth }}
         >
           <div className="sidebar-header">SESSIONS</div>
-          <RepoSwitcher scope={scope} onSelectRepo={handleSelectRepo} onSelectProject={handleSelectProject} />
+          <RepoSwitcher
+            scope={scope}
+            onSelectRepo={handleSelectRepo}
+            onSelectProject={handleSelectProject}
+            onCreateSession={handleCreateSessionFromMenu}
+          />
           <div className="sidebar-scroll">
             {scope ? (
               <SessionList

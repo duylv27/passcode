@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { Repo, SessionRecord } from '../../../shared/types'
 import type { Scope } from './RepoSwitcher'
 import { groupSessionsByRepo } from '../lib/sessionGroups'
-import { ChatIcon, ChevronIcon, EditIcon, PlusIcon, RepoIcon, TrashIcon } from './icons'
+import { ChatIcon, ChevronIcon, EditIcon, RepoIcon, TrashIcon } from './icons'
 
 interface Props {
   scope: Scope
@@ -36,7 +36,6 @@ export function SessionList({
   const [projectRepos, setProjectRepos] = useState<Repo[]>([])
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
-  const [error, setError] = useState<string | null>(null)
   const [busySessionIds, setBusySessionIds] = useState<Set<string>>(new Set())
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
 
@@ -50,7 +49,6 @@ export function SessionList({
 
   useEffect(() => {
     refresh()
-    setError(null)
     if (scope.kind === 'project') {
       window.api.repos.list(scope.project.id).then(setProjectRepos)
       setCollapsed(readCollapsed(scope.project.id))
@@ -84,23 +82,6 @@ export function SessionList({
       }
       return next
     })
-  }
-
-  async function handleCreate(): Promise<void> {
-    if (scope.kind === 'repo') {
-      const created = await window.api.session.create(scope.repo.id)
-      await refresh()
-      onOpenSession(created)
-      return
-    }
-    setError(null)
-    const result = await window.api.session.createProjectSession(scope.project.id)
-    if (!result.ok) {
-      setError(result.error)
-      return
-    }
-    await refresh()
-    onOpenSession(result.session)
   }
 
   async function handleDelete(session: SessionRecord): Promise<void> {
@@ -172,11 +153,6 @@ export function SessionList({
             </div>
           ))
         : sessions.map(renderSessionRow)}
-      <button className="session-row is-add" onClick={handleCreate}>
-        <PlusIcon className="row-icon" />
-        <span>New session</span>
-      </button>
-      {error && <div className="error-text">{error}</div>}
     </div>
   )
 }
