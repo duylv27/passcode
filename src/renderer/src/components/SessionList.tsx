@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { Repo, SessionRecord } from '../../../shared/types'
 import type { Scope } from './RepoSwitcher'
 import { groupSessionsByRepo } from '../lib/sessionGroups'
-import { ChatIcon, ChevronIcon, EditIcon, RepoIcon, TrashIcon } from './icons'
+import { ChevronIcon, EditIcon, RepoIcon, TrashIcon } from './icons'
 
 interface Props {
   scope: Scope
@@ -125,8 +125,7 @@ export function SessionList({
     return (
       <div key={s.id} className={`session-row${activeSessionId === s.id ? ' is-active' : ''}`}>
         <button className="session-row-select" onClick={() => onOpenSession(s)}>
-          <ChatIcon className="row-icon is-session" />
-          {busySessionIds.has(s.id) && <span className="session-row-busy-dot" />}
+          <span className={`session-row-status-dot${busySessionIds.has(s.id) ? ' is-busy' : ''}`} />
           <span className="session-row-title">{s.title}</span>
         </button>
         <button className="session-row-edit" onClick={() => startRename(s)} title="Rename session">

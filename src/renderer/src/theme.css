@@ -661,11 +661,6 @@ button {
   text-overflow: ellipsis;
 }
 
-.row-icon.is-session {
-  flex-shrink: 0;
-  color: var(--fg-dim);
-}
-
 .session-group .session-row-select {
   padding-left: 16px;
 }
@@ -678,11 +673,15 @@ button {
   border-top: 1px solid var(--border-subtle);
 }
 
-.session-row-busy-dot {
+.session-row-status-dot {
   flex-shrink: 0;
   width: 6px;
   height: 6px;
   border-radius: 50%;
+  background: var(--fg-faint);
+}
+
+.session-row-status-dot.is-busy {
   background: var(--accent);
   animation: status-pulse 1.2s ease-in-out infinite;
 }
