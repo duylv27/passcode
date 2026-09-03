@@ -8,9 +8,10 @@ interface Props {
   onClose: (session: SessionRecord) => void
 }
 
-/** The currently-open sessions for the selected repo, shown as editor-style
- * tabs. The full list of every session for a repo lives in the Explorer
- * tree (see SessionList) -- this only tracks what's been opened here. */
+/** Every currently-open session across every project, shown as editor-style
+ * tabs -- not filtered by project/repo. The full list of a project's
+ * sessions lives in the sidebar's ProjectBox/SessionList tree; this only
+ * tracks what's been opened as a tab. */
 export function SessionTabs({ sessions, selected, onSelect, onClose }: Props): JSX.Element {
   return (
     <div className="tabs">

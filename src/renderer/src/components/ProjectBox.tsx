@@ -42,7 +42,13 @@ export function ProjectBox({
     if (result.ok) {
       const repos = await window.api.repos.list(project.id)
       const repo = repos.find((r) => r.id === result.session.repoId)
-      if (repo) onOpenSession(result.session, repo, project)
+      if (repo) {
+        onOpenSession(result.session, repo, project)
+      } else {
+        setRepoError('Could not open the new session')
+      }
+    } else {
+      setRepoError(result.error)
     }
     setRefreshKey((k) => k + 1)
   }
