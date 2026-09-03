@@ -361,6 +361,10 @@ button {
   border-color: var(--fg-dim);
 }
 
+.repo-switcher-trigger .row-icon.is-repo {
+  color: #6a9955;
+}
+
 .repo-switcher-add {
   display: flex;
   align-items: center;
