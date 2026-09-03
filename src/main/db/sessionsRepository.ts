@@ -15,6 +15,9 @@ export interface SessionsRepository {
    * most recently created for a session that's never been opened -- used
    * to land on the last thing you were working on instead of an empty state. */
   getMostRecent(): SessionRecord | undefined
+  /** Every session across every repo/project, most-recently-opened first
+   * (falling back to creation time for a session that's never been opened). */
+  listAll(): SessionRecord[]
   rename(id: string, title: string): void
   setPiSessionId(id: string, piSessionId: string): void
   /** The Pi SDK session file backing this session, if it has ever been opened. */
@@ -66,6 +69,13 @@ export function createSessionsRepository(db: DatabaseSync): SessionsRepository {
           `SELECT ${SELECT_COLUMNS} FROM sessions ORDER BY COALESCE(last_opened_at, created_at) DESC, rowid DESC LIMIT 1`
         )
         .get() as SessionRecord | undefined
+    },
+    listAll(): SessionRecord[] {
+      return db
+        .prepare(
+          `SELECT ${SELECT_COLUMNS} FROM sessions ORDER BY COALESCE(last_opened_at, created_at) DESC, rowid DESC`
+        )
+        .all() as unknown as SessionRecord[]
     },
     rename(id: string, title: string): void {
       db.prepare('UPDATE sessions SET title = ? WHERE id = ?').run(title, id)

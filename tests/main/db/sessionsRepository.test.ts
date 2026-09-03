@@ -8,9 +8,11 @@ import { createSessionsRepository, type SessionsRepository } from '../../../src/
 describe('SessionsRepository', () => {
   let sessions: SessionsRepository
   let repoId: string
+  let dbRef: Database
 
   beforeEach(() => {
     const db = new Database(':memory:')
+    dbRef = db
     initSchema(db)
     const projectId = createProjectsRepository(db).create('Demo').id
     repoId = createReposRepository(db).create(projectId, '/path/a', 'a').id
@@ -63,5 +65,32 @@ describe('SessionsRepository', () => {
     const created = sessions.create(repoId, 'pi-session-1', 'a')
     sessions.delete(created.id)
     expect(sessions.getById(created.id)).toBeUndefined()
+  })
+
+  it('lists sessions from every repo, most-recently-opened first', () => {
+    const first = sessions.create(repoId, 'pi-1', 'First')
+    const second = sessions.create(repoId, 'pi-2', 'Second')
+    const third = sessions.create(repoId, 'pi-3', 'Third')
+    sessions.touchOpened(first.id)
+
+    const all = sessions.listAll()
+
+    expect(all.map((s) => s.id)).toEqual([first.id, third.id, second.id])
+  })
+
+  it('includes sessions from every repo across every project', () => {
+    const projectId2 = createProjectsRepository(dbRef).create('Second project').id
+    const repoId2 = createReposRepository(dbRef).create(projectId2, '/path/b', 'repo-b').id
+    const otherRepoSession = sessions.create(repoId2, 'pi-x', 'Other repo session')
+    const sameRepoSession = sessions.create(repoId, 'pi-y', 'Same repo session')
+
+    const ids = sessions.listAll().map((s) => s.id)
+
+    expect(ids).toContain(otherRepoSession.id)
+    expect(ids).toContain(sameRepoSession.id)
+  })
+
+  it('returns an empty list when there are no sessions', () => {
+    expect(sessions.listAll()).toEqual([])
   })
 })
