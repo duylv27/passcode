@@ -1,7 +1,6 @@
 import { useEffect, useState, type PointerEvent as ReactPointerEvent } from 'react'
-import type { Project, Repo, SessionRecord } from '../../shared/types'
-import { RepoSwitcher, type Scope } from './components/RepoSwitcher'
-import { SessionList } from './components/SessionList'
+import type { Project, Repo, SessionRecord, SessionWithScope } from '../../shared/types'
+import { ProjectExplorer } from './components/ProjectExplorer'
 import { SessionTabs } from './components/SessionTabs'
 import { ChatPanel } from './components/ChatPanel'
 import { SettingsPanel } from './components/SettingsPanel'
@@ -11,21 +10,9 @@ import { AboutDialog } from './components/AboutDialog'
 import { ExplorerIcon, GearIcon, LogoIcon } from './components/icons'
 import { clampSidebarWidth, SIDEBAR_DEFAULT_WIDTH, SIDEBAR_WIDTH_KEY } from './lib/sidebarWidth'
 
-/** A session belongs either to one repo, or (projectId set) to every repo
- * in a project -- these two helpers keep that grouping consistent across
- * tab filtering without repeating the projectId-vs-repoId branch everywhere. */
-function sessionMatchesScope(session: SessionRecord, scope: Scope): boolean {
-  return scope.kind === 'project' ? session.projectId === scope.project.id : session.repoId === scope.repo.id && !session.projectId
-}
-
-function scopeOf(repo: Repo, project: Project | null): Scope {
-  return project ? { kind: 'project', project } : { kind: 'repo', repo }
-}
-
 export default function App(): JSX.Element {
-  const [scope, setScope] = useState<Scope | null>(null)
-  const [openSessions, setOpenSessions] = useState<SessionRecord[]>([])
-  const [selectedSession, setSelectedSession] = useState<SessionRecord | null>(null)
+  const [openSessions, setOpenSessions] = useState<SessionWithScope[]>([])
+  const [selectedSession, setSelectedSession] = useState<SessionWithScope | null>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
     try {
@@ -37,9 +24,8 @@ export default function App(): JSX.Element {
   })
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
-  // Bumped to force SessionList to refetch after a session is created above
-  // it (the sidebar's "+" button or the hamburger menu) -- SessionList owns
-  // its own fetched list and has no other way to learn about that.
+  // Bumped to force ProjectExplorer to refetch after a session is created
+  // from outside its own tree (the hamburger menu's "New Session" action).
   const [sessionListRefreshKey, setSessionListRefreshKey] = useState(0)
 
   function handleExplorerClick(): void {
@@ -68,67 +54,47 @@ export default function App(): JSX.Element {
     window.addEventListener('pointerup', handleUp)
   }
 
-  function selectScope(next: Scope): void {
-    setScope(next)
-    const tabs = openSessions.filter((s) => sessionMatchesScope(s, next))
-    setSelectedSession(tabs.length > 0 ? tabs[tabs.length - 1] : null)
-  }
-
-  function handleSelectRepo(repo: Repo): void {
-    selectScope({ kind: 'repo', repo })
-  }
-
-  function handleSelectProject(project: Project): void {
-    selectScope({ kind: 'project', project })
-  }
-
   // Land on whatever was last worked in, instead of an empty state, every
   // time the app starts.
   useEffect(() => {
     window.api.session.getMostRecent().then((result) => {
-      if (result) handleOpenSession(result.session, scopeOf(result.repo, result.project))
+      if (result) handleOpenSession(result.session, result.repo, result.project)
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  function handleOpenSession(session: SessionRecord, sessionScope: Scope): void {
-    setScope(sessionScope)
-    setOpenSessions((prev) => (prev.some((s) => s.id === session.id) ? prev : [...prev, session]))
-    setSelectedSession(session)
+  function handleOpenSession(session: SessionRecord, repo: Repo, project: Project | null): void {
+    const item: SessionWithScope = { session, repo, project }
+    setOpenSessions((prev) => (prev.some((s) => s.session.id === session.id) ? prev : [...prev, item]))
+    setSelectedSession(item)
   }
 
-  function handleCloseTab(session: SessionRecord): void {
-    const remaining = openSessions.filter((s) => s.id !== session.id)
+  function handleCloseTab(item: SessionWithScope): void {
+    const remaining = openSessions.filter((s) => s.session.id !== item.session.id)
     setOpenSessions(remaining)
-    if (selectedSession?.id === session.id) {
-      const remainingInScope = remaining.filter((s) =>
-        session.projectId ? s.projectId === session.projectId : s.repoId === session.repoId && !s.projectId
-      )
-      setSelectedSession(remainingInScope.length > 0 ? remainingInScope[remainingInScope.length - 1] : null)
+    if (selectedSession?.session.id === item.session.id) {
+      setSelectedSession(remaining.length > 0 ? remaining[remaining.length - 1] : null)
     }
   }
 
   function handleSessionDeleted(session: SessionRecord): void {
-    setOpenSessions((prev) => prev.filter((s) => s.id !== session.id))
-    setSelectedSession((prev) => (prev?.id === session.id ? null : prev))
+    setOpenSessions((prev) => prev.filter((s) => s.session.id !== session.id))
+    setSelectedSession((prev) => (prev?.session.id === session.id ? null : prev))
   }
 
   function handleSessionRenamed(session: SessionRecord): void {
-    setOpenSessions((prev) => prev.map((s) => (s.id === session.id ? session : s)))
-    setSelectedSession((prev) => (prev?.id === session.id ? session : prev))
+    setOpenSessions((prev) => prev.map((s) => (s.session.id === session.id ? { ...s, session } : s)))
+    setSelectedSession((prev) => (prev?.session.id === session.id ? { ...prev, session } : prev))
   }
 
-  const sessionsInScope = scope ? openSessions.filter((s) => sessionMatchesScope(s, scope)) : []
-  const scopeName = scope ? (scope.kind === 'project' ? `${scope.project.name} (project)` : scope.repo.name) : null
-
   async function handleCreateSessionFromMenu(): Promise<void> {
-    if (!scope) return
-    if (scope.kind === 'repo') {
-      const created = await window.api.session.create(scope.repo.id)
-      handleOpenSession(created, scope)
+    if (!selectedSession) return
+    if (selectedSession.project) {
+      const result = await window.api.session.createProjectSession(selectedSession.project.id)
+      if (result.ok) handleOpenSession(result.session, selectedSession.repo, selectedSession.project)
     } else {
-      const result = await window.api.session.createProjectSession(scope.project.id)
-      if (result.ok) handleOpenSession(result.session, scope)
+      const created = await window.api.session.create(selectedSession.repo.id)
+      handleOpenSession(created, selectedSession.repo, null)
     }
     setSessionListRefreshKey((k) => k + 1)
   }
@@ -138,24 +104,32 @@ export default function App(): JSX.Element {
   }
 
   function cycleTab(direction: 1 | -1): void {
-    if (sessionsInScope.length === 0) return
-    const currentIndex = selectedSession ? sessionsInScope.findIndex((s) => s.id === selectedSession.id) : -1
-    const nextIndex = (currentIndex + direction + sessionsInScope.length) % sessionsInScope.length
-    setSelectedSession(sessionsInScope[nextIndex])
+    if (openSessions.length === 0) return
+    const currentIndex = selectedSession
+      ? openSessions.findIndex((s) => s.session.id === selectedSession.session.id)
+      : -1
+    const nextIndex = (currentIndex + direction + openSessions.length) % openSessions.length
+    setSelectedSession(openSessions[nextIndex])
   }
+
+  const scopeName = selectedSession
+    ? selectedSession.project
+      ? `${selectedSession.project.name} (project)`
+      : selectedSession.repo.name
+    : null
 
   return (
     <div className="app-shell">
       <TitleBar
         menuActions={{
-          newSession: scope ? handleCreateSessionFromMenu : undefined,
+          newSession: selectedSession ? handleCreateSessionFromMenu : undefined,
           closeTab: selectedSession ? handleCloseTabFromMenu : undefined,
           quit: () => window.api.window.close(),
           toggleSidebar: handleExplorerClick,
           goExplorer: () => setSidebarCollapsed(false),
           goSettings: () => setSettingsOpen(true),
-          nextTab: sessionsInScope.length > 0 ? () => cycleTab(1) : undefined,
-          previousTab: sessionsInScope.length > 0 ? () => cycleTab(-1) : undefined,
+          nextTab: openSessions.length > 0 ? () => cycleTab(1) : undefined,
+          previousTab: openSessions.length > 0 ? () => cycleTab(-1) : undefined,
           showAbout: () => setAboutOpen(true)
         }}
       />
@@ -183,48 +157,43 @@ export default function App(): JSX.Element {
           style={{ width: sidebarWidth }}
         >
           <div className="sidebar-header">SESSIONS</div>
-          <RepoSwitcher
-            scope={scope}
-            onSelectRepo={handleSelectRepo}
-            onSelectProject={handleSelectProject}
-            onCreateSession={handleCreateSessionFromMenu}
-          />
           <div className="sidebar-scroll">
-            {scope ? (
-              <SessionList
-                key={sessionListRefreshKey}
-                scope={scope}
-                activeSessionId={selectedSession?.id}
-                onOpenSession={(session) => handleOpenSession(session, scope)}
-                onSessionDeleted={handleSessionDeleted}
-                onSessionRenamed={handleSessionRenamed}
-              />
-            ) : (
-              <div className="sidebar-empty">Pick a repo or project above to see its sessions.</div>
-            )}
+            <ProjectExplorer
+              activeSessionId={selectedSession?.session.id}
+              onOpenSession={handleOpenSession}
+              onSessionDeleted={handleSessionDeleted}
+              onSessionRenamed={handleSessionRenamed}
+              refreshKey={sessionListRefreshKey}
+            />
           </div>
           <div className="sidebar-resize-handle" onPointerDown={handleSidebarResizeStart} />
         </div>
 
         <div className="editor-area">
-          {scope ? (
+          {openSessions.length > 0 ? (
             <>
               <SessionTabs
-                sessions={sessionsInScope}
-                selected={selectedSession}
-                onSelect={setSelectedSession}
-                onClose={handleCloseTab}
+                sessions={openSessions.map((s) => s.session)}
+                selected={selectedSession?.session ?? null}
+                onSelect={(session) => {
+                  const item = openSessions.find((s) => s.session.id === session.id)
+                  if (item) setSelectedSession(item)
+                }}
+                onClose={(session) => {
+                  const item = openSessions.find((s) => s.session.id === session.id)
+                  if (item) handleCloseTab(item)
+                }}
               />
               <div style={{ flex: 1, minHeight: 0 }}>
                 {selectedSession ? (
-                  <ChatPanel session={selectedSession} repoName={scopeName!} />
+                  <ChatPanel session={selectedSession.session} repoName={scopeName!} />
                 ) : (
                   <div className="editor-empty">Pick or create a session in the sidebar</div>
                 )}
               </div>
             </>
           ) : (
-            <div className="editor-empty">Select a repo or project to start a session</div>
+            <div className="editor-empty">Select or create a session in the sidebar</div>
           )}
         </div>
       </div>
