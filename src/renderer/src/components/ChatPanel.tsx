@@ -543,13 +543,11 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
           <span className="composer-hint">
             {queue.length > 0 ? `${queue.length} queued` : session.title}
           </span>
-          <button
-            className={`composer-send${busy ? ' is-stop' : ''}`}
-            onClick={busy ? handleStop : handleSend}
-            disabled={!busy && !input.trim()}
-            title={busy ? 'Stop' : 'Send'}
-          >
-            {busy ? <StopIcon /> : <SendIcon />}
+          <button className="composer-stop" onClick={handleStop} disabled={!busy} title="Stop">
+            <StopIcon />
+          </button>
+          <button className="composer-send" onClick={handleSend} disabled={!input.trim()} title="Send">
+            <SendIcon />
           </button>
         </div>
       </div>

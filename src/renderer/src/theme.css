@@ -1687,15 +1687,29 @@ button {
   transform: translateY(0);
 }
 
-.composer-send.is-stop {
-  background: var(--danger);
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(205, 49, 49, 0.35);
+.composer-stop {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--danger);
 }
 
-.composer-send.is-stop:hover {
-  background: #b3261e;
-  box-shadow: 0 2px 6px rgba(205, 49, 49, 0.4);
+.composer-stop:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  border-color: var(--danger);
+}
+
+.composer-stop:disabled {
+  color: var(--fg-dim);
+  border-color: var(--border-subtle);
+  opacity: 0.5;
+  cursor: default;
 }
 
 .composer-send:disabled {
