@@ -36,12 +36,19 @@ function createWindow(): BrowserWindow {
     frame: false,
     width: 1200,
     height: 800,
+    show: false,
     ...(existsSync(devIconPath) ? { icon: devIconPath } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false
     }
   })
+
+  // Electron shows the window as soon as it's created by default, which
+  // paints a blank white frame for however long the renderer takes to load
+  // and produce its first frame. Waiting for 'ready-to-show' means the
+  // window only appears once there's something real to show.
+  win.once('ready-to-show', () => win.show())
 
   // Electron's default menu accelerator for zoom is unreliable across
   // keyboard layouts (Ctrl+Plus needs Shift, and "+" isn't always what
