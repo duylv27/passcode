@@ -473,23 +473,6 @@ button {
   white-space: nowrap;
 }
 
-.picker-row-git {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  flex-shrink: 0;
-}
-
-.picker-row-branch {
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  color: var(--fg-dim);
-  max-width: 45%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .repo-status-dot {
   display: inline-block;
   width: 7px;

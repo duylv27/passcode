@@ -57,10 +57,10 @@ export function RepoList({ project, selectedRepo, onSelectRepo }: Props): JSX.El
             <RepoIcon className="row-icon is-repo" />
             <span className="picker-row-name">{r.name}</span>
             {status && (
-              <span className="picker-row-git">
-                {status.branch && <span className="picker-row-branch">{status.branch}</span>}
-                <span className={`repo-status-dot${status.dirty ? ' is-dirty' : ''}`} />
-              </span>
+              <span
+                className={`repo-status-dot${status.dirty ? ' is-dirty' : ''}`}
+                title={status.branch ?? undefined}
+              />
             )}
           </button>
         )
