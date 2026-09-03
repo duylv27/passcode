@@ -10,7 +10,8 @@ const api: Api = {
   repos: {
     add: (projectId, path) => ipcRenderer.invoke('repos:add', projectId, path),
     list: (projectId) => ipcRenderer.invoke('repos:list', projectId),
-    delete: (id) => ipcRenderer.invoke('repos:delete', id)
+    delete: (id) => ipcRenderer.invoke('repos:delete', id),
+    gitStatus: (id) => ipcRenderer.invoke('repos:gitStatus', id)
   },
   session: {
     list: (repoId) => ipcRenderer.invoke('session:list', repoId),

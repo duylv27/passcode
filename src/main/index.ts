@@ -17,7 +17,7 @@ import { createSkillsHandlers } from './ipc/skillsHandlers'
 import { createFilesHandlers } from './ipc/filesHandlers'
 import { createWindowHandlers } from './ipc/windowHandlers'
 import { registerIpcHandlers } from './ipc/register'
-import { isGitRepo } from './git/gitStatus'
+import { isGitRepo, getGitStatus } from './git/gitStatus'
 import { createRepoSession } from './agent/piSession'
 import { buildPromptText } from './agent/promptBuilder'
 
@@ -99,7 +99,7 @@ app.whenReady().then(async () => {
 
   registerIpcHandlers({
     projects: createProjectsHandlers(projectsRepo),
-    repos: createReposHandlers(reposRepo, isGitRepo),
+    repos: createReposHandlers(reposRepo, isGitRepo, getGitStatus),
     session: createSessionHandlers({
       reposRepo,
       projectsRepo,

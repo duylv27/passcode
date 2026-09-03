@@ -3,7 +3,7 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import simpleGit from 'simple-git'
-import { isGitRepo } from '../../../src/main/git/gitStatus'
+import { isGitRepo, getGitStatus } from '../../../src/main/git/gitStatus'
 
 describe('gitStatus', () => {
   let dir: string
@@ -31,5 +31,23 @@ describe('gitStatus', () => {
 
   it('reports a valid git repo', async () => {
     expect(await isGitRepo(dir)).toBe(true)
+  })
+
+  it('reports null for a plain (non-git) folder', async () => {
+    const plain = mkdtempSync(join(tmpdir(), 'pi-agent-plain-'))
+    expect(await getGitStatus(plain)).toBe(null)
+    rmSync(plain, { recursive: true, force: true })
+  })
+
+  it('reports the current branch and a clean status for a fresh commit', async () => {
+    const status = await getGitStatus(dir)
+    expect(status).not.toBe(null)
+    expect(status?.dirty).toBe(false)
+  })
+
+  it('reports dirty when there are uncommitted changes', async () => {
+    writeFileSync(join(dir, 'a.txt'), 'changed')
+    const status = await getGitStatus(dir)
+    expect(status?.dirty).toBe(true)
   })
 })

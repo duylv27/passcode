@@ -54,6 +54,11 @@ export interface AddRepoError {
   error: string
 }
 
+export interface GitStatus {
+  branch: string | null
+  dirty: boolean
+}
+
 export interface TokenUsage {
   input: number
   output: number
@@ -136,6 +141,7 @@ export interface Api {
     add(projectId: string, path: string): Promise<AddRepoResult | AddRepoError>
     list(projectId: string): Promise<Repo[]>
     delete(id: string): Promise<void>
+    gitStatus(id: string): Promise<GitStatus | null>
   }
   session: {
     list(repoId: string): Promise<SessionRecord[]>

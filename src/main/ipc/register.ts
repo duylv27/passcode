@@ -32,6 +32,7 @@ export function registerIpcHandlers(handlers: IpcHandlers): void {
   )
   ipcMain.handle('repos:list', (_e, projectId: string) => handlers.repos.listRepos(projectId))
   ipcMain.handle('repos:delete', (_e, id: string) => handlers.repos.deleteRepo(id))
+  ipcMain.handle('repos:gitStatus', (_e, id: string) => handlers.repos.getGitStatus(id))
 
   ipcMain.handle('session:list', (_e, repoId: string) => handlers.session.listSessions(repoId))
   ipcMain.handle('session:create', (_e, repoId: string, title?: string) =>

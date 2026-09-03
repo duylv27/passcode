@@ -9,13 +9,15 @@ describe('reposHandlers', () => {
   let handlers: ReposHandlers
   let projectId: string
   let isGitRepoMock: ReturnType<typeof vi.fn>
+  let getGitStatusMock: ReturnType<typeof vi.fn>
 
   beforeEach(() => {
     const db = new Database(':memory:')
     initSchema(db)
     projectId = createProjectsRepository(db).create('Demo').id
     isGitRepoMock = vi.fn(async () => true)
-    handlers = createReposHandlers(createReposRepository(db), isGitRepoMock)
+    getGitStatusMock = vi.fn(async () => ({ branch: 'main', dirty: false }))
+    handlers = createReposHandlers(createReposRepository(db), isGitRepoMock, getGitStatusMock)
   })
 
   it('adds a repo when the path is a valid git repo', async () => {
@@ -33,5 +35,17 @@ describe('reposHandlers', () => {
     const result = await handlers.addRepo(projectId, '/tmp/not-a-repo')
     expect(result.ok).toBe(false)
     expect(handlers.listRepos(projectId)).toHaveLength(0)
+  })
+
+  it('returns git status for a known repo', async () => {
+    const added = await handlers.addRepo(projectId, '/tmp/my-repo')
+    if (!added.ok) throw new Error('setup failed')
+    const status = await handlers.getGitStatus(added.repo.id)
+    expect(status).toEqual({ branch: 'main', dirty: false })
+  })
+
+  it('returns null for an unknown repo id', async () => {
+    const status = await handlers.getGitStatus('does-not-exist')
+    expect(status).toBe(null)
   })
 })
