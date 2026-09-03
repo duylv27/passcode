@@ -332,96 +332,6 @@ button {
   font-size: 12px;
 }
 
-.repo-switcher {
-  position: relative;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0 var(--space-3) var(--space-2);
-}
-
-.repo-switcher-trigger {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex: 1;
-  min-width: 0;
-  background: var(--input-bg);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 6px var(--space-2);
-  font-size: 12.5px;
-  color: var(--fg);
-  text-align: left;
-}
-
-.repo-switcher-trigger:hover,
-.repo-switcher-trigger:focus-visible {
-  border-color: var(--fg-dim);
-}
-
-.repo-switcher-trigger .row-icon.is-repo {
-  color: #6a9955;
-}
-
-.repo-switcher-add {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 26px;
-  height: 26px;
-  background: var(--input-bg);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--fg-dim);
-}
-
-.repo-switcher-add:hover:not(:disabled) {
-  border-color: var(--fg-dim);
-  color: var(--fg-bright);
-}
-
-.repo-switcher-add:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-.repo-switcher-label {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.repo-switcher-chevron {
-  flex-shrink: 0;
-  color: var(--fg-dim);
-  transform: rotate(90deg);
-  transition: transform 100ms ease;
-}
-
-.repo-switcher-chevron.is-open {
-  transform: rotate(-90deg);
-}
-
-.repo-switcher-menu {
-  position: absolute;
-  top: calc(100% + 2px);
-  left: var(--space-3);
-  right: var(--space-3);
-  max-height: 320px;
-  overflow-y: auto;
-  background: var(--sheet-bg);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
-  padding: 6px;
-  z-index: 20;
-}
-
 .editor-area {
   flex: 1;
   display: flex;
@@ -447,62 +357,7 @@ button {
   font-size: 15px;
 }
 
-/* ---------------------------------------------------------------------
-   Repo picker -- the flat project/repo list inside the RepoSwitcher
-   dropdown menu. Plain rows, no tree/box chrome.
-   --------------------------------------------------------------------- */
-.picker-group + .picker-group {
-  margin-top: 6px;
-}
 
-.picker-group-label {
-  display: block;
-  width: 100%;
-  text-align: left;
-  margin: 2px 0;
-  padding: 5px 8px;
-  background: none;
-  border: none;
-  border-radius: 6px;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--fg-faint);
-}
-
-.picker-group-label.is-clickable:hover {
-  background: var(--list-hover);
-  color: var(--fg-dim);
-}
-
-.picker-group-label.is-selected {
-  background: var(--list-active);
-  color: var(--accent);
-}
-
-.picker-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  text-align: left;
-  padding: 6px 8px;
-  background: none;
-  border: none;
-  border-radius: 6px;
-  color: var(--fg);
-  font-size: 12.5px;
-}
-
-.picker-row-name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
 .repo-status-dot {
   display: inline-block;
@@ -519,20 +374,6 @@ button {
   background: var(--danger);
 }
 
-.picker-row:hover {
-  background: var(--list-hover);
-}
-
-.picker-row.is-selected {
-  background: var(--list-active);
-  color: var(--accent);
-  font-weight: 600;
-}
-
-.picker-row .row-icon.is-repo {
-  flex-shrink: 0;
-  color: #6a9955;
-}
 
 .picker-add-row {
   display: flex;
