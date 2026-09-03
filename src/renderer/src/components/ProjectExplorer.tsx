@@ -85,6 +85,7 @@ export function ProjectExplorer({
           onOpenSession={onOpenSession}
           onSessionDeleted={onSessionDeleted}
           onSessionRenamed={onSessionRenamed}
+          externalRefreshKey={refreshKey}
         />
       ))}
       {addingProject ? (

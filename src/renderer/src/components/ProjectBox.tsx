@@ -12,6 +12,11 @@ interface Props {
   onOpenSession: (session: SessionRecord, repo: Repo, project: Project | null) => void
   onSessionDeleted: (session: SessionRecord) => void
   onSessionRenamed: (session: SessionRecord) => void
+  /** Bumped by ProjectExplorer's parent to force SessionList to refetch
+   * after a session is created from outside this tree (e.g. the hamburger
+   * menu's "New Session"). Combined with this box's own local refreshKey
+   * so either trigger forces a remount. */
+  externalRefreshKey: number
 }
 
 export function ProjectBox({
@@ -21,7 +26,8 @@ export function ProjectBox({
   activeSessionId,
   onOpenSession,
   onSessionDeleted,
-  onSessionRenamed
+  onSessionRenamed,
+  externalRefreshKey
 }: Props): JSX.Element {
   const [addingRepo, setAddingRepo] = useState(false)
   const [repoPath, setRepoPath] = useState('')
@@ -68,7 +74,7 @@ export function ProjectBox({
       {!collapsed && (
         <>
           <SessionList
-            key={refreshKey}
+            key={`${refreshKey}-${externalRefreshKey}`}
             project={project}
             activeSessionId={activeSessionId}
             onOpenSession={onOpenSession}

@@ -90,8 +90,12 @@ export default function App(): JSX.Element {
   async function handleCreateSessionFromMenu(): Promise<void> {
     if (!selectedSession) return
     if (selectedSession.project) {
-      const result = await window.api.session.createProjectSession(selectedSession.project.id)
-      if (result.ok) handleOpenSession(result.session, selectedSession.repo, selectedSession.project)
+      const project = selectedSession.project
+      const result = await window.api.session.createProjectSession(project.id)
+      if (!result.ok) return
+      const repos = await window.api.repos.list(project.id)
+      const repo = repos.find((r) => r.id === result.session.repoId)
+      if (repo) handleOpenSession(result.session, repo, project)
     } else {
       const created = await window.api.session.create(selectedSession.repo.id)
       handleOpenSession(created, selectedSession.repo, null)
