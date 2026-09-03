@@ -43,10 +43,6 @@ function createWindow(): BrowserWindow {
     }
   })
 
-  win.webContents.on('did-finish-load', () => {
-    win.webContents.setZoomFactor(1.7)
-  })
-
   // Electron's default menu accelerator for zoom is unreliable across
   // keyboard layouts (Ctrl+Plus needs Shift, and "+" isn't always what
   // the accelerator parser sees) -- handle it directly instead.
