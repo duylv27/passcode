@@ -484,6 +484,10 @@ button {
   font-family: var(--font-mono);
   font-size: 10.5px;
   color: var(--fg-dim);
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .repo-status-dot {

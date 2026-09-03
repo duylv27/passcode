@@ -158,6 +158,7 @@ export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionH
     },
     async sendPrompt(sessionId: string, text: string, options?: PromptOptions): Promise<void> {
       busySessions.add(sessionId)
+      deps.onEvent(sessionId, { type: 'busy', busy: true })
       try {
         const session = await ensureSession(sessionId)
         const record = deps.sessionsRepo.getById(sessionId)
@@ -172,10 +173,12 @@ export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionH
         deps.onEvent(sessionId, { type: 'error', message: (err as Error).message })
       } finally {
         busySessions.delete(sessionId)
+        deps.onEvent(sessionId, { type: 'busy', busy: false })
       }
     },
     async abortSession(sessionId: string): Promise<void> {
       busySessions.delete(sessionId)
+      deps.onEvent(sessionId, { type: 'busy', busy: false })
       const open = openSessions.get(sessionId)
       if (open) await open.abort()
     },

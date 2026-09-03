@@ -306,6 +306,44 @@ describe('sessionHandlers', () => {
     expect(abortMock).not.toHaveBeenCalled()
   })
 
+  it('emits busy:true when a prompt starts and busy:false when it finishes', async () => {
+    const session = handlers.createSession(repoId)
+    await handlers.sendPrompt(session.id, 'hello')
+
+    const busyEvents = events.filter((e) => e.sessionId === session.id && e.event.type === 'busy')
+    expect(busyEvents).toEqual([
+      { sessionId: session.id, event: { type: 'busy', busy: true } },
+      { sessionId: session.id, event: { type: 'busy', busy: false } }
+    ])
+  })
+
+  it('emits busy:false when a prompt errors, via the finally block', async () => {
+    promptMock.mockImplementationOnce(async () => {
+      throw new Error('boom')
+    })
+    const session = handlers.createSession(repoId)
+    await handlers.sendPrompt(session.id, 'hello')
+
+    const busyEvents = events.filter((e) => e.sessionId === session.id && e.event.type === 'busy')
+    expect(busyEvents).toEqual([
+      { sessionId: session.id, event: { type: 'busy', busy: true } },
+      { sessionId: session.id, event: { type: 'busy', busy: false } }
+    ])
+  })
+
+  it('emits busy:false when a session is aborted mid-prompt', async () => {
+    const session = handlers.createSession(repoId)
+    await handlers.openSession(session.id)
+    events.length = 0
+
+    await handlers.abortSession(session.id)
+
+    expect(events).toContainEqual({
+      sessionId: session.id,
+      event: { type: 'busy', busy: false }
+    })
+  })
+
   it("passes a per-session requestApproval wrapper to openRepoSession", async () => {
     const requestApproval = vi.fn(async () => true)
     const localHandlers = createSessionHandlers({

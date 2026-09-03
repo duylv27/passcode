@@ -19,7 +19,9 @@ export function RepoList({ project, selectedRepo, onSelectRepo }: Props): JSX.El
     const list = await window.api.repos.list(project.id)
     setRepos(list)
     const entries = await Promise.all(
-      list.map(async (r) => [r.id, await window.api.repos.gitStatus(r.id)] as const)
+      list.map(
+        async (r) => [r.id, await window.api.repos.gitStatus(r.id).catch(() => null)] as const
+      )
     )
     setGitStatuses(Object.fromEntries(entries))
   }

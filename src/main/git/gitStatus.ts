@@ -11,9 +11,7 @@ export async function isGitRepo(path: string): Promise<boolean> {
 
 export async function getGitStatus(path: string): Promise<GitStatus | null> {
   try {
-    const git = simpleGit(path)
-    if (!(await git.checkIsRepo())) return null
-    const status = await git.status()
+    const status = await simpleGit(path).status()
     return { branch: status.current, dirty: !status.isClean() }
   } catch {
     return null
