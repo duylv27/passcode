@@ -281,13 +281,29 @@ button {
 }
 
 .sidebar {
-  width: 240px;
+  position: relative;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
   background: var(--sidebar-bg);
   border-right: 1px solid var(--border-subtle);
   min-height: 0;
+}
+
+.sidebar-resize-handle {
+  position: absolute;
+  top: 0;
+  right: -2px;
+  width: 4px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 5;
+}
+
+.sidebar-resize-handle:hover,
+.sidebar-resize-handle:active {
+  background: var(--accent);
+  opacity: 0.4;
 }
 
 .sidebar.is-collapsed {

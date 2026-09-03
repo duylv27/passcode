@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import type { Project, Repo, SessionRecord } from '../../shared/types'
 import { RepoSwitcher, type Scope } from './components/RepoSwitcher'
 import { SessionList } from './components/SessionList'
@@ -9,6 +9,7 @@ import { ApprovalDialog } from './components/ApprovalDialog'
 import { TitleBar } from './components/TitleBar'
 import { AboutDialog } from './components/AboutDialog'
 import { ExplorerIcon, GearIcon, LogoIcon } from './components/icons'
+import { clampSidebarWidth, SIDEBAR_DEFAULT_WIDTH, SIDEBAR_WIDTH_KEY } from './lib/sidebarWidth'
 
 /** A session belongs either to one repo, or (projectId set) to every repo
  * in a project -- these two helpers keep that grouping consistent across
@@ -26,6 +27,14 @@ export default function App(): JSX.Element {
   const [openSessions, setOpenSessions] = useState<SessionRecord[]>([])
   const [selectedSession, setSelectedSession] = useState<SessionRecord | null>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
+    try {
+      const raw = localStorage.getItem(SIDEBAR_WIDTH_KEY)
+      return raw ? clampSidebarWidth(Number(raw)) : SIDEBAR_DEFAULT_WIDTH
+    } catch {
+      return SIDEBAR_DEFAULT_WIDTH
+    }
+  })
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
   // Bumped to force SessionList to refetch after a session is created from
@@ -35,6 +44,28 @@ export default function App(): JSX.Element {
 
   function handleExplorerClick(): void {
     setSidebarCollapsed((collapsed) => !collapsed)
+  }
+
+  function handleSidebarResizeStart(e: ReactPointerEvent<HTMLDivElement>): void {
+    e.preventDefault()
+    const startX = e.clientX
+    const startWidth = sidebarWidth
+    let latestWidth = startWidth
+    function handleMove(moveEvent: PointerEvent): void {
+      latestWidth = clampSidebarWidth(startWidth + (moveEvent.clientX - startX))
+      setSidebarWidth(latestWidth)
+    }
+    function handleUp(): void {
+      window.removeEventListener('pointermove', handleMove)
+      window.removeEventListener('pointerup', handleUp)
+      try {
+        localStorage.setItem(SIDEBAR_WIDTH_KEY, String(latestWidth))
+      } catch {
+        // ignore storage errors (e.g. private browsing)
+      }
+    }
+    window.addEventListener('pointermove', handleMove)
+    window.addEventListener('pointerup', handleUp)
   }
 
   function selectScope(next: Scope): void {
@@ -147,7 +178,10 @@ export default function App(): JSX.Element {
           </button>
         </div>
 
-        <div className={`sidebar${sidebarCollapsed ? ' is-collapsed' : ''}`}>
+        <div
+          className={`sidebar${sidebarCollapsed ? ' is-collapsed' : ''}`}
+          style={{ width: sidebarWidth }}
+        >
           <div className="sidebar-header">SESSIONS</div>
           <RepoSwitcher scope={scope} onSelectRepo={handleSelectRepo} onSelectProject={handleSelectProject} />
           <div className="sidebar-scroll">
@@ -164,6 +198,7 @@ export default function App(): JSX.Element {
               <div className="sidebar-empty">Pick a repo or project above to see its sessions.</div>
             )}
           </div>
+          <div className="sidebar-resize-handle" onPointerDown={handleSidebarResizeStart} />
         </div>
 
         <div className="editor-area">
