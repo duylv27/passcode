@@ -543,6 +543,7 @@ button {
 }
 
 .session-group {
+  margin: 0 var(--space-1);
   border: 1px solid var(--border-subtle);
   border-radius: 6px;
   overflow: hidden;
@@ -635,11 +636,11 @@ button {
 }
 
 .session-group .session-row-select {
-  padding-left: 20px;
+  padding-left: 16px;
 }
 
 .session-group .session-row.is-editing {
-  padding-left: 20px;
+  padding-left: 16px;
 }
 
 .session-group .session-row + .session-row {
