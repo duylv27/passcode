@@ -647,7 +647,7 @@ button {
 .session-row-select {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 7px;
   flex: 1;
   min-width: 0;
   text-align: left;
@@ -678,7 +678,7 @@ button {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--fg-faint);
+  background: #6a9955;
 }
 
 .session-row-status-dot.is-busy {
