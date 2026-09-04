@@ -141,6 +141,7 @@ export interface Api {
   projects: {
     create(name: string): Promise<Project>
     list(): Promise<Project[]>
+    rename(id: string, name: string): Promise<void>
     delete(id: string): Promise<void>
   }
   repos: {

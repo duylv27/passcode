@@ -6,6 +6,7 @@ export interface ProjectsRepository {
   create(name: string): Project
   list(): Project[]
   getById(id: string): Project | undefined
+  rename(id: string, name: string): void
   delete(id: string): void
 }
 
@@ -29,6 +30,9 @@ export function createProjectsRepository(db: DatabaseSync): ProjectsRepository {
       return db
         .prepare('SELECT id, name, created_at as createdAt FROM projects WHERE id = ?')
         .get(id) as Project | undefined
+    },
+    rename(id: string, name: string): void {
+      db.prepare('UPDATE projects SET name = ? WHERE id = ?').run(name, id)
     },
     delete(id: string): void {
       db.prepare('DELETE FROM projects WHERE id = ?').run(id)

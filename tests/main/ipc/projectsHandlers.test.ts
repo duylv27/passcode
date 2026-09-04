@@ -23,6 +23,17 @@ describe('projectsHandlers', () => {
     expect(() => handlers.createProject('   ')).toThrow('Project name must not be empty')
   })
 
+  it('renames a project', () => {
+    const project = handlers.createProject('Old Name')
+    handlers.renameProject(project.id, 'New Name')
+    expect(handlers.listProjects()[0].name).toBe('New Name')
+  })
+
+  it('rejects renaming to an empty name', () => {
+    const project = handlers.createProject('Demo')
+    expect(() => handlers.renameProject(project.id, '   ')).toThrow('Project name must not be empty')
+  })
+
   it('deletes a project', () => {
     const project = handlers.createProject('Demo')
     handlers.deleteProject(project.id)

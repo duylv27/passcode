@@ -25,6 +25,7 @@ export interface IpcHandlers {
 export function registerIpcHandlers(handlers: IpcHandlers): void {
   ipcMain.handle('projects:create', (_e, name: string) => handlers.projects.createProject(name))
   ipcMain.handle('projects:list', () => handlers.projects.listProjects())
+  ipcMain.handle('projects:rename', (_e, id: string, name: string) => handlers.projects.renameProject(id, name))
   ipcMain.handle('projects:delete', (_e, id: string) => handlers.projects.deleteProject(id))
 
   ipcMain.handle('repos:add', (_e, projectId: string, path: string) =>

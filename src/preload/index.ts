@@ -5,6 +5,7 @@ const api: Api = {
   projects: {
     create: (name) => ipcRenderer.invoke('projects:create', name),
     list: () => ipcRenderer.invoke('projects:list'),
+    rename: (id, name) => ipcRenderer.invoke('projects:rename', id, name),
     delete: (id) => ipcRenderer.invoke('projects:delete', id)
   },
   repos: {

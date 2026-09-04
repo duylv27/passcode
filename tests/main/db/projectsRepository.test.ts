@@ -34,4 +34,10 @@ describe('ProjectsRepository', () => {
     repo.delete(created.id)
     expect(repo.getById(created.id)).toBeUndefined()
   })
+
+  it('renames a project', () => {
+    const created = repo.create('Old Name')
+    repo.rename(created.id, 'New Name')
+    expect(repo.getById(created.id)?.name).toBe('New Name')
+  })
 })
