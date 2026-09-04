@@ -271,8 +271,15 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
         setBusy(false)
         setItems((prev) => [...prev, { kind: 'error', id: newId(), text: event.message }])
       } else if (event.type === 'turn_end') {
+        // NOT the end of the whole agent run -- the SDK emits one turn_end
+        // per model round-trip, and a single prompt can span several turns
+        // via tool use before the loop actually finishes. Clearing `busy`
+        // here made the Stop button go disabled mid-run, after the first
+        // turn, while the agent kept working underneath. The main process's
+        // 'busy' event (sent once session.prompt()'s promise actually
+        // resolves, i.e. the whole loop is done) is the authoritative signal
+        // for that -- see the `event.type === 'busy'` handler below.
         setThinking(false)
-        setBusy(false)
       } else if (event.type === 'history') {
         hasPriorTurns = event.items.length > 0
         setItems(mapHistory(event.items))
