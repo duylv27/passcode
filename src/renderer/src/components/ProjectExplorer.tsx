@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import type { Project, Repo, SessionRecord } from '../../../shared/types'
 import { ProjectBox } from './ProjectBox'
+import { NewProjectDialog } from './NewProjectDialog'
 import { PlusIcon } from './icons'
 
 interface Props {
@@ -25,10 +26,6 @@ function readCollapsed(): Record<string, boolean> {
   }
 }
 
-/** The sidebar's top-level content: every project, always visible, each a
- * collapsible box (default collapsed) -- no scope selection required to
- * browse or open any session. Replaces RepoSwitcher + the old scoped
- * SessionList together. */
 export function ProjectExplorer({
   activeSessionId,
   onOpenSession,
@@ -38,8 +35,7 @@ export function ProjectExplorer({
 }: Props): JSX.Element {
   const [projects, setProjects] = useState<Project[]>([])
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() => readCollapsed())
-  const [addingProject, setAddingProject] = useState(false)
-  const [projectName, setProjectName] = useState('')
+  const [newProjectOpen, setNewProjectOpen] = useState(false)
 
   async function refresh(): Promise<void> {
     setProjects(await window.api.projects.list())
@@ -52,9 +48,6 @@ export function ProjectExplorer({
 
   function toggleCollapse(projectId: string): void {
     setCollapsed((prev) => {
-      // New projects default to collapsed: `prev[projectId] ?? true` is
-      // truthy (collapsed) whenever there's no stored entry yet, so the
-      // very first toggle correctly flips to expanded (`false`).
       const next = { ...prev, [projectId]: !(prev[projectId] ?? true) }
       try {
         localStorage.setItem(COLLAPSED_STORAGE_KEY, JSON.stringify(next))
@@ -63,14 +56,6 @@ export function ProjectExplorer({
       }
       return next
     })
-  }
-
-  async function handleCreateProject(): Promise<void> {
-    if (!projectName.trim()) return
-    await window.api.projects.create(projectName.trim())
-    setProjectName('')
-    setAddingProject(false)
-    await refresh()
   }
 
   return (
@@ -85,37 +70,23 @@ export function ProjectExplorer({
           onOpenSession={onOpenSession}
           onSessionDeleted={onSessionDeleted}
           onSessionRenamed={onSessionRenamed}
+          onProjectChanged={refresh}
           externalRefreshKey={refreshKey}
         />
       ))}
-      {addingProject ? (
-        <div className="picker-inline-form">
-          <input
-            className="field"
-            autoFocus
-            value={projectName}
-            onChange={(e) => setProjectName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleCreateProject()
-              else if (e.key === 'Escape') setAddingProject(false)
-            }}
-            onBlur={() => {
-              if (!projectName.trim()) setAddingProject(false)
-            }}
-            placeholder="Project name"
-          />
-          <button className="btn" onClick={handleCreateProject}>
-            Add
-          </button>
-        </div>
-      ) : (
-        <button className="picker-add-row is-project" onClick={() => setAddingProject(true)}>
-          <PlusIcon className="row-icon" />
-          <span>New project</span>
-        </button>
-      )}
-      {projects.length === 0 && !addingProject && (
-        <div className="sidebar-empty">No projects yet. Add one below.</div>
+      <button className="picker-add-row is-project" onClick={() => setNewProjectOpen(true)}>
+        <PlusIcon className="row-icon" />
+        <span>New project</span>
+      </button>
+      {projects.length === 0 && <div className="sidebar-empty">No projects yet. Add one below.</div>}
+      {newProjectOpen && (
+        <NewProjectDialog
+          onClose={() => setNewProjectOpen(false)}
+          onCreated={() => {
+            setNewProjectOpen(false)
+            refresh()
+          }}
+        />
       )}
     </div>
   )

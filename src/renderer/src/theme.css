@@ -2363,6 +2363,61 @@ button {
 }
 
 /* ---------------------------------------------------------------------
+   New Project dialog
+   --------------------------------------------------------------------- */
+.new-project-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 210;
+}
+
+.new-project-dialog {
+  width: 320px;
+  background: var(--sidebar-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: var(--space-4);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.new-project-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--fg-bright);
+  margin-bottom: var(--space-1);
+}
+
+.new-project-folder-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.new-project-folder-path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--fg-dim);
+}
+
+.new-project-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+/* ---------------------------------------------------------------------
    Settings modal
    --------------------------------------------------------------------- */
 .settings-overlay {
