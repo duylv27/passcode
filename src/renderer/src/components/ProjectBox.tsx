@@ -47,25 +47,13 @@ export function ProjectBox({
 
   const singleRepo = repos.length === 1 ? repos[0] : null
 
-  async function handleCreateSession(): Promise<void> {
-    if (singleRepo) {
-      const created = await window.api.session.create(singleRepo.id)
-      onOpenSession(created, singleRepo, null)
-      setRefreshKey((k) => k + 1)
-      return
-    }
-    const result = await window.api.session.createProjectSession(project.id)
-    if (result.ok) {
-      const projectRepos = await window.api.repos.list(project.id)
-      const repo = projectRepos.find((r) => r.id === result.session.repoId)
-      if (repo) {
-        onOpenSession(result.session, repo, project)
-      } else {
-        setRepoError('Could not open the new session')
-      }
-    } else {
-      setRepoError(result.error)
-    }
+  // Project-wide session creation no longer exists -- every session is
+  // repo-scoped, so this header action only makes sense (and only shows,
+  // see the JSX below) when there's exactly one unambiguous repo to create
+  // it in.
+  async function handleCreateSession(repo: Repo): Promise<void> {
+    const created = await window.api.session.create(repo.id)
+    onOpenSession(created, repo, null)
     setRefreshKey((k) => k + 1)
   }
 
@@ -89,13 +77,11 @@ export function ProjectBox({
           <ChevronIcon className={`project-box-chevron${collapsed ? '' : ' is-open'}`} />
           <span className="project-box-label">{project.name}</span>
         </button>
-        <button
-          className="project-box-add"
-          onClick={handleCreateSession}
-          title={singleRepo ? 'New session' : 'New project session'}
-        >
-          <PlusIcon />
-        </button>
+        {singleRepo && (
+          <button className="project-box-add" onClick={() => handleCreateSession(singleRepo)} title="New session">
+            <PlusIcon />
+          </button>
+        )}
       </div>
       {!collapsed && (
         <>

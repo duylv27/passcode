@@ -23,9 +23,13 @@ function readCollapsed(projectId: string): Record<string, boolean> {
   }
 }
 
-/** Renders one project's full session tree: each repo as a collapsible
- * group of its own (repo-scoped) sessions, plus any project-scoped
- * sessions (spanning every repo) in a small unboxed section above them. */
+/** Renders one project's full session tree. Every session is repo-scoped --
+ * the app no longer supports project-wide sessions spanning multiple repos
+ * (existing data was migrated to one project per repo; see
+ * migrateSingleRepoProjects.ts). A project with exactly one repo renders
+ * its sessions as one flat list with no repo sub-group box, since there's
+ * nothing left to distinguish. A project with more than one repo (possible
+ * again after adding a second repo) still groups sessions per repo. */
 export function SessionList({
   project,
   activeSessionId,
@@ -35,7 +39,6 @@ export function SessionList({
 }: Props): JSX.Element {
   const [repos, setRepos] = useState<Repo[]>([])
   const [repoSessions, setRepoSessions] = useState<Record<string, SessionRecord[]>>({})
-  const [projectSessions, setProjectSessions] = useState<SessionRecord[]>([])
   const [gitStatuses, setGitStatuses] = useState<Record<string, GitStatus | null>>({})
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
@@ -43,12 +46,8 @@ export function SessionList({
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
 
   async function refresh(): Promise<void> {
-    const [repoList, projSessions] = await Promise.all([
-      window.api.repos.list(project.id),
-      window.api.session.listByProject(project.id)
-    ])
+    const repoList = await window.api.repos.list(project.id)
     setRepos(repoList)
-    setProjectSessions(projSessions)
     const sessionEntries = await Promise.all(
       repoList.map(async (r) => [r.id, await window.api.session.list(r.id)] as const)
     )
@@ -118,11 +117,10 @@ export function SessionList({
       }
       return next
     })
-    setProjectSessions((prev) => prev.map((s) => (s.id === session.id ? { ...s, title } : s)))
     onSessionRenamed({ ...session, title })
   }
 
-  function renderSessionRow(s: SessionRecord, sessionProject: Project | null): JSX.Element {
+  function renderSessionRow(s: SessionRecord): JSX.Element {
     if (editingId === s.id) {
       return (
         <div key={s.id} className="session-row is-editing">
@@ -146,7 +144,7 @@ export function SessionList({
           className="session-row-select"
           onClick={() => {
             const repo = repos.find((r) => r.id === s.repoId)
-            if (repo) onOpenSession(s, repo, sessionProject)
+            if (repo) onOpenSession(s, repo, null)
           }}
         >
           <span className={`session-row-status-dot${busySessionIds.has(s.id) ? ' is-busy' : ''}`} />
@@ -162,30 +160,18 @@ export function SessionList({
     )
   }
 
-  // A project with exactly one repo has no meaningful project-scoped vs.
-  // repo-scoped distinction to show -- render every session (both kinds)
-  // as one flat list with no repo sub-group box, matching how the project
-  // box's own header "+" also collapses to a single repo-scoped action in
-  // this case (see ProjectBox.tsx).
   if (repos.length === 1) {
-    const onlyRepo = repos[0]
-    const allSessions = [...projectSessions, ...(repoSessions[onlyRepo.id] ?? [])]
+    const sessions = repoSessions[repos[0].id] ?? []
     return (
       <div className="tree-sessions">
-        {allSessions.map((s) => renderSessionRow(s, s.projectId ? project : null))}
-        {allSessions.length === 0 && <div className="sidebar-empty">No sessions yet.</div>}
+        {sessions.map(renderSessionRow)}
+        {sessions.length === 0 && <div className="sidebar-empty">No sessions yet.</div>}
       </div>
     )
   }
 
   return (
     <div className="tree-sessions">
-      {projectSessions.length > 0 && (
-        <>
-          <div className="project-sessions-label">Project</div>
-          {projectSessions.map((s) => renderSessionRow(s, project))}
-        </>
-      )}
       {repos.map((repo) => {
         const status = gitStatuses[repo.id]
         const sessionsForRepo = repoSessions[repo.id] ?? []
@@ -211,13 +197,11 @@ export function SessionList({
                 <PlusIcon />
               </button>
             </div>
-            {!collapsed[repo.id] && sessionsForRepo.map((s) => renderSessionRow(s, null))}
+            {!collapsed[repo.id] && sessionsForRepo.map(renderSessionRow)}
           </div>
         )
       })}
-      {repos.length === 0 && projectSessions.length === 0 && (
-        <div className="sidebar-empty">No repos yet. Add one below.</div>
-      )}
+      {repos.length === 0 && <div className="sidebar-empty">No repos yet. Add one below.</div>}
     </div>
   )
 }

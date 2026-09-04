@@ -414,16 +414,6 @@ button {
   padding-left: 0;
 }
 
-.project-sessions-label {
-  padding: 4px var(--space-2) 2px;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--fg-faint);
-}
-
 .project-box {
   margin: 0 var(--space-1);
   border: 1px solid var(--border-subtle);
