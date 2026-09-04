@@ -10,6 +10,9 @@ interface Props {
   onOpenSession: (session: SessionRecord, repo: Repo, project: Project | null) => void
   onSessionDeleted: (session: SessionRecord) => void
   onSessionRenamed: (session: SessionRecord) => void
+  /** Called after a project is deleted, with the ids of the repos it
+   * contained, so App can prune any open session tabs belonging to them. */
+  onProjectDeleted: (repoIds: string[]) => void
   /** Bumped by the parent to force a refetch after a session is created
    * from outside this tree (e.g. the hamburger menu's "New Session"). */
   refreshKey: number
@@ -31,6 +34,7 @@ export function ProjectExplorer({
   onOpenSession,
   onSessionDeleted,
   onSessionRenamed,
+  onProjectDeleted,
   refreshKey
 }: Props): JSX.Element {
   const [projects, setProjects] = useState<Project[]>([])
@@ -71,6 +75,7 @@ export function ProjectExplorer({
           onSessionDeleted={onSessionDeleted}
           onSessionRenamed={onSessionRenamed}
           onProjectChanged={refresh}
+          onProjectDeleted={onProjectDeleted}
           externalRefreshKey={refreshKey}
         />
       ))}
@@ -78,7 +83,7 @@ export function ProjectExplorer({
         <PlusIcon className="row-icon" />
         <span>New project</span>
       </button>
-      {projects.length === 0 && <div className="sidebar-empty">No projects yet. Add one below.</div>}
+      {projects.length === 0 && <div className="sidebar-empty">No projects yet. Add one above.</div>}
       {newProjectOpen && (
         <NewProjectDialog
           onClose={() => setNewProjectOpen(false)}

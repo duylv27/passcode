@@ -14,15 +14,18 @@ export function ProjectInfoDialog({ project, onClose }: Props): JSX.Element {
   useEffect(() => {
     let cancelled = false
     async function load(): Promise<void> {
-      const repoList = await window.api.repos.list(project.id)
-      if (cancelled) return
-      setRepos(repoList)
-      const statusEntries = await Promise.all(
-        repoList.map(async (r) => [r.id, await window.api.repos.gitStatus(r.id).catch(() => null)] as const)
-      )
-      if (cancelled) return
-      setGitStatuses(Object.fromEntries(statusEntries))
-      setLoading(false)
+      try {
+        const repoList = await window.api.repos.list(project.id)
+        if (cancelled) return
+        setRepos(repoList)
+        const statusEntries = await Promise.all(
+          repoList.map(async (r) => [r.id, await window.api.repos.gitStatus(r.id).catch(() => null)] as const)
+        )
+        if (cancelled) return
+        setGitStatuses(Object.fromEntries(statusEntries))
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
     }
     load()
     return () => {
@@ -42,7 +45,7 @@ export function ProjectInfoDialog({ project, onClose }: Props): JSX.Element {
             <div key={repo.id} className="project-info-repo">
               <div className="project-info-repo-name">
                 <span
-                  className={`repo-status-dot${status?.dirty ? ' is-dirty' : ''}`}
+                  className={`repo-status-dot${status ? (status.dirty ? ' is-dirty' : '') : ' is-unknown'}`}
                   title={status?.branch ?? undefined}
                 />
                 {repo.name}

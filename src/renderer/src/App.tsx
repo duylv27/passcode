@@ -87,6 +87,11 @@ export default function App(): JSX.Element {
     setSelectedSession((prev) => (prev?.session.id === session.id ? { ...prev, session } : prev))
   }
 
+  function handleProjectDeleted(repoIds: string[]): void {
+    setOpenSessions((prev) => prev.filter((s) => !repoIds.includes(s.repo.id)))
+    setSelectedSession((prev) => (prev && repoIds.includes(prev.repo.id) ? null : prev))
+  }
+
   async function handleCreateSessionFromMenu(): Promise<void> {
     if (!selectedSession) return
     const created = await window.api.session.create(selectedSession.repo.id)
@@ -154,6 +159,7 @@ export default function App(): JSX.Element {
               onOpenSession={handleOpenSession}
               onSessionDeleted={handleSessionDeleted}
               onSessionRenamed={handleSessionRenamed}
+              onProjectDeleted={handleProjectDeleted}
               refreshKey={sessionListRefreshKey}
             />
           </div>

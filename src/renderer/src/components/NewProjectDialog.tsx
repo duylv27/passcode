@@ -29,20 +29,30 @@ export function NewProjectDialog({ onClose, onCreated }: Props): JSX.Element {
     if (!trimmed || !folderPath || creating) return
     setCreating(true)
     setError(null)
-    const project = await window.api.projects.create(trimmed)
-    const result = await window.api.repos.add(project.id, folderPath)
-    if (!result.ok) {
-      await window.api.projects.delete(project.id)
-      setError(result.error)
+    let createdProjectId: string | null = null
+    try {
+      const project = await window.api.projects.create(trimmed)
+      createdProjectId = project.id
+      const result = await window.api.repos.add(project.id, folderPath)
+      if (!result.ok) {
+        await window.api.projects.delete(project.id)
+        setError(result.error)
+        setCreating(false)
+        return
+      }
       setCreating(false)
-      return
+      onCreated()
+    } catch (err) {
+      if (createdProjectId) {
+        await window.api.projects.delete(createdProjectId).catch(() => {})
+      }
+      setError(err instanceof Error ? err.message : String(err))
+      setCreating(false)
     }
-    setCreating(false)
-    onCreated()
   }
 
   return (
-    <div className="new-project-overlay" onClick={onClose}>
+    <div className="new-project-overlay" onClick={creating ? undefined : onClose}>
       <div className="new-project-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="new-project-title">New Project</div>
         <input
@@ -52,6 +62,9 @@ export function NewProjectDialog({ onClose, onCreated }: Props): JSX.Element {
           onChange={(e) => {
             setNameEdited(true)
             setName(e.target.value)
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && name.trim() && folderPath && !creating) handleCreate()
           }}
           placeholder="Project name"
         />

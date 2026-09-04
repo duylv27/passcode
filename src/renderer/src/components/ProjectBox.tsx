@@ -16,6 +16,9 @@ interface Props {
   /** Called after this project is renamed or deleted so ProjectExplorer
    * can refetch its project list. */
   onProjectChanged: () => void
+  /** Called after this project is deleted, with the ids of the repos it
+   * contained, so App can prune any open session tabs belonging to them. */
+  onProjectDeleted: (repoIds: string[]) => void
   /** Bumped by ProjectExplorer's parent to force SessionList to refetch
    * after a session is created from outside this tree (e.g. the hamburger
    * menu's "New Session"). Combined with this box's own local refreshKey
@@ -32,6 +35,7 @@ export function ProjectBox({
   onSessionDeleted,
   onSessionRenamed,
   onProjectChanged,
+  onProjectDeleted,
   externalRefreshKey
 }: Props): JSX.Element {
   const [addingRepo, setAddingRepo] = useState(false)
@@ -107,7 +111,9 @@ export function ProjectBox({
       `Delete "${project.name}"? This also removes its repo(s) and every session in them.`
     )
     if (!confirmed) return
+    const projectRepos = await window.api.repos.list(project.id)
     await window.api.projects.delete(project.id)
+    onProjectDeleted(projectRepos.map((r) => r.id))
     onProjectChanged()
   }
 

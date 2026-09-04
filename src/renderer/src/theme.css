@@ -374,6 +374,11 @@ button {
   background: var(--danger);
 }
 
+.repo-status-dot.is-unknown {
+  border-style: dashed;
+  opacity: 0.5;
+}
+
 
 .picker-add-row {
   display: flex;
