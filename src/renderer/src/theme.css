@@ -508,6 +508,44 @@ button {
   color: var(--fg-bright);
 }
 
+.project-box-rename,
+.project-box-delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin-right: 4px;
+  visibility: hidden;
+  background: none;
+  border: none;
+  border-radius: 3px;
+  color: var(--fg-dim);
+}
+
+.project-box-header:hover .project-box-rename,
+.project-box-header:hover .project-box-delete {
+  visibility: visible;
+}
+
+.project-box-rename:hover {
+  background: var(--list-active);
+  color: var(--fg-bright);
+}
+
+.project-box-delete:hover {
+  background: var(--list-active);
+  color: var(--danger);
+}
+
+.project-box-name-field {
+  flex: 1;
+  min-width: 0;
+  margin: 3px var(--space-2);
+  font-size: 11px;
+}
+
 .session-group {
   margin: 0 var(--space-1);
   border: 1px solid var(--border-subtle);

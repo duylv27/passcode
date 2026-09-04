@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import type { Project, Repo, SessionRecord } from '../../../shared/types'
 import { SessionList } from './SessionList'
-import { ChevronIcon, InfoIcon, PlusIcon } from './icons'
+import { ChevronIcon, EditIcon, InfoIcon, PlusIcon, TrashIcon } from './icons'
 import { ProjectInfoDialog } from './ProjectInfoDialog'
 
 interface Props {
@@ -13,6 +13,9 @@ interface Props {
   onOpenSession: (session: SessionRecord, repo: Repo, project: Project | null) => void
   onSessionDeleted: (session: SessionRecord) => void
   onSessionRenamed: (session: SessionRecord) => void
+  /** Called after this project is renamed or deleted so ProjectExplorer
+   * can refetch its project list. */
+  onProjectChanged: () => void
   /** Bumped by ProjectExplorer's parent to force SessionList to refetch
    * after a session is created from outside this tree (e.g. the hamburger
    * menu's "New Session"). Combined with this box's own local refreshKey
@@ -28,6 +31,7 @@ export function ProjectBox({
   onOpenSession,
   onSessionDeleted,
   onSessionRenamed,
+  onProjectChanged,
   externalRefreshKey
 }: Props): JSX.Element {
   const [addingRepo, setAddingRepo] = useState(false)
@@ -42,6 +46,8 @@ export function ProjectBox({
   // distinction into a single "+" action (see handleCreateSession below).
   const [repos, setRepos] = useState<Repo[]>([])
   const [infoOpen, setInfoOpen] = useState(false)
+  const [editingName, setEditingName] = useState(false)
+  const [nameValue, setNameValue] = useState(project.name)
 
   useEffect(() => {
     window.api.repos.list(project.id).then(setRepos)
@@ -83,15 +89,57 @@ export function ProjectBox({
     setAddingRepo(false)
   }
 
+  function startRenameProject(): void {
+    setNameValue(project.name)
+    setEditingName(true)
+  }
+
+  async function commitRenameProject(): Promise<void> {
+    const trimmed = nameValue.trim()
+    setEditingName(false)
+    if (!trimmed || trimmed === project.name) return
+    await window.api.projects.rename(project.id, trimmed)
+    onProjectChanged()
+  }
+
+  async function handleDeleteProject(): Promise<void> {
+    const confirmed = window.confirm(
+      `Delete "${project.name}"? This also removes its repo(s) and every session in them.`
+    )
+    if (!confirmed) return
+    await window.api.projects.delete(project.id)
+    onProjectChanged()
+  }
+
   return (
     <div className="project-box">
       <div className="project-box-header">
-        <button className="project-box-toggle" onClick={() => onToggleCollapse(project.id)}>
-          <ChevronIcon className={`project-box-chevron${collapsed ? '' : ' is-open'}`} />
-          <span className="project-box-label">{project.name}</span>
-        </button>
+        {editingName ? (
+          <input
+            className="field project-box-name-field"
+            autoFocus
+            value={nameValue}
+            onChange={(e) => setNameValue(e.target.value)}
+            onBlur={commitRenameProject}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') e.currentTarget.blur()
+              else if (e.key === 'Escape') setEditingName(false)
+            }}
+          />
+        ) : (
+          <button className="project-box-toggle" onClick={() => onToggleCollapse(project.id)}>
+            <ChevronIcon className={`project-box-chevron${collapsed ? '' : ' is-open'}`} />
+            <span className="project-box-label">{project.name}</span>
+          </button>
+        )}
         <button className="project-box-info" onClick={() => setInfoOpen(true)} title="Project info">
           <InfoIcon />
+        </button>
+        <button className="project-box-rename" onClick={startRenameProject} title="Rename project">
+          <EditIcon />
+        </button>
+        <button className="project-box-delete" onClick={handleDeleteProject} title="Delete project">
+          <TrashIcon />
         </button>
         {singleRepo && (
           <button className="project-box-add" onClick={() => handleCreateSession(singleRepo)} title="New session">
