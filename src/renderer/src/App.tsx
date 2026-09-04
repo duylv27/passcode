@@ -34,11 +34,19 @@ export default function App(): JSX.Element {
   }
 
   function handleGoProjectsView(): void {
+    if (!sidebarCollapsed && explorerView === 'projects') {
+      setSidebarCollapsed(true)
+      return
+    }
     setSidebarCollapsed(false)
     setExplorerView('projects')
   }
 
   function handleGoSessionsView(): void {
+    if (!sidebarCollapsed && explorerView === 'sessions') {
+      setSidebarCollapsed(true)
+      return
+    }
     setSidebarCollapsed(false)
     setExplorerView('sessions')
   }
@@ -147,14 +155,14 @@ export default function App(): JSX.Element {
           <button
             className={`activitybar-icon${!sidebarCollapsed && explorerView === 'projects' ? ' is-active' : ''}`}
             onClick={handleGoProjectsView}
-            title="Projects"
+            title={!sidebarCollapsed && explorerView === 'projects' ? 'Hide Sidebar' : 'Projects'}
           >
             <ExplorerIcon />
           </button>
           <button
             className={`activitybar-icon${!sidebarCollapsed && explorerView === 'sessions' ? ' is-active' : ''}`}
             onClick={handleGoSessionsView}
-            title="Sessions"
+            title={!sidebarCollapsed && explorerView === 'sessions' ? 'Hide Sidebar' : 'Sessions'}
           >
             <ChatIcon />
           </button>
