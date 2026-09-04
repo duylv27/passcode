@@ -25,6 +25,7 @@ export default function App(): JSX.Element {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
   const [explorerView, setExplorerView] = useState<'sessions' | 'projects'>('sessions')
+  const [pinnedSessionIds, setPinnedSessionIds] = useState<Set<string>>(new Set())
   // Bumped to force ProjectExplorer to refetch after a session is created
   // from outside its own tree (the hamburger menu's "New Session" action).
   const [sessionListRefreshKey, setSessionListRefreshKey] = useState(0)
@@ -94,6 +95,35 @@ export default function App(): JSX.Element {
     if (selectedSession?.session.id === item.session.id) {
       setSelectedSession(remaining.length > 0 ? remaining[remaining.length - 1] : null)
     }
+  }
+
+  // Pinned tabs survive Close Others / Close All -- the plain × on a tab
+  // still closes it directly regardless of pinned state.
+  function handleCloseOthers(item: SessionWithScope): void {
+    const remaining = openSessions.filter(
+      (s) => s.session.id === item.session.id || pinnedSessionIds.has(s.session.id)
+    )
+    setOpenSessions(remaining)
+    if (selectedSession && !remaining.some((s) => s.session.id === selectedSession.session.id)) {
+      setSelectedSession(item)
+    }
+  }
+
+  function handleCloseAll(): void {
+    const remaining = openSessions.filter((s) => pinnedSessionIds.has(s.session.id))
+    setOpenSessions(remaining)
+    if (selectedSession && !remaining.some((s) => s.session.id === selectedSession.session.id)) {
+      setSelectedSession(remaining.length > 0 ? remaining[0] : null)
+    }
+  }
+
+  function handleTogglePin(item: SessionWithScope): void {
+    setPinnedSessionIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(item.session.id)) next.delete(item.session.id)
+      else next.add(item.session.id)
+      return next
+    })
   }
 
   function handleSessionDeleted(session: SessionRecord): void {
@@ -201,6 +231,7 @@ export default function App(): JSX.Element {
               <SessionTabs
                 sessions={openSessions.map((s) => s.session)}
                 selected={selectedSession?.session ?? null}
+                pinnedIds={pinnedSessionIds}
                 onSelect={(session) => {
                   const item = openSessions.find((s) => s.session.id === session.id)
                   if (item) setSelectedSession(item)
@@ -208,6 +239,15 @@ export default function App(): JSX.Element {
                 onClose={(session) => {
                   const item = openSessions.find((s) => s.session.id === session.id)
                   if (item) handleCloseTab(item)
+                }}
+                onCloseOthers={(session) => {
+                  const item = openSessions.find((s) => s.session.id === session.id)
+                  if (item) handleCloseOthers(item)
+                }}
+                onCloseAll={handleCloseAll}
+                onTogglePin={(session) => {
+                  const item = openSessions.find((s) => s.session.id === session.id)
+                  if (item) handleTogglePin(item)
                 }}
               />
               <div style={{ flex: 1, minHeight: 0 }}>

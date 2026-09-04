@@ -265,6 +265,23 @@ export function RepoPlusIcon({ className }: IconProps): JSX.Element {
   )
 }
 
+export function PinIcon({ className }: IconProps): JSX.Element {
+  return (
+    <svg
+      className={className}
+      width="12"
+      height="12"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+    >
+      <circle cx="8" cy="6" r="3.2" />
+      <path d="M8 9.2V14" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 export function MoreIcon({ className }: IconProps): JSX.Element {
   return (
     <svg className={className} width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
