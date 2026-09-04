@@ -204,4 +204,9 @@ export interface Api {
   app: {
     getVersion(): Promise<string>
   }
+  sessionPreview: {
+    /** A short excerpt of the most recent user/assistant message in this
+     * session, or null if it has never been opened or has no messages yet. */
+    get(sessionId: string): Promise<string | null>
+  }
 }

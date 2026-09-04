@@ -41,6 +41,7 @@ export function SessionList({
   const [repos, setRepos] = useState<Repo[]>([])
   const [repoSessions, setRepoSessions] = useState<Record<string, SessionRecord[]>>({})
   const [gitStatuses, setGitStatuses] = useState<Record<string, GitStatus | null>>({})
+  const [previews, setPreviews] = useState<Record<string, string | null>>({})
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
   const [busySessionIds, setBusySessionIds] = useState<Set<string>>(new Set())
@@ -57,6 +58,11 @@ export function SessionList({
       repoList.map(async (r) => [r.id, await window.api.repos.gitStatus(r.id).catch(() => null)] as const)
     )
     setGitStatuses(Object.fromEntries(statusEntries))
+    const allSessions = Object.values(Object.fromEntries(sessionEntries)).flat()
+    const previewEntries = await Promise.all(
+      allSessions.map(async (s) => [s.id, await window.api.sessionPreview.get(s.id).catch(() => null)] as const)
+    )
+    setPreviews(Object.fromEntries(previewEntries))
   }
 
   useEffect(() => {
@@ -148,8 +154,11 @@ export function SessionList({
             if (repo) onOpenSession(s, repo, null)
           }}
         >
-          <span className={`session-row-status-dot${busySessionIds.has(s.id) ? ' is-busy' : ''}`} />
-          <span className="session-row-title">{s.title}</span>
+          <div className="session-row-title-line">
+            <span className={`session-row-status-dot${busySessionIds.has(s.id) ? ' is-busy' : ''}`} />
+            <span className="session-row-title">{s.title}</span>
+          </div>
+          {previews[s.id] && <div className="session-row-preview">{previews[s.id]}</div>}
         </button>
         <KebabMenu
           triggerClassName="session-row-kebab"

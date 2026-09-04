@@ -8,6 +8,7 @@ import type { ModelsHandlers } from './modelsHandlers'
 import type { SkillsHandlers } from './skillsHandlers'
 import type { FilesHandlers } from './filesHandlers'
 import type { WindowHandlers } from './windowHandlers'
+import type { SessionPreviewHandlers } from './sessionPreviewHandlers'
 import type { PromptOptions, ToolApprovalPolicy } from '../../shared/types'
 
 export interface IpcHandlers {
@@ -20,6 +21,7 @@ export interface IpcHandlers {
   files: FilesHandlers
   approvals: ApprovalHandlers
   window: WindowHandlers
+  sessionPreview: SessionPreviewHandlers
 }
 
 export function registerIpcHandlers(handlers: IpcHandlers): void {
@@ -89,4 +91,6 @@ export function registerIpcHandlers(handlers: IpcHandlers): void {
   ipcMain.handle('window:isMaximized', () => handlers.window.isMaximized())
 
   ipcMain.handle('app:getVersion', () => app.getVersion())
+
+  ipcMain.handle('sessionPreview:get', (_e, sessionId: string) => handlers.sessionPreview.getPreview(sessionId))
 }

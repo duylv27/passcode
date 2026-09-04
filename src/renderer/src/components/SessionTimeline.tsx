@@ -45,6 +45,7 @@ export function SessionTimeline({
 }: Props): JSX.Element {
   const [entries, setEntries] = useState<SessionWithScope[]>([])
   const [gitStatuses, setGitStatuses] = useState<Record<string, GitStatus | null>>({})
+  const [previews, setPreviews] = useState<Record<string, string | null>>({})
   const [busySessionIds, setBusySessionIds] = useState<Set<string>>(new Set())
   const [olderCollapsed, setOlderCollapsed] = useState(() => readOlderCollapsed())
 
@@ -60,6 +61,13 @@ export function SessionTimeline({
       )
     )
     setGitStatuses(Object.fromEntries(statusEntries))
+
+    const previewEntries = await Promise.all(
+      sessionEntries.map(
+        async (e) => [e.session.id, await window.api.sessionPreview.get(e.session.id).catch(() => null)] as const
+      )
+    )
+    setPreviews(Object.fromEntries(previewEntries))
   }
 
   useEffect(() => {
@@ -117,7 +125,7 @@ export function SessionTimeline({
               gitStatus={gitStatuses[repo.id]}
               isActive={activeSessionId === session.id}
               isBusy={busySessionIds.has(session.id)}
-              showTimestamp={label === 'Today' || label === 'Yesterday'}
+              preview={previews[session.id]}
               onOpenSession={onOpenSession}
               onSessionDeleted={onSessionDeleted}
               onSessionRenamed={onSessionRenamed}
@@ -141,7 +149,7 @@ export function SessionTimeline({
                 gitStatus={gitStatuses[repo.id]}
                 isActive={activeSessionId === session.id}
                 isBusy={busySessionIds.has(session.id)}
-                showTimestamp={false}
+                preview={previews[session.id]}
                 onOpenSession={onOpenSession}
                 onSessionDeleted={onSessionDeleted}
                 onSessionRenamed={onSessionRenamed}

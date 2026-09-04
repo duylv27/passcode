@@ -78,6 +78,9 @@ const api: Api = {
   },
   app: {
     getVersion: () => ipcRenderer.invoke('app:getVersion')
+  },
+  sessionPreview: {
+    get: (sessionId) => ipcRenderer.invoke('sessionPreview:get', sessionId)
   }
 }
 

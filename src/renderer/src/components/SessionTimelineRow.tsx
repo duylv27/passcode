@@ -10,14 +10,10 @@ interface Props {
   gitStatus: GitStatus | null | undefined
   isActive: boolean
   isBusy: boolean
-  showTimestamp: boolean
+  preview: string | null | undefined
   onOpenSession: (session: SessionRecord, repo: Repo, project: Project | null) => void
   onSessionDeleted: (session: SessionRecord) => void
   onSessionRenamed: (session: SessionRecord) => void
-}
-
-function formatTime(dateStr: string): string {
-  return new Date(dateStr).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
 }
 
 export function SessionTimelineRow({
@@ -27,7 +23,7 @@ export function SessionTimelineRow({
   gitStatus,
   isActive,
   isBusy,
-  showTimestamp,
+  preview,
   onOpenSession,
   onSessionDeleted,
   onSessionRenamed
@@ -71,15 +67,12 @@ export function SessionTimelineRow({
     )
   }
 
-  const timestamp = session.lastOpenedAt ?? session.createdAt
-
   return (
     <div className={`session-timeline-row${isActive ? ' is-active' : ''}`}>
       <button className="session-timeline-row-select" onClick={() => onOpenSession(session, repo, project)}>
         <div className="session-timeline-row-title-line">
           <span className={`session-row-status-dot${isBusy ? ' is-busy' : ''}`} />
           <span className="session-timeline-row-title">{session.title}</span>
-          {showTimestamp && <span className="session-timeline-row-timestamp">{formatTime(timestamp)}</span>}
         </div>
         <div className="session-timeline-row-meta-line">
           {repo.name}
@@ -91,6 +84,7 @@ export function SessionTimelineRow({
             </>
           )}
         </div>
+        {preview && <div className="session-timeline-row-preview">{preview}</div>}
       </button>
       <KebabMenu
         triggerClassName="session-timeline-row-kebab"

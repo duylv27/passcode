@@ -16,6 +16,7 @@ import { createModelsHandlers } from './ipc/modelsHandlers'
 import { createSkillsHandlers } from './ipc/skillsHandlers'
 import { createFilesHandlers } from './ipc/filesHandlers'
 import { createWindowHandlers } from './ipc/windowHandlers'
+import { createSessionPreviewHandlers } from './ipc/sessionPreviewHandlers'
 import { registerIpcHandlers } from './ipc/register'
 import { isGitRepo, getGitStatus } from './git/gitStatus'
 import { createRepoSession } from './agent/piSession'
@@ -125,7 +126,8 @@ app.whenReady().then(async () => {
       showOpenFolderDialog: () => dialog.showOpenDialog(mainWindow, { properties: ['openDirectory'] })
     }),
     approvals: approvalHandlers,
-    window: createWindowHandlers(() => mainWindow)
+    window: createWindowHandlers(() => mainWindow),
+    sessionPreview: createSessionPreviewHandlers(sessionsRepo)
   })
 
   app.on('activate', () => {
