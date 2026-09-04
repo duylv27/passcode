@@ -1,7 +1,7 @@
 // src/renderer/src/components/SessionTimelineRow.tsx
 import { useState } from 'react'
 import type { GitStatus, Project, Repo, SessionRecord } from '../../../shared/types'
-import { EditIcon, TrashIcon } from './icons'
+import { KebabMenu } from './KebabMenu'
 
 interface Props {
   session: SessionRecord
@@ -92,12 +92,14 @@ export function SessionTimelineRow({
           )}
         </div>
       </button>
-      <button className="session-timeline-row-edit" onClick={startRename} title="Rename session">
-        <EditIcon />
-      </button>
-      <button className="session-timeline-row-delete" onClick={handleDelete} title="Delete session">
-        <TrashIcon />
-      </button>
+      <KebabMenu
+        triggerClassName="session-timeline-row-kebab"
+        title="Session options"
+        items={[
+          { label: 'Rename', onClick: startRename },
+          { label: 'Delete', onClick: handleDelete, danger: true }
+        ]}
+      />
     </div>
   )
 }

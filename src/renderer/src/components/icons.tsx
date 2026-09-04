@@ -265,6 +265,16 @@ export function RepoPlusIcon({ className }: IconProps): JSX.Element {
   )
 }
 
+export function MoreIcon({ className }: IconProps): JSX.Element {
+  return (
+    <svg className={className} width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+      <circle cx="8" cy="3.2" r="1.4" />
+      <circle cx="8" cy="8" r="1.4" />
+      <circle cx="8" cy="12.8" r="1.4" />
+    </svg>
+  )
+}
+
 export function InfoIcon({ className }: IconProps): JSX.Element {
   return (
     <svg

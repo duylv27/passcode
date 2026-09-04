@@ -17,10 +17,9 @@ interface Props {
   /** Bumped by the parent to force a refetch after a session is created
    * from outside this tree (e.g. the hamburger menu's "New Session"). */
   refreshKey: number
-  /** Which top-level view to show -- lifted to App so its activitybar
-   * "jump to Sessions" shortcut can switch it directly. */
+  /** Which top-level view to show -- controlled entirely by App's
+   * activitybar icons and Go menu (no in-sidebar switcher). */
   view: 'sessions' | 'projects'
-  onViewChange: (view: 'sessions' | 'projects') => void
 }
 
 const COLLAPSED_STORAGE_KEY = 'passcode-project-boxes'
@@ -41,8 +40,7 @@ export function ProjectExplorer({
   onSessionRenamed,
   onProjectDeleted,
   refreshKey,
-  view,
-  onViewChange
+  view
 }: Props): JSX.Element {
   const [projects, setProjects] = useState<Project[]>([])
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() => readCollapsed())
@@ -71,20 +69,6 @@ export function ProjectExplorer({
 
   return (
     <div className="explorer-root">
-      <div className="explorer-view-tabs">
-        <button
-          className={`explorer-view-tab${view === 'sessions' ? ' is-active' : ''}`}
-          onClick={() => onViewChange('sessions')}
-        >
-          Sessions
-        </button>
-        <button
-          className={`explorer-view-tab${view === 'projects' ? ' is-active' : ''}`}
-          onClick={() => onViewChange('projects')}
-        >
-          Projects
-        </button>
-      </div>
       {view === 'sessions' ? (
         <SessionTimeline
           activeSessionId={activeSessionId}

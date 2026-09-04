@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { GitStatus, Project, Repo, SessionRecord } from '../../../shared/types'
-import { ChevronIcon, EditIcon, PlusIcon, RepoIcon, TrashIcon } from './icons'
+import { ChevronIcon, PlusIcon, RepoIcon } from './icons'
+import { KebabMenu } from './KebabMenu'
 
 interface Props {
   project: Project
@@ -150,12 +151,14 @@ export function SessionList({
           <span className={`session-row-status-dot${busySessionIds.has(s.id) ? ' is-busy' : ''}`} />
           <span className="session-row-title">{s.title}</span>
         </button>
-        <button className="session-row-edit" onClick={() => startRename(s)} title="Rename session">
-          <EditIcon />
-        </button>
-        <button className="session-row-delete" onClick={() => handleDelete(s)} title="Delete session">
-          <TrashIcon />
-        </button>
+        <KebabMenu
+          triggerClassName="session-row-kebab"
+          title="Session options"
+          items={[
+            { label: 'Rename', onClick: () => startRename(s) },
+            { label: 'Delete', onClick: () => handleDelete(s), danger: true }
+          ]}
+        />
       </div>
     )
   }

@@ -2,8 +2,9 @@
 import { useEffect, useState } from 'react'
 import type { Project, Repo, SessionRecord } from '../../../shared/types'
 import { SessionList } from './SessionList'
-import { ChevronIcon, EditIcon, InfoIcon, PlusIcon, RepoPlusIcon, TrashIcon } from './icons'
+import { ChevronIcon, PlusIcon } from './icons'
 import { ProjectInfoDialog } from './ProjectInfoDialog'
+import { KebabMenu } from './KebabMenu'
 
 interface Props {
   project: Project
@@ -38,8 +39,6 @@ export function ProjectBox({
   onProjectDeleted,
   externalRefreshKey
 }: Props): JSX.Element {
-  const [addingRepo, setAddingRepo] = useState(false)
-  const [repoPath, setRepoPath] = useState<string | null>(null)
   const [repoError, setRepoError] = useState<string | null>(null)
   // Bumped to force SessionList to refetch after a repo is added here --
   // SessionList owns its own fetched repo/session lists and has no other
@@ -69,34 +68,16 @@ export function ProjectBox({
     setRefreshKey((k) => k + 1)
   }
 
-  async function handleChooseRepoFolder(): Promise<void> {
-    const picked = await window.api.files.pickFolder()
-    if (picked) setRepoPath(picked)
-  }
-
   async function handleAddRepoClick(): Promise<void> {
-    setAddingRepo(true)
+    const picked = await window.api.files.pickFolder()
+    if (!picked) return
     setRepoError(null)
-    await handleChooseRepoFolder()
-  }
-
-  async function handleAddRepo(): Promise<void> {
-    if (!repoPath) return
-    setRepoError(null)
-    const result = await window.api.repos.add(project.id, repoPath)
+    const result = await window.api.repos.add(project.id, picked)
     if (!result.ok) {
       setRepoError(result.error)
       return
     }
-    setRepoPath(null)
-    setAddingRepo(false)
     setRefreshKey((k) => k + 1)
-  }
-
-  function cancelAddRepo(): void {
-    setRepoPath(null)
-    setRepoError(null)
-    setAddingRepo(false)
   }
 
   function startRenameProject(): void {
@@ -144,18 +125,15 @@ export function ProjectBox({
             <span className="project-box-label">{project.name}</span>
           </button>
         )}
-        <button className="project-box-add-repo" onClick={handleAddRepoClick} title="Add repo">
-          <RepoPlusIcon />
-        </button>
-        <button className="project-box-info" onClick={() => setInfoOpen(true)} title="Project info">
-          <InfoIcon />
-        </button>
-        <button className="project-box-rename" onClick={startRenameProject} title="Rename project">
-          <EditIcon />
-        </button>
-        <button className="project-box-delete" onClick={handleDeleteProject} title="Delete project">
-          <TrashIcon />
-        </button>
+        <KebabMenu
+          title="Project options"
+          items={[
+            { label: 'Add repo', onClick: handleAddRepoClick },
+            { label: 'Project info', onClick: () => setInfoOpen(true) },
+            { label: 'Rename', onClick: startRenameProject },
+            { label: 'Delete', onClick: handleDeleteProject, danger: true }
+          ]}
+        />
         {singleRepo && (
           <button className="project-box-add" onClick={() => handleCreateSession(singleRepo)} title="New session">
             <PlusIcon />
@@ -163,27 +141,6 @@ export function ProjectBox({
         )}
       </div>
       {infoOpen && <ProjectInfoDialog project={project} onClose={() => setInfoOpen(false)} />}
-      {addingRepo && (
-        <div className="picker-inline-form">
-          {repoPath ? (
-            <>
-              <span className="new-project-folder-path" title={repoPath}>
-                {repoPath}
-              </span>
-              <button className="btn" onClick={handleAddRepo}>
-                Add
-              </button>
-            </>
-          ) : (
-            <button className="btn" onClick={handleChooseRepoFolder}>
-              Choose folder…
-            </button>
-          )}
-          <button className="btn" onClick={cancelAddRepo}>
-            Cancel
-          </button>
-        </div>
-      )}
       {repoError && <div className="error-text">{repoError}</div>}
       {!collapsed && (
         <SessionList

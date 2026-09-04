@@ -182,7 +182,6 @@ export default function App(): JSX.Element {
               onProjectDeleted={handleProjectDeleted}
               refreshKey={sessionListRefreshKey}
               view={explorerView}
-              onViewChange={setExplorerView}
             />
           </div>
           <div className="sidebar-resize-handle" onPointerDown={handleSidebarResizeStart} />

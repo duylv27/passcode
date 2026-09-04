@@ -494,75 +494,6 @@ button {
   color: var(--fg-bright);
 }
 
-.project-box-add-repo {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 20px;
-  height: 20px;
-  margin-right: 4px;
-  background: none;
-  border: none;
-  border-radius: 3px;
-  color: var(--fg-dim);
-}
-
-.project-box-add-repo:hover {
-  background: var(--list-active);
-  color: var(--fg-bright);
-}
-
-.project-box-info {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 20px;
-  height: 20px;
-  margin-right: 4px;
-  background: none;
-  border: none;
-  border-radius: 3px;
-  color: var(--fg-dim);
-}
-
-.project-box-info:hover {
-  background: var(--list-active);
-  color: var(--fg-bright);
-}
-
-.project-box-rename,
-.project-box-delete {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 20px;
-  height: 20px;
-  margin-right: 4px;
-  visibility: hidden;
-  background: none;
-  border: none;
-  border-radius: 3px;
-  color: var(--fg-dim);
-}
-
-.project-box-header:hover .project-box-rename,
-.project-box-header:hover .project-box-delete {
-  visibility: visible;
-}
-
-.project-box-rename:hover {
-  background: var(--list-active);
-  color: var(--fg-bright);
-}
-
-.project-box-delete:hover {
-  background: var(--list-active);
-  color: var(--danger);
-}
-
 .project-box-name-field {
   flex: 1;
   min-width: 0;
@@ -714,37 +645,6 @@ button {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.session-row-edit,
-.session-row-delete {
-  flex-shrink: 0;
-  visibility: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  margin-right: 4px;
-  background: none;
-  border: none;
-  border-radius: 3px;
-  color: var(--fg-dim);
-}
-
-.session-row:hover .session-row-edit,
-.session-row:hover .session-row-delete {
-  visibility: visible;
-}
-
-.session-row-edit:hover {
-  background: var(--list-hover);
-  color: var(--fg-bright);
-}
-
-.session-row-delete:hover {
-  background: var(--list-hover);
-  color: var(--danger);
 }
 
 .session-row.is-editing {
@@ -2710,43 +2610,12 @@ button {
 }
 
 /* ---------------------------------------------------------------------
-   Explorer view tabs (Sessions / Projects) + session timeline
+   Explorer (Sessions / Projects views, switched from the activitybar)
    --------------------------------------------------------------------- */
 .explorer-root {
   display: flex;
   flex-direction: column;
   height: 100%;
-}
-
-.explorer-view-tabs {
-  display: flex;
-  gap: 2px;
-  margin: 0 var(--space-2) var(--space-1);
-  padding: 2px;
-  background: var(--list-hover);
-  border-radius: 6px;
-  flex-shrink: 0;
-}
-
-.explorer-view-tab {
-  flex: 1;
-  padding: 4px 0;
-  background: none;
-  border: none;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--fg-dim);
-}
-
-.explorer-view-tab:hover {
-  color: var(--fg-bright);
-}
-
-.explorer-view-tab.is-active {
-  background: var(--sidebar-bg);
-  color: var(--fg-bright);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
 }
 
 .session-timeline-day-group + .session-timeline-day-group {
@@ -2853,10 +2722,19 @@ button {
   white-space: nowrap;
 }
 
-.session-timeline-row-edit,
-.session-timeline-row-delete {
+.session-timeline-row.is-editing {
+  padding: 2px var(--space-2);
+}
+
+/* ---------------------------------------------------------------------
+   Kebab (more-options) menu -- shared by project boxes and session rows
+   --------------------------------------------------------------------- */
+.kebab-menu {
+  position: relative;
   flex-shrink: 0;
-  visibility: hidden;
+}
+
+.kebab-menu-trigger {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2869,21 +2747,48 @@ button {
   color: var(--fg-dim);
 }
 
-.session-timeline-row:hover .session-timeline-row-edit,
-.session-timeline-row:hover .session-timeline-row-delete {
-  visibility: visible;
-}
-
-.session-timeline-row-edit:hover {
-  background: var(--list-hover);
+.kebab-menu-trigger:hover {
+  background: var(--list-active);
   color: var(--fg-bright);
 }
 
-.session-timeline-row-delete:hover {
-  background: var(--list-hover);
-  color: var(--danger);
+.session-row-kebab,
+.session-timeline-row-kebab {
+  visibility: hidden;
 }
 
-.session-timeline-row.is-editing {
-  padding: 2px var(--space-2);
+.session-row:hover .session-row-kebab,
+.session-timeline-row:hover .session-timeline-row-kebab {
+  visibility: visible;
+}
+
+.kebab-menu-dropdown {
+  position: fixed;
+  min-width: 140px;
+  background: var(--sidebar-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  padding: 4px;
+  z-index: 220;
+}
+
+.kebab-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: 3px;
+  padding: 5px 8px;
+  font-size: 12px;
+  color: var(--fg);
+}
+
+.kebab-menu-item:hover {
+  background: var(--list-hover);
+}
+
+.kebab-menu-item.is-danger:hover {
+  color: var(--danger);
 }
