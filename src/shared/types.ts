@@ -22,6 +22,10 @@ export interface SessionRecord {
   piSessionId: string
   title: string
   createdAt: string
+  /** Timestamp this session was last opened, or null if never reopened
+   * since creation -- used to sort/bucket "recent activity" views by the
+   * same timestamp the backend already sorts listAll() by. */
+  lastOpenedAt: string | null
 }
 
 export interface CreateProjectSessionResult {

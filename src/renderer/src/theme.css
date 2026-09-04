@@ -2708,3 +2708,230 @@ button {
   font-size: 11.5px;
   color: var(--fg-dim);
 }
+
+/* ---------------------------------------------------------------------
+   Explorer view tabs (Sessions / Projects) + session timeline
+   --------------------------------------------------------------------- */
+.explorer-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.explorer-view-tabs {
+  display: flex;
+  gap: 2px;
+  margin: 0 var(--space-2) var(--space-1);
+  padding: 2px;
+  background: var(--list-hover);
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.explorer-view-tab {
+  flex: 1;
+  padding: 4px 0;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--fg-dim);
+}
+
+.explorer-view-tab:hover {
+  color: var(--fg-bright);
+}
+
+.explorer-view-tab.is-active {
+  background: var(--sidebar-bg);
+  color: var(--fg-bright);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+.timeline-chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 var(--space-2) var(--space-2);
+  overflow-x: auto;
+}
+
+.timeline-chip {
+  flex-shrink: 0;
+  padding: 3px 10px;
+  background: var(--list-hover);
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 11px;
+  color: var(--fg-dim);
+  white-space: nowrap;
+}
+
+.timeline-chip:hover {
+  color: var(--fg-bright);
+}
+
+.timeline-chip.is-active {
+  background: var(--list-active);
+  border-color: var(--accent);
+  color: var(--fg-bright);
+}
+
+.timeline-new-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-left: auto;
+  background: none;
+  border: none;
+  border-radius: 3px;
+  color: var(--fg-dim);
+}
+
+.timeline-new-btn:hover {
+  background: var(--list-active);
+  color: var(--fg-bright);
+}
+
+.timeline-day-group + .timeline-day-group {
+  margin-top: 4px;
+}
+
+.timeline-day-header {
+  padding: var(--space-1) var(--space-3);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--fg-dim);
+}
+
+.timeline-older-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  text-align: left;
+  padding: var(--space-1) var(--space-3);
+  background: none;
+  border: none;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--fg-dim);
+}
+
+.timeline-older-toggle:hover {
+  color: var(--fg-bright);
+}
+
+.timeline-older-chevron {
+  transition: transform 100ms ease;
+}
+
+.timeline-older-chevron.is-open {
+  transform: rotate(90deg);
+}
+
+.timeline-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 3px var(--space-2);
+}
+
+.timeline-row:hover {
+  background: var(--list-hover);
+}
+
+.timeline-row.is-active {
+  background: var(--list-active);
+}
+
+.timeline-row-select {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--fg);
+}
+
+.timeline-row-title-line {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.timeline-row-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg-bright);
+}
+
+.timeline-row-timestamp {
+  flex-shrink: 0;
+  font-size: 10.5px;
+  color: var(--fg-dim);
+}
+
+.timeline-row-meta-line {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-left: 13px;
+  font-size: 11px;
+  color: var(--fg-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timeline-row-edit,
+.timeline-row-delete {
+  flex-shrink: 0;
+  visibility: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-left: 4px;
+  background: none;
+  border: none;
+  border-radius: 3px;
+  color: var(--fg-dim);
+}
+
+.timeline-row:hover .timeline-row-edit,
+.timeline-row:hover .timeline-row-delete {
+  visibility: visible;
+}
+
+.timeline-row-edit:hover {
+  background: var(--list-hover);
+  color: var(--fg-bright);
+}
+
+.timeline-row-delete:hover {
+  background: var(--list-hover);
+  color: var(--danger);
+}
+
+.timeline-row.is-editing {
+  padding: 2px var(--space-2);
+}

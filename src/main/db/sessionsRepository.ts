@@ -28,7 +28,7 @@ export interface SessionsRepository {
 }
 
 const SELECT_COLUMNS =
-  'id, repo_id as repoId, project_id as projectId, pi_session_id as piSessionId, title, created_at as createdAt'
+  'id, repo_id as repoId, project_id as projectId, pi_session_id as piSessionId, title, created_at as createdAt, last_opened_at as lastOpenedAt'
 
 export function createSessionsRepository(db: DatabaseSync): SessionsRepository {
   return {
@@ -39,7 +39,8 @@ export function createSessionsRepository(db: DatabaseSync): SessionsRepository {
         projectId,
         piSessionId,
         title,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        lastOpenedAt: null
       }
       db.prepare(
         'INSERT INTO sessions (id, repo_id, project_id, pi_session_id, title, created_at) VALUES (?, ?, ?, ?, ?, ?)'

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import type { Project, Repo, SessionRecord } from '../../../shared/types'
 import { ProjectBox } from './ProjectBox'
 import { NewProjectDialog } from './NewProjectDialog'
+import { SessionTimeline } from './SessionTimeline'
 import { PlusIcon } from './icons'
 
 interface Props {
@@ -40,6 +41,7 @@ export function ProjectExplorer({
   const [projects, setProjects] = useState<Project[]>([])
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() => readCollapsed())
   const [newProjectOpen, setNewProjectOpen] = useState(false)
+  const [view, setView] = useState<'sessions' | 'projects'>('sessions')
 
   async function refresh(): Promise<void> {
     setProjects(await window.api.projects.list())
@@ -63,35 +65,61 @@ export function ProjectExplorer({
   }
 
   return (
-    <div className="tree-sessions">
-      {projects.map((project) => (
-        <ProjectBox
-          key={project.id}
-          project={project}
-          collapsed={collapsed[project.id] ?? true}
-          onToggleCollapse={toggleCollapse}
+    <div className="explorer-root">
+      <div className="explorer-view-tabs">
+        <button
+          className={`explorer-view-tab${view === 'sessions' ? ' is-active' : ''}`}
+          onClick={() => setView('sessions')}
+        >
+          Sessions
+        </button>
+        <button
+          className={`explorer-view-tab${view === 'projects' ? ' is-active' : ''}`}
+          onClick={() => setView('projects')}
+        >
+          Projects
+        </button>
+      </div>
+      {view === 'sessions' ? (
+        <SessionTimeline
           activeSessionId={activeSessionId}
           onOpenSession={onOpenSession}
           onSessionDeleted={onSessionDeleted}
           onSessionRenamed={onSessionRenamed}
-          onProjectChanged={refresh}
-          onProjectDeleted={onProjectDeleted}
-          externalRefreshKey={refreshKey}
+          refreshKey={refreshKey}
         />
-      ))}
-      <button className="picker-add-row is-project" onClick={() => setNewProjectOpen(true)}>
-        <PlusIcon className="row-icon" />
-        <span>New project</span>
-      </button>
-      {projects.length === 0 && <div className="sidebar-empty">No projects yet. Add one above.</div>}
-      {newProjectOpen && (
-        <NewProjectDialog
-          onClose={() => setNewProjectOpen(false)}
-          onCreated={() => {
-            setNewProjectOpen(false)
-            refresh()
-          }}
-        />
+      ) : (
+        <div className="tree-sessions">
+          {projects.map((project) => (
+            <ProjectBox
+              key={project.id}
+              project={project}
+              collapsed={collapsed[project.id] ?? true}
+              onToggleCollapse={toggleCollapse}
+              activeSessionId={activeSessionId}
+              onOpenSession={onOpenSession}
+              onSessionDeleted={onSessionDeleted}
+              onSessionRenamed={onSessionRenamed}
+              onProjectChanged={refresh}
+              onProjectDeleted={onProjectDeleted}
+              externalRefreshKey={refreshKey}
+            />
+          ))}
+          <button className="picker-add-row is-project" onClick={() => setNewProjectOpen(true)}>
+            <PlusIcon className="row-icon" />
+            <span>New project</span>
+          </button>
+          {projects.length === 0 && <div className="sidebar-empty">No projects yet. Add one above.</div>}
+          {newProjectOpen && (
+            <NewProjectDialog
+              onClose={() => setNewProjectOpen(false)}
+              onCreated={() => {
+                setNewProjectOpen(false)
+                refresh()
+              }}
+            />
+          )}
+        </div>
       )}
     </div>
   )
