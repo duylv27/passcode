@@ -2,7 +2,8 @@
 import { useEffect, useState } from 'react'
 import type { Project, Repo, SessionRecord } from '../../../shared/types'
 import { SessionList } from './SessionList'
-import { ChevronIcon, PlusIcon } from './icons'
+import { ChevronIcon, InfoIcon, PlusIcon } from './icons'
+import { ProjectInfoDialog } from './ProjectInfoDialog'
 
 interface Props {
   project: Project
@@ -40,6 +41,7 @@ export function ProjectBox({
   // with exactly one repo collapses the project-scoped/repo-scoped
   // distinction into a single "+" action (see handleCreateSession below).
   const [repos, setRepos] = useState<Repo[]>([])
+  const [infoOpen, setInfoOpen] = useState(false)
 
   useEffect(() => {
     window.api.repos.list(project.id).then(setRepos)
@@ -88,12 +90,16 @@ export function ProjectBox({
           <ChevronIcon className={`project-box-chevron${collapsed ? '' : ' is-open'}`} />
           <span className="project-box-label">{project.name}</span>
         </button>
+        <button className="project-box-info" onClick={() => setInfoOpen(true)} title="Project info">
+          <InfoIcon />
+        </button>
         {singleRepo && (
           <button className="project-box-add" onClick={() => handleCreateSession(singleRepo)} title="New session">
             <PlusIcon />
           </button>
         )}
       </div>
+      {infoOpen && <ProjectInfoDialog project={project} onClose={() => setInfoOpen(false)} />}
       {!collapsed && (
         <>
           <SessionList

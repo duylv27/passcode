@@ -489,6 +489,25 @@ button {
   color: var(--fg-bright);
 }
 
+.project-box-info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin-right: 4px;
+  background: none;
+  border: none;
+  border-radius: 3px;
+  color: var(--fg-dim);
+}
+
+.project-box-info:hover {
+  background: var(--list-active);
+  color: var(--fg-bright);
+}
+
 .session-group {
   margin: 0 var(--space-1);
   border: 1px solid var(--border-subtle);
@@ -2414,6 +2433,75 @@ button {
   display: flex;
   justify-content: flex-end;
   gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+/* ---------------------------------------------------------------------
+   Project info dialog
+   --------------------------------------------------------------------- */
+.project-info-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 210;
+}
+
+.project-info-dialog {
+  width: 360px;
+  max-height: 70vh;
+  overflow-y: auto;
+  background: var(--sidebar-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: var(--space-4);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.project-info-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--fg-bright);
+}
+
+.project-info-repo {
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.project-info-repo:first-of-type {
+  border-top: none;
+}
+
+.project-info-repo-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg-bright);
+}
+
+.project-info-repo-path {
+  font-size: 11px;
+  color: var(--fg-dim);
+  overflow-wrap: break-word;
+  margin-top: 2px;
+}
+
+.project-info-repo-branch {
+  font-size: 11px;
+  color: var(--fg-dim);
+  margin-top: 2px;
+}
+
+.project-info-close {
+  align-self: flex-end;
   margin-top: var(--space-2);
 }
 

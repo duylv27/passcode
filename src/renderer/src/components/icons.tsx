@@ -246,3 +246,21 @@ export function RestoreIcon({ className }: IconProps): JSX.Element {
   )
 }
 
+export function InfoIcon({ className }: IconProps): JSX.Element {
+  return (
+    <svg
+      className={className}
+      width="14"
+      height="14"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+    >
+      <circle cx="8" cy="8" r="6" />
+      <circle cx="8" cy="5.2" r="0.9" fill="currentColor" stroke="none" />
+      <path d="M8 7.5v4" strokeLinecap="round" />
+    </svg>
+  )
+}
+
