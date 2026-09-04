@@ -52,7 +52,6 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
   const [thinking, setThinking] = useState(false)
-  const [queue, setQueue] = useState<string[]>([])
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const [models, setModels] = useState<ModelInfo[]>([])
   const [currentModel, setCurrentModel] = useState<ModelInfo | null>(null)
@@ -155,7 +154,6 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
     setItems([])
     setBusy(false)
     setThinking(false)
-    setQueue([])
     setCurrentModel(null)
     window.api.session.open(session.id)
 
@@ -325,14 +323,6 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
     }
   }, [session.id])
 
-  useEffect(() => {
-    if (busy || queue.length === 0) return
-    const [next, ...rest] = queue
-    setQueue(rest)
-    sendNow(next)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [busy, queue])
-
   async function handleSend(): Promise<void> {
     const text = input.trim()
     if (!text) return
@@ -344,15 +334,13 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
       return
     }
     setInput('')
-    if (busy) {
-      setQueue((prev) => [...prev, text])
-    } else {
-      await sendNow(text)
-    }
+    // Sending while busy steers the live turn (see sessionHandlers.ts's
+    // sendPrompt) instead of waiting -- no local queue needed, the agent
+    // picks the message up before its next turn.
+    await sendNow(text)
   }
 
   async function handleStop(): Promise<void> {
-    setQueue([])
     setBusy(false)
     setThinking(false)
     await window.api.session.abort(session.id)
@@ -546,7 +534,7 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
               handleSend()
             }
           }}
-          placeholder={busy ? 'Queue another message…' : `Message the agent about ${repoName}`}
+          placeholder={busy ? 'Steer the agent…' : `Message the agent about ${repoName}`}
         />
         <div className="composer-toolbar">
           <button type="button" className="composer-icon-btn" onClick={handleAttachFile} title="Attach a file">
@@ -563,9 +551,7 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
             </button>
           )}
           {busy && <SpinnerIcon className="spin composer-busy-spinner" />}
-          <span className="composer-hint">
-            {queue.length > 0 ? `${queue.length} queued` : session.title}
-          </span>
+          <span className="composer-hint">{session.title}</span>
           <button className="composer-stop" onClick={handleStop} disabled={!busy} title="Stop">
             <StopIcon />
           </button>

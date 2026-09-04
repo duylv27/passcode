@@ -170,8 +170,21 @@ export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionH
       }
     },
     async sendPrompt(sessionId: string, text: string, options?: PromptOptions): Promise<void> {
-      busySessions.add(sessionId)
-      deps.onEvent(sessionId, { type: 'busy', busy: true })
+      // A prompt sent while the session is already busy steers the live
+      // turn instead of starting a new one (RepoSession.prompt always
+      // passes streamingBehavior: 'steer', which the SDK only consults
+      // when a turn is actually in flight -- see piSession.ts). That
+      // steer call resolves as soon as the message is queued, not when
+      // the whole run finishes, so busySessions/the 'busy' event must
+      // stay owned by whichever call actually started the run -- touching
+      // them here too would send a premature busy:false the moment a
+      // steer message is merely queued, while the original turn is still
+      // actively running underneath.
+      const isSteering = busySessions.has(sessionId)
+      if (!isSteering) {
+        busySessions.add(sessionId)
+        deps.onEvent(sessionId, { type: 'busy', busy: true })
+      }
       try {
         const session = await ensureSession(sessionId)
         const record = deps.sessionsRepo.getById(sessionId)
@@ -185,8 +198,10 @@ export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionH
       } catch (err) {
         deps.onEvent(sessionId, { type: 'error', message: (err as Error).message })
       } finally {
-        busySessions.delete(sessionId)
-        deps.onEvent(sessionId, { type: 'busy', busy: false })
+        if (!isSteering) {
+          busySessions.delete(sessionId)
+          deps.onEvent(sessionId, { type: 'busy', busy: false })
+        }
       }
     },
     async abortSession(sessionId: string): Promise<void> {
