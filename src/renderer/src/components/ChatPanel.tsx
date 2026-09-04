@@ -66,6 +66,7 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
   const [autoMode, setAutoMode] = useState(false)
   const [thinkingWord, setThinkingWord] = useState(THINKING_WORDS[0])
   const chatScrollRef = useRef<HTMLDivElement>(null)
+  const composerFieldRef = useRef<HTMLTextAreaElement>(null)
 
   async function sendNow(text: string): Promise<void> {
     // Matches what the main process actually shows for this turn once
@@ -117,6 +118,16 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
   useEffect(() => {
     chatScrollRef.current?.scrollTo({ top: chatScrollRef.current.scrollHeight })
   }, [items, thinking])
+
+  // Grows the composer with its content instead of scrolling text
+  // horizontally inside a fixed single line -- reset to 'auto' first so a
+  // shrink (e.g. after sending) isn't blocked by the previous scrollHeight.
+  useEffect(() => {
+    const el = composerFieldRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  }, [input])
 
   useEffect(() => {
     if (!modelMenuOpen) return
@@ -523,12 +534,17 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
             )}
           </div>
         )}
-        <input
+        <textarea
+          ref={composerFieldRef}
           className="composer-field"
+          rows={1}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') handleSend()
+            if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey) {
+              e.preventDefault()
+              handleSend()
+            }
           }}
           placeholder={busy ? 'Queue another message…' : `Message the agent about ${repoName}`}
         />
