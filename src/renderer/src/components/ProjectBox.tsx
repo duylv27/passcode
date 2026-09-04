@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import type { Project, Repo, SessionRecord } from '../../../shared/types'
 import { SessionList } from './SessionList'
-import { ChevronIcon, EditIcon, InfoIcon, PlusIcon, TrashIcon } from './icons'
+import { ChevronIcon, EditIcon, InfoIcon, PlusIcon, RepoPlusIcon, TrashIcon } from './icons'
 import { ProjectInfoDialog } from './ProjectInfoDialog'
 
 interface Props {
@@ -74,6 +74,12 @@ export function ProjectBox({
     if (picked) setRepoPath(picked)
   }
 
+  async function handleAddRepoClick(): Promise<void> {
+    setAddingRepo(true)
+    setRepoError(null)
+    await handleChooseRepoFolder()
+  }
+
   async function handleAddRepo(): Promise<void> {
     if (!repoPath) return
     setRepoError(null)
@@ -138,6 +144,9 @@ export function ProjectBox({
             <span className="project-box-label">{project.name}</span>
           </button>
         )}
+        <button className="project-box-add-repo" onClick={handleAddRepoClick} title="Add repo">
+          <RepoPlusIcon />
+        </button>
         <button className="project-box-info" onClick={() => setInfoOpen(true)} title="Project info">
           <InfoIcon />
         </button>
@@ -154,44 +163,37 @@ export function ProjectBox({
         )}
       </div>
       {infoOpen && <ProjectInfoDialog project={project} onClose={() => setInfoOpen(false)} />}
-      {!collapsed && (
-        <>
-          <SessionList
-            key={`${refreshKey}-${externalRefreshKey}`}
-            project={project}
-            activeSessionId={activeSessionId}
-            onOpenSession={onOpenSession}
-            onSessionDeleted={onSessionDeleted}
-            onSessionRenamed={onSessionRenamed}
-          />
-          {addingRepo ? (
-            <div className="picker-inline-form">
-              {repoPath ? (
-                <>
-                  <span className="new-project-folder-path" title={repoPath}>
-                    {repoPath}
-                  </span>
-                  <button className="btn" onClick={handleAddRepo}>
-                    Add
-                  </button>
-                </>
-              ) : (
-                <button className="btn" onClick={handleChooseRepoFolder}>
-                  Choose folder…
-                </button>
-              )}
-              <button className="btn" onClick={cancelAddRepo}>
-                Cancel
+      {addingRepo && (
+        <div className="picker-inline-form">
+          {repoPath ? (
+            <>
+              <span className="new-project-folder-path" title={repoPath}>
+                {repoPath}
+              </span>
+              <button className="btn" onClick={handleAddRepo}>
+                Add
               </button>
-            </div>
+            </>
           ) : (
-            <button className="picker-add-row" onClick={() => setAddingRepo(true)}>
-              <PlusIcon className="row-icon" />
-              <span>Add repo</span>
+            <button className="btn" onClick={handleChooseRepoFolder}>
+              Choose folder…
             </button>
           )}
-          {repoError && <div className="error-text">{repoError}</div>}
-        </>
+          <button className="btn" onClick={cancelAddRepo}>
+            Cancel
+          </button>
+        </div>
+      )}
+      {repoError && <div className="error-text">{repoError}</div>}
+      {!collapsed && (
+        <SessionList
+          key={`${refreshKey}-${externalRefreshKey}`}
+          project={project}
+          activeSessionId={activeSessionId}
+          onOpenSession={onOpenSession}
+          onSessionDeleted={onSessionDeleted}
+          onSessionRenamed={onSessionRenamed}
+        />
       )}
     </div>
   )

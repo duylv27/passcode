@@ -494,6 +494,25 @@ button {
   color: var(--fg-bright);
 }
 
+.project-box-add-repo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin-right: 4px;
+  background: none;
+  border: none;
+  border-radius: 3px;
+  color: var(--fg-dim);
+}
+
+.project-box-add-repo:hover {
+  background: var(--list-active);
+  color: var(--fg-bright);
+}
+
 .project-box-info {
   display: flex;
   align-items: center;

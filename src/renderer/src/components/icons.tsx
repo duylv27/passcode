@@ -246,6 +246,25 @@ export function RestoreIcon({ className }: IconProps): JSX.Element {
   )
 }
 
+export function RepoPlusIcon({ className }: IconProps): JSX.Element {
+  return (
+    <svg
+      className={className}
+      width="14"
+      height="14"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+    >
+      <circle cx="3.5" cy="3.5" r="1.4" />
+      <circle cx="3.5" cy="12.5" r="1.4" />
+      <path d="M3.5 4.9v6.2" strokeLinecap="round" />
+      <path d="M9.5 8h5M12 5.5v5" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 export function InfoIcon({ className }: IconProps): JSX.Element {
   return (
     <svg
