@@ -124,24 +124,24 @@ export function SessionTimeline({
 
   return (
     <div className="tree-sessions">
-      <div className="timeline-chips">
+      <div className="session-timeline-chips">
         {projects.map((project) => (
           <button
             key={project.id}
-            className={`timeline-chip${activeProjectId === project.id ? ' is-active' : ''}`}
+            className={`session-timeline-chip${activeProjectId === project.id ? ' is-active' : ''}`}
             onClick={() => setActiveProjectId(project.id)}
           >
             {project.name}
           </button>
         ))}
-        <button className="timeline-new-btn" onClick={handleNewSession} title="New session in active project">
+        <button className="session-timeline-new-btn" onClick={handleNewSession} title="New session in active project">
           <PlusIcon />
         </button>
       </div>
       {entries.length === 0 && <div className="sidebar-empty">No sessions yet.</div>}
       {Array.from(groups.entries()).map(([label, groupEntries]) => (
-        <div key={label} className="timeline-day-group">
-          <div className="timeline-day-header">{label}</div>
+        <div key={label} className="session-timeline-day-group">
+          <div className="session-timeline-day-header">{label}</div>
           {groupEntries.map(({ session, repo, project }) => (
             <SessionTimelineRow
               key={session.id}
@@ -160,9 +160,9 @@ export function SessionTimeline({
         </div>
       ))}
       {olderEntries.length > 0 && (
-        <div className="timeline-day-group">
-          <button className="timeline-older-toggle" onClick={toggleOlderCollapsed}>
-            <ChevronIcon className={`timeline-older-chevron${olderCollapsed ? '' : ' is-open'}`} />
+        <div className="session-timeline-day-group">
+          <button className="session-timeline-older-toggle" onClick={toggleOlderCollapsed}>
+            <ChevronIcon className={`session-timeline-older-chevron${olderCollapsed ? '' : ' is-open'}`} />
             Older Sessions
           </button>
           {!olderCollapsed &&

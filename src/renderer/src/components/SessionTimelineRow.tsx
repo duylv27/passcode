@@ -55,7 +55,7 @@ export function SessionTimelineRow({
 
   if (editing) {
     return (
-      <div className="timeline-row is-editing">
+      <div className="session-timeline-row is-editing">
         <input
           className="field session-row-edit-field"
           autoFocus
@@ -74,14 +74,14 @@ export function SessionTimelineRow({
   const timestamp = session.lastOpenedAt ?? session.createdAt
 
   return (
-    <div className={`timeline-row${isActive ? ' is-active' : ''}`}>
-      <button className="timeline-row-select" onClick={() => onOpenSession(session, repo, project)}>
-        <div className="timeline-row-title-line">
+    <div className={`session-timeline-row${isActive ? ' is-active' : ''}`}>
+      <button className="session-timeline-row-select" onClick={() => onOpenSession(session, repo, project)}>
+        <div className="session-timeline-row-title-line">
           <span className={`session-row-status-dot${isBusy ? ' is-busy' : ''}`} />
-          <span className="timeline-row-title">{session.title}</span>
-          {showTimestamp && <span className="timeline-row-timestamp">{formatTime(timestamp)}</span>}
+          <span className="session-timeline-row-title">{session.title}</span>
+          {showTimestamp && <span className="session-timeline-row-timestamp">{formatTime(timestamp)}</span>}
         </div>
-        <div className="timeline-row-meta-line">
+        <div className="session-timeline-row-meta-line">
           {repo.name}
           {gitStatus?.branch && (
             <>
@@ -92,10 +92,10 @@ export function SessionTimelineRow({
           )}
         </div>
       </button>
-      <button className="timeline-row-edit" onClick={startRename} title="Rename session">
+      <button className="session-timeline-row-edit" onClick={startRename} title="Rename session">
         <EditIcon />
       </button>
-      <button className="timeline-row-delete" onClick={handleDelete} title="Delete session">
+      <button className="session-timeline-row-delete" onClick={handleDelete} title="Delete session">
         <TrashIcon />
       </button>
     </div>

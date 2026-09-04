@@ -2749,7 +2749,7 @@ button {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
 }
 
-.timeline-chips {
+.session-timeline-chips {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -2757,7 +2757,7 @@ button {
   overflow-x: auto;
 }
 
-.timeline-chip {
+.session-timeline-chip {
   flex-shrink: 0;
   padding: 3px 10px;
   background: var(--list-hover);
@@ -2768,17 +2768,17 @@ button {
   white-space: nowrap;
 }
 
-.timeline-chip:hover {
+.session-timeline-chip:hover {
   color: var(--fg-bright);
 }
 
-.timeline-chip.is-active {
+.session-timeline-chip.is-active {
   background: var(--list-active);
   border-color: var(--accent);
   color: var(--fg-bright);
 }
 
-.timeline-new-btn {
+.session-timeline-new-btn {
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -2792,16 +2792,16 @@ button {
   color: var(--fg-dim);
 }
 
-.timeline-new-btn:hover {
+.session-timeline-new-btn:hover {
   background: var(--list-active);
   color: var(--fg-bright);
 }
 
-.timeline-day-group + .timeline-day-group {
+.session-timeline-day-group + .session-timeline-day-group {
   margin-top: 4px;
 }
 
-.timeline-day-header {
+.session-timeline-day-header {
   padding: var(--space-1) var(--space-3);
   font-family: var(--font-mono);
   font-size: 10px;
@@ -2810,7 +2810,7 @@ button {
   color: var(--fg-dim);
 }
 
-.timeline-older-toggle {
+.session-timeline-older-toggle {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -2826,34 +2826,34 @@ button {
   color: var(--fg-dim);
 }
 
-.timeline-older-toggle:hover {
+.session-timeline-older-toggle:hover {
   color: var(--fg-bright);
 }
 
-.timeline-older-chevron {
+.session-timeline-older-chevron {
   transition: transform 100ms ease;
 }
 
-.timeline-older-chevron.is-open {
+.session-timeline-older-chevron.is-open {
   transform: rotate(90deg);
 }
 
-.timeline-row {
+.session-timeline-row {
   display: flex;
   align-items: center;
   width: 100%;
   padding: 3px var(--space-2);
 }
 
-.timeline-row:hover {
+.session-timeline-row:hover {
   background: var(--list-hover);
 }
 
-.timeline-row.is-active {
+.session-timeline-row.is-active {
   background: var(--list-active);
 }
 
-.timeline-row-select {
+.session-timeline-row-select {
   flex: 1;
   min-width: 0;
   display: flex;
@@ -2865,14 +2865,14 @@ button {
   color: var(--fg);
 }
 
-.timeline-row-title-line {
+.session-timeline-row-title-line {
   display: flex;
   align-items: center;
   gap: 7px;
   min-width: 0;
 }
 
-.timeline-row-title {
+.session-timeline-row-title {
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -2883,13 +2883,13 @@ button {
   color: var(--fg-bright);
 }
 
-.timeline-row-timestamp {
+.session-timeline-row-timestamp {
   flex-shrink: 0;
   font-size: 10.5px;
   color: var(--fg-dim);
 }
 
-.timeline-row-meta-line {
+.session-timeline-row-meta-line {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -2901,8 +2901,8 @@ button {
   white-space: nowrap;
 }
 
-.timeline-row-edit,
-.timeline-row-delete {
+.session-timeline-row-edit,
+.session-timeline-row-delete {
   flex-shrink: 0;
   visibility: hidden;
   display: flex;
@@ -2917,21 +2917,21 @@ button {
   color: var(--fg-dim);
 }
 
-.timeline-row:hover .timeline-row-edit,
-.timeline-row:hover .timeline-row-delete {
+.session-timeline-row:hover .session-timeline-row-edit,
+.session-timeline-row:hover .session-timeline-row-delete {
   visibility: visible;
 }
 
-.timeline-row-edit:hover {
+.session-timeline-row-edit:hover {
   background: var(--list-hover);
   color: var(--fg-bright);
 }
 
-.timeline-row-delete:hover {
+.session-timeline-row-delete:hover {
   background: var(--list-hover);
   color: var(--danger);
 }
 
-.timeline-row.is-editing {
+.session-timeline-row.is-editing {
   padding: 2px var(--space-2);
 }
