@@ -162,6 +162,22 @@ export function SessionList({
     )
   }
 
+  // A project with exactly one repo has no meaningful project-scoped vs.
+  // repo-scoped distinction to show -- render every session (both kinds)
+  // as one flat list with no repo sub-group box, matching how the project
+  // box's own header "+" also collapses to a single repo-scoped action in
+  // this case (see ProjectBox.tsx).
+  if (repos.length === 1) {
+    const onlyRepo = repos[0]
+    const allSessions = [...projectSessions, ...(repoSessions[onlyRepo.id] ?? [])]
+    return (
+      <div className="tree-sessions">
+        {allSessions.map((s) => renderSessionRow(s, s.projectId ? project : null))}
+        {allSessions.length === 0 && <div className="sidebar-empty">No sessions yet.</div>}
+      </div>
+    )
+  }
+
   return (
     <div className="tree-sessions">
       {projectSessions.length > 0 && (

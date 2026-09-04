@@ -1,5 +1,5 @@
 // src/renderer/src/components/ProjectBox.tsx
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { Project, Repo, SessionRecord } from '../../../shared/types'
 import { SessionList } from './SessionList'
 import { ChevronIcon, PlusIcon } from './icons'
@@ -36,12 +36,28 @@ export function ProjectBox({
   // SessionList owns its own fetched repo/session lists and has no other
   // way to learn a new repo now exists.
   const [refreshKey, setRefreshKey] = useState(0)
+  // A separate, lightweight fetch just to know the repo count -- a project
+  // with exactly one repo collapses the project-scoped/repo-scoped
+  // distinction into a single "+" action (see handleCreateSession below).
+  const [repos, setRepos] = useState<Repo[]>([])
 
-  async function handleCreateProjectSession(): Promise<void> {
+  useEffect(() => {
+    window.api.repos.list(project.id).then(setRepos)
+  }, [project.id, refreshKey, externalRefreshKey])
+
+  const singleRepo = repos.length === 1 ? repos[0] : null
+
+  async function handleCreateSession(): Promise<void> {
+    if (singleRepo) {
+      const created = await window.api.session.create(singleRepo.id)
+      onOpenSession(created, singleRepo, null)
+      setRefreshKey((k) => k + 1)
+      return
+    }
     const result = await window.api.session.createProjectSession(project.id)
     if (result.ok) {
-      const repos = await window.api.repos.list(project.id)
-      const repo = repos.find((r) => r.id === result.session.repoId)
+      const projectRepos = await window.api.repos.list(project.id)
+      const repo = projectRepos.find((r) => r.id === result.session.repoId)
       if (repo) {
         onOpenSession(result.session, repo, project)
       } else {
@@ -73,7 +89,11 @@ export function ProjectBox({
           <ChevronIcon className={`project-box-chevron${collapsed ? '' : ' is-open'}`} />
           <span className="project-box-label">{project.name}</span>
         </button>
-        <button className="project-box-add" onClick={handleCreateProjectSession} title="New project session">
+        <button
+          className="project-box-add"
+          onClick={handleCreateSession}
+          title={singleRepo ? 'New session' : 'New project session'}
+        >
           <PlusIcon />
         </button>
       </div>
