@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import type { GitStatus, Project, Repo, SessionRecord, SessionWithScope } from '../../../shared/types'
 import { SessionTimelineRow } from './SessionTimelineRow'
-import { ChevronIcon, PlusIcon } from './icons'
+import { ChevronIcon } from './icons'
 
 interface Props {
   activeSessionId: string | undefined
@@ -44,23 +44,13 @@ export function SessionTimeline({
   refreshKey
 }: Props): JSX.Element {
   const [entries, setEntries] = useState<SessionWithScope[]>([])
-  const [projects, setProjects] = useState<Project[]>([])
   const [gitStatuses, setGitStatuses] = useState<Record<string, GitStatus | null>>({})
   const [busySessionIds, setBusySessionIds] = useState<Set<string>>(new Set())
-  const [activeProjectId, setActiveProjectId] = useState<string | null>(null)
   const [olderCollapsed, setOlderCollapsed] = useState(() => readOlderCollapsed())
 
   async function refresh(): Promise<void> {
-    const [sessionEntries, projectList] = await Promise.all([
-      window.api.session.listAll(),
-      window.api.projects.list()
-    ])
+    const sessionEntries = await window.api.session.listAll()
     setEntries(sessionEntries)
-    setProjects(projectList)
-    setActiveProjectId((prev) => {
-      if (prev && projectList.some((p) => p.id === prev)) return prev
-      return sessionEntries[0]?.project?.id ?? sessionEntries[0]?.repo.projectId ?? projectList[0]?.id ?? null
-    })
 
     const distinctRepos = new Map<string, Repo>()
     for (const entry of sessionEntries) distinctRepos.set(entry.repo.id, entry.repo)
@@ -101,16 +91,6 @@ export function SessionTimeline({
     })
   }
 
-  async function handleNewSession(): Promise<void> {
-    if (!activeProjectId) return
-    const repos = await window.api.repos.list(activeProjectId)
-    if (repos.length !== 1) return
-    const created = await window.api.session.create(repos[0].id)
-    const project = projects.find((p) => p.id === activeProjectId) ?? null
-    onOpenSession(created, repos[0], project)
-    refresh()
-  }
-
   const now = new Date()
   const groups = new Map<string, SessionWithScope[]>()
   for (const entry of entries) {
@@ -124,20 +104,6 @@ export function SessionTimeline({
 
   return (
     <div className="tree-sessions">
-      <div className="session-timeline-chips">
-        {projects.map((project) => (
-          <button
-            key={project.id}
-            className={`session-timeline-chip${activeProjectId === project.id ? ' is-active' : ''}`}
-            onClick={() => setActiveProjectId(project.id)}
-          >
-            {project.name}
-          </button>
-        ))}
-        <button className="session-timeline-new-btn" onClick={handleNewSession} title="New session in active project">
-          <PlusIcon />
-        </button>
-      </div>
       {entries.length === 0 && <div className="sidebar-empty">No sessions yet.</div>}
       {Array.from(groups.entries()).map(([label, groupEntries]) => (
         <div key={label} className="session-timeline-day-group">

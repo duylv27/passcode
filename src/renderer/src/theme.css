@@ -2749,54 +2749,6 @@ button {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
 }
 
-.session-timeline-chips {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0 var(--space-2) var(--space-2);
-  overflow-x: auto;
-}
-
-.session-timeline-chip {
-  flex-shrink: 0;
-  padding: 3px 10px;
-  background: var(--list-hover);
-  border: 1px solid transparent;
-  border-radius: 999px;
-  font-size: 11px;
-  color: var(--fg-dim);
-  white-space: nowrap;
-}
-
-.session-timeline-chip:hover {
-  color: var(--fg-bright);
-}
-
-.session-timeline-chip.is-active {
-  background: var(--list-active);
-  border-color: var(--accent);
-  color: var(--fg-bright);
-}
-
-.session-timeline-new-btn {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  margin-left: auto;
-  background: none;
-  border: none;
-  border-radius: 3px;
-  color: var(--fg-dim);
-}
-
-.session-timeline-new-btn:hover {
-  background: var(--list-active);
-  color: var(--fg-bright);
-}
-
 .session-timeline-day-group + .session-timeline-day-group {
   margin-top: 4px;
 }
