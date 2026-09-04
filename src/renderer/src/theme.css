@@ -2841,3 +2841,19 @@ button {
   opacity: 0.4;
   cursor: default;
 }
+
+/* ---------------------------------------------------------------------
+   Tool-card duration/usage chip -- overrides on top of the flat pill
+   style so it reads as a distinct, glanceable badge in the row header.
+   --------------------------------------------------------------------- */
+.timeline-row-metrics {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border-subtle));
+  background: color-mix(in srgb, var(--accent) 7%, var(--sidebar-bg));
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.timeline-row-header:hover .timeline-row-metrics {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border-subtle));
+  background: color-mix(in srgb, var(--accent) 12%, var(--sidebar-bg));
+  color: var(--fg-bright);
+}
