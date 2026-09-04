@@ -41,7 +41,8 @@ const api: Api = {
     list: (repoId) => ipcRenderer.invoke('skills:list', repoId)
   },
   files: {
-    pickFile: () => ipcRenderer.invoke('files:pickFile')
+    pickFile: () => ipcRenderer.invoke('files:pickFile'),
+    pickFolder: () => ipcRenderer.invoke('files:pickFolder')
   },
   settings: {
     setAnthropicApiKey: (apiKey) => ipcRenderer.invoke('settings:setAnthropicApiKey', apiKey),

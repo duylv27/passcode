@@ -121,7 +121,8 @@ app.whenReady().then(async () => {
     models: createModelsHandlers(modelRegistry),
     skills: createSkillsHandlers(reposRepo),
     files: createFilesHandlers({
-      showOpenDialog: () => dialog.showOpenDialog(mainWindow, { properties: ['openFile'] })
+      showOpenDialog: () => dialog.showOpenDialog(mainWindow, { properties: ['openFile'] }),
+      showOpenFolderDialog: () => dialog.showOpenDialog(mainWindow, { properties: ['openDirectory'] })
     }),
     approvals: approvalHandlers,
     window: createWindowHandlers(() => mainWindow)

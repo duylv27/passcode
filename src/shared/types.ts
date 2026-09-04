@@ -175,6 +175,7 @@ export interface Api {
   }
   files: {
     pickFile(): Promise<string | null>
+    pickFolder(): Promise<string | null>
   }
   settings: {
     setAnthropicApiKey(apiKey: string): Promise<{ ok: true } | { ok: false; error: string }>

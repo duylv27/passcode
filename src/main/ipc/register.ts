@@ -64,6 +64,7 @@ export function registerIpcHandlers(handlers: IpcHandlers): void {
   ipcMain.handle('skills:list', (_e, repoId: string) => handlers.skills.listSkills(repoId))
 
   ipcMain.handle('files:pickFile', () => handlers.files.pickFile())
+  ipcMain.handle('files:pickFolder', () => handlers.files.pickFolder())
 
   ipcMain.handle('settings:setAnthropicApiKey', (_e, apiKey: string) =>
     handlers.settings.setAnthropicApiKey(apiKey)
