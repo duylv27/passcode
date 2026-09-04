@@ -83,7 +83,11 @@ export function NewProjectDialog({ onClose, onCreated }: Props): JSX.Element {
           <button className="btn" onClick={onClose} disabled={creating}>
             Cancel
           </button>
-          <button className="btn" onClick={handleCreate} disabled={!name.trim() || !folderPath || creating}>
+          <button
+            className="btn btn-primary"
+            onClick={handleCreate}
+            disabled={!name.trim() || !folderPath || creating}
+          >
             Create
           </button>
         </div>
