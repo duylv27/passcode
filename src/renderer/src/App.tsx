@@ -7,7 +7,7 @@ import { SettingsPanel } from './components/SettingsPanel'
 import { ApprovalDialog } from './components/ApprovalDialog'
 import { TitleBar } from './components/TitleBar'
 import { AboutDialog } from './components/AboutDialog'
-import { ExplorerIcon, GearIcon, LogoIcon } from './components/icons'
+import { ChatIcon, ExplorerIcon, GearIcon, LogoIcon } from './components/icons'
 import { clampSidebarWidth, SIDEBAR_DEFAULT_WIDTH, SIDEBAR_WIDTH_KEY } from './lib/sidebarWidth'
 
 export default function App(): JSX.Element {
@@ -24,12 +24,18 @@ export default function App(): JSX.Element {
   })
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
+  const [explorerView, setExplorerView] = useState<'sessions' | 'projects'>('sessions')
   // Bumped to force ProjectExplorer to refetch after a session is created
   // from outside its own tree (the hamburger menu's "New Session" action).
   const [sessionListRefreshKey, setSessionListRefreshKey] = useState(0)
 
   function handleExplorerClick(): void {
     setSidebarCollapsed((collapsed) => !collapsed)
+  }
+
+  function handleGoSessionsView(): void {
+    setSidebarCollapsed(false)
+    setExplorerView('sessions')
   }
 
   function handleSidebarResizeStart(e: ReactPointerEvent<HTMLDivElement>): void {
@@ -138,6 +144,13 @@ export default function App(): JSX.Element {
           >
             <ExplorerIcon />
           </button>
+          <button
+            className={`activitybar-icon${!sidebarCollapsed && explorerView === 'sessions' ? ' is-active' : ''}`}
+            onClick={handleGoSessionsView}
+            title="Sessions"
+          >
+            <ChatIcon />
+          </button>
           <div className="activitybar-spacer" />
           <button
             className={`activitybar-icon${settingsOpen ? ' is-active' : ''}`}
@@ -161,6 +174,8 @@ export default function App(): JSX.Element {
               onSessionRenamed={handleSessionRenamed}
               onProjectDeleted={handleProjectDeleted}
               refreshKey={sessionListRefreshKey}
+              view={explorerView}
+              onViewChange={setExplorerView}
             />
           </div>
           <div className="sidebar-resize-handle" onPointerDown={handleSidebarResizeStart} />
