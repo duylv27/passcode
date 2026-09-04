@@ -129,6 +129,11 @@ export default function App(): JSX.Element {
           quit: () => window.api.window.close(),
           toggleSidebar: handleExplorerClick,
           goExplorer: () => setSidebarCollapsed(false),
+          goProjectView: () => {
+            setSidebarCollapsed(false)
+            setExplorerView('projects')
+          },
+          goSessionView: handleGoSessionsView,
           goSettings: () => setSettingsOpen(true),
           nextTab: openSessions.length > 0 ? () => cycleTab(1) : undefined,
           previousTab: openSessions.length > 0 ? () => cycleTab(-1) : undefined,

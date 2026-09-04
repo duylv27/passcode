@@ -7,6 +7,8 @@ export interface TitleBarMenuActions {
   quit?: () => void
   toggleSidebar?: () => void
   goExplorer?: () => void
+  goProjectView?: () => void
+  goSessionView?: () => void
   goSettings?: () => void
   nextTab?: () => void
   previousTab?: () => void
@@ -37,6 +39,8 @@ function buildMenu(actions: TitleBarMenuActions): { category: string; items: Men
       category: 'Go',
       items: [
         { label: 'Explorer', action: actions.goExplorer },
+        { label: 'Project View', action: actions.goProjectView },
+        { label: 'Session View', action: actions.goSessionView },
         { label: 'Settings', action: actions.goSettings },
         { label: 'Next Tab', kbd: 'Ctrl+Tab', action: actions.nextTab },
         { label: 'Previous Tab', kbd: 'Ctrl+Shift+Tab', action: actions.previousTab }
