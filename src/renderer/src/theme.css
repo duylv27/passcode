@@ -756,30 +756,33 @@ button {
 .tab {
   display: flex;
   align-items: center;
-  background: var(--editor-bg);
+  background: var(--sidebar-bg);
   border-right: 1px solid var(--border-subtle);
-  font-size: 12px;
-  color: var(--fg);
+  font-size: 11px;
+  color: var(--fg-dim);
 }
 
 .tab.is-active {
   background: var(--editor-bg);
+  color: var(--fg-bright);
   box-shadow: inset 0 -1.5px 0 var(--accent);
 }
 
 .tab-select {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 6px 5px 10px;
+  gap: 5px;
+  padding: 4px 4px 4px 8px;
   background: none;
   border: none;
   color: inherit;
   font-size: inherit;
-  max-width: 180px;
+  max-width: 160px;
 }
 
 .tab-select .row-icon {
+  width: 12px;
+  height: 12px;
   color: #6a9955;
   flex-shrink: 0;
 }
@@ -798,9 +801,9 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
-  margin-right: 5px;
+  width: 16px;
+  height: 16px;
+  margin-right: 4px;
   background: none;
   border: none;
   border-radius: 3px;
