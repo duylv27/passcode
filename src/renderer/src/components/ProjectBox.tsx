@@ -30,7 +30,7 @@ export function ProjectBox({
   externalRefreshKey
 }: Props): JSX.Element {
   const [addingRepo, setAddingRepo] = useState(false)
-  const [repoPath, setRepoPath] = useState('')
+  const [repoPath, setRepoPath] = useState<string | null>(null)
   const [repoError, setRepoError] = useState<string | null>(null)
   // Bumped to force SessionList to refetch after a repo is added here --
   // SessionList owns its own fetched repo/session lists and has no other
@@ -57,17 +57,28 @@ export function ProjectBox({
     setRefreshKey((k) => k + 1)
   }
 
+  async function handleChooseRepoFolder(): Promise<void> {
+    const picked = await window.api.files.pickFolder()
+    if (picked) setRepoPath(picked)
+  }
+
   async function handleAddRepo(): Promise<void> {
-    if (!repoPath.trim()) return
+    if (!repoPath) return
     setRepoError(null)
-    const result = await window.api.repos.add(project.id, repoPath.trim())
+    const result = await window.api.repos.add(project.id, repoPath)
     if (!result.ok) {
       setRepoError(result.error)
       return
     }
-    setRepoPath('')
+    setRepoPath(null)
     setAddingRepo(false)
     setRefreshKey((k) => k + 1)
+  }
+
+  function cancelAddRepo(): void {
+    setRepoPath(null)
+    setRepoError(null)
+    setAddingRepo(false)
   }
 
   return (
@@ -95,22 +106,22 @@ export function ProjectBox({
           />
           {addingRepo ? (
             <div className="picker-inline-form">
-              <input
-                className="field"
-                autoFocus
-                value={repoPath}
-                onChange={(e) => setRepoPath(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleAddRepo()
-                  else if (e.key === 'Escape') setAddingRepo(false)
-                }}
-                onBlur={() => {
-                  if (!repoPath.trim()) setAddingRepo(false)
-                }}
-                placeholder="/path/to/repo"
-              />
-              <button className="btn" onClick={handleAddRepo}>
-                Add
+              {repoPath ? (
+                <>
+                  <span className="new-project-folder-path" title={repoPath}>
+                    {repoPath}
+                  </span>
+                  <button className="btn" onClick={handleAddRepo}>
+                    Add
+                  </button>
+                </>
+              ) : (
+                <button className="btn" onClick={handleChooseRepoFolder}>
+                  Choose folder…
+                </button>
+              )}
+              <button className="btn" onClick={cancelAddRepo}>
+                Cancel
               </button>
             </div>
           ) : (
