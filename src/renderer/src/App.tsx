@@ -33,6 +33,11 @@ export default function App(): JSX.Element {
     setSidebarCollapsed((collapsed) => !collapsed)
   }
 
+  function handleGoProjectsView(): void {
+    setSidebarCollapsed(false)
+    setExplorerView('projects')
+  }
+
   function handleGoSessionsView(): void {
     setSidebarCollapsed(false)
     setExplorerView('sessions')
@@ -129,10 +134,7 @@ export default function App(): JSX.Element {
           quit: () => window.api.window.close(),
           toggleSidebar: handleExplorerClick,
           goExplorer: () => setSidebarCollapsed(false),
-          goProjectView: () => {
-            setSidebarCollapsed(false)
-            setExplorerView('projects')
-          },
+          goProjectView: handleGoProjectsView,
           goSessionView: handleGoSessionsView,
           goSettings: () => setSettingsOpen(true),
           nextTab: openSessions.length > 0 ? () => cycleTab(1) : undefined,
@@ -143,9 +145,9 @@ export default function App(): JSX.Element {
       <div className="workbench">
         <div className="activitybar">
           <button
-            className={`activitybar-icon${!sidebarCollapsed ? ' is-active' : ''}`}
-            onClick={handleExplorerClick}
-            title={!sidebarCollapsed ? 'Hide Explorer' : 'Explorer'}
+            className={`activitybar-icon${!sidebarCollapsed && explorerView === 'projects' ? ' is-active' : ''}`}
+            onClick={handleGoProjectsView}
+            title="Projects"
           >
             <ExplorerIcon />
           </button>
