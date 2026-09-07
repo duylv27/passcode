@@ -162,6 +162,11 @@ export interface ToolApprovalPolicy {
   autoApprove: Record<string, boolean>
 }
 
+export interface UsageTelemetryConfig {
+  enabled: boolean
+  outputPath: string
+}
+
 export interface ApprovalRequest {
   requestId: string
   sessionId: string
