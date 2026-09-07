@@ -46,6 +46,12 @@ export async function buildPromptText(text: string, options?: BuildPromptTextOpt
     contextParts.push(`Use the "${options.skillName}" skill for this request. Its full instructions:\n\n${skillContent}`)
   }
 
+  if (/mermaid|diagram/i.test(text)) {
+    contextParts.push(
+      'Mermaid output rules: use quoted labels when they contain punctuation, use <br/> for line breaks, and never use literal \\n or escaped hyphens such as \\-\\-. Return only Mermaid syntax inside a mermaid code fence.'
+    )
+  }
+
   if (contextParts.length === 0) return text
 
   return `${label}${PROMPT_CONTEXT_DELIMITER}${contextParts.join('\n\n---\n\n')}\n\n---\n\n${text}`

@@ -33,7 +33,7 @@ export function Mermaid({ chart, streaming }: { chart: string; streaming?: boole
         const mermaid = mod.default
         mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: 'default' })
         try {
-          const result = await mermaid.render(id, chart)
+          const result = await mermaid.render(id, normalizeMermaid(chart))
           if (cancelled) return
           // mermaid resolves (doesn't throw) with its own error diagram on
           // invalid syntax -- treat that the same as a thrown error instead
@@ -81,4 +81,8 @@ export function Mermaid({ chart, streaming }: { chart: string; streaming?: boole
       dangerouslySetInnerHTML={{ __html: svg }}
     />
   )
+}
+
+function normalizeMermaid(chart: string): string {
+  return chart.replaceAll('\\n', '<br/>').replaceAll('\\-', '-')
 }

@@ -12,7 +12,8 @@ import type {
   PromptOptions,
   Repo,
   SessionRecord,
-  SessionWithScope
+  SessionWithScope,
+  TokenUsage
 } from '../../shared/types'
 
 export type { ChatEvent }
@@ -78,9 +79,20 @@ export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionH
     deps.sessionsRepo.setPiSessionId(sessionId, piSessionId)
     if (sessionFile) deps.sessionsRepo.setSessionFile(sessionId, sessionFile)
 
+    let pendingActionUsage: TokenUsage | undefined
     repoSession.subscribe((event) => {
       const mapped = mapAgentEvent(event)
-      if (mapped) deps.onEvent(sessionId, mapped)
+      if (!mapped) return
+      if (mapped.type === 'model_usage') {
+        pendingActionUsage = mapped.usage
+        return
+      }
+      if (mapped.type === 'tool_start') {
+        deps.onEvent(sessionId, { ...mapped, usage: pendingActionUsage })
+        return
+      }
+      if (mapped.type === 'turn_end') pendingActionUsage = undefined
+      deps.onEvent(sessionId, mapped)
     })
 
     openSessions.set(sessionId, repoSession)
@@ -246,6 +258,12 @@ function mapAgentEvent(event: unknown): ChatEvent | null {
   }
   if (e.type === 'message_update' && e.assistantMessageEvent?.type === 'thinking_end') {
     return { type: 'thinking_end' }
+  }
+  if (e.type === 'message_end' && e.message?.role === 'assistant' && e.message.usage) {
+    return {
+      type: 'model_usage',
+      usage: { input: e.message.usage.input, output: e.message.usage.output }
+    }
   }
   if (e.type === 'tool_execution_start') {
     return {

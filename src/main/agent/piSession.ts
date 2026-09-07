@@ -1,6 +1,6 @@
 import type { AgentSessionEvent, ModelRuntime } from '@earendil-works/pi-coding-agent'
 import type { Model } from '@earendil-works/pi-ai'
-import type { HistoryItem } from '../../shared/types'
+import type { HistoryItem, TokenUsage } from '../../shared/types'
 import { getAdditionalSkillPaths } from './skills'
 import { PROMPT_CONTEXT_DELIMITER } from './promptBuilder'
 
@@ -84,7 +84,13 @@ function buildHistory(messages: readonly unknown[]): HistoryItem[] {
   const items: HistoryItem[] = []
 
   for (const raw of messages) {
-    const message = raw as { role?: string; content?: unknown; toolCallId?: string; isError?: boolean }
+    const message = raw as {
+      role?: string
+      content?: unknown
+      toolCallId?: string
+      isError?: boolean
+      usage?: TokenUsage
+    }
 
     if (message.role === 'user') {
       // Everything after the delimiter is context injected for the model
@@ -112,7 +118,8 @@ function buildHistory(messages: readonly unknown[]): HistoryItem[] {
             kind: 'tool',
             toolCallId: part.id ?? '',
             toolName: part.name ?? 'unknown',
-            input: part.arguments
+            input: part.arguments,
+            usage: message.usage
           })
         }
       }

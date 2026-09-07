@@ -78,13 +78,22 @@ export type HistoryItem =
   | { kind: 'user'; text: string }
   | { kind: 'text'; text: string }
   | { kind: 'thinking'; text: string }
-  | { kind: 'tool'; toolCallId: string; toolName: string; input: unknown; result?: unknown; isError?: boolean }
+  | {
+      kind: 'tool'
+      toolCallId: string
+      toolName: string
+      input: unknown
+      usage?: TokenUsage
+      result?: unknown
+      isError?: boolean
+    }
 
 export type ChatEvent =
   | { type: 'text_delta'; delta: string }
   | { type: 'thinking_delta'; delta: string }
   | { type: 'thinking_end' }
-  | { type: 'tool_start'; toolCallId: string; toolName: string; args: unknown }
+  | { type: 'model_usage'; usage: TokenUsage }
+  | { type: 'tool_start'; toolCallId: string; toolName: string; args: unknown; usage?: TokenUsage }
   | { type: 'tool_end'; toolCallId: string; toolName: string; isError: boolean; result: unknown }
   | { type: 'turn_end'; usage?: TokenUsage }
   | { type: 'error'; message: string }

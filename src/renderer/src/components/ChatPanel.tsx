@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
-import type { ChatEvent, HistoryItem, ModelInfo, SessionRecord, SkillInfo } from '../../../shared/types'
+import type { ChatEvent, HistoryItem, ModelInfo, SessionRecord, SkillInfo, TokenUsage } from '../../../shared/types'
 import { KNOWN_TOOL_NAMES } from '../../../shared/types'
 import { ChevronIcon, SendIcon, StopIcon, SpinnerIcon, PlusIcon, SlashIcon } from './icons'
 import { Markdown } from './Markdown'
@@ -29,6 +29,8 @@ type TranscriptItem =
       toolCallId: string
       toolName: string
       args: unknown
+      usage?: TokenUsage
+      usageScope?: 'model response' | 'turn total'
       status: 'running' | 'done' | 'error'
       result?: unknown
       startedAt: number
@@ -65,6 +67,7 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
   const [autoMode, setAutoMode] = useState(false)
   const [thinkingWord, setThinkingWord] = useState(THINKING_WORDS[0])
   const chatScrollRef = useRef<HTMLDivElement>(null)
+  const turnActionIdsRef = useRef<string[]>([])
   const composerFieldRef = useRef<HTMLTextAreaElement>(null)
 
   async function sendNow(text: string): Promise<void> {
@@ -155,6 +158,7 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
     setBusy(false)
     setThinking(false)
     setCurrentModel(null)
+    turnActionIdsRef.current = []
     window.api.session.open(session.id)
 
     // Whether this session has any prior turns, known only once the
@@ -250,14 +254,18 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
         })
       } else if (event.type === 'tool_start') {
         setThinking(false)
+        const id = newId()
+        turnActionIdsRef.current.push(id)
         setItems((prev) => [
           ...prev,
           {
             kind: 'tool',
-            id: newId(),
+            id,
             toolCallId: event.toolCallId,
             toolName: event.toolName,
             args: event.args,
+            usage: event.usage,
+            usageScope: event.usage ? 'model response' : undefined,
             status: 'running',
             startedAt: Date.now()
           }
@@ -289,6 +297,18 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
         // resolves, i.e. the whole loop is done) is the authoritative signal
         // for that -- see the `event.type === 'busy'` handler below.
         setThinking(false)
+        const usage = event.usage
+        const actionIds = turnActionIdsRef.current
+        turnActionIdsRef.current = []
+        if (usage) {
+          setItems((prev) =>
+            prev.map((item) =>
+              item.kind === 'tool' && actionIds.includes(item.id) && !item.usage
+                ? { ...item, usage, usageScope: 'turn total' as const }
+                : item
+            )
+          )
+        }
       } else if (event.type === 'history') {
         hasPriorTurns = event.items.length > 0
         setItems(mapHistory(event.items))
@@ -646,6 +666,7 @@ const TimelineRow = memo(function TimelineRow({
 
   const duration = item.endedAt ? ((item.endedAt - item.startedAt) / 1000).toFixed(1) + 's' : null
   const summary = summarizeToolCall(item.toolName, item.args)
+  const description = describeToolAction(item.toolName, item.args)
   const isShell = item.toolName === 'bash' || item.toolName === 'powershell'
   const resultSummary = item.status !== 'running' ? summarizeToolResult(item.toolName, item.result) : null
   const runOutput = isShell && typeof item.result === 'string' ? truncateOutput(item.result) : null
@@ -664,10 +685,13 @@ const TimelineRow = memo(function TimelineRow({
             {stat.dels > 0 && <span className="is-del">-{stat.dels}</span>}
           </span>
         )}
-        {duration && <span className="timeline-row-duration">{duration}</span>}
+        <span className="timeline-row-metrics" title="Execution time and model token usage">
+          {formatActionMetrics(duration, item.usage, item.usageScope)}
+        </span>
         <ChevronIcon className={`chevron${expanded ? ' is-open' : ''}`} />
       </button>
       {resultSummary && !expanded && <div className="timeline-row-result">{resultSummary}</div>}
+      {expanded && !isShell && <div className="timeline-row-description">{description}</div>}
       {expanded && isShell && (summary || runOutput) && (
         <div className="timeline-terminal">
           {summary && (
@@ -715,6 +739,32 @@ const TOOL_ACTION_LABELS: Record<string, string> = {
  * identifier so the card reads as "what happened" at a glance. */
 function toolActionLabel(toolName: string): string {
   return TOOL_ACTION_LABELS[toolName] ?? toolName
+}
+
+function describeToolAction(toolName: string, args: unknown): string {
+  const summary = summarizeToolCall(toolName, args)
+  if (toolName === 'read') return summary ? `Read the file ${summary}` : 'Read a file'
+  if (toolName === 'edit') return summary ? `Update ${summary}` : 'Update a file'
+  if (toolName === 'write') return summary ? `Create ${summary}` : 'Create a file'
+  if (toolName === 'grep') return summary ? `Search the codebase for ${summary}` : 'Search the codebase'
+  if (toolName === 'find') return summary ? `Find files matching ${summary}` : 'Find files'
+  if (toolName === 'ls') return summary ? `List the directory ${summary}` : 'List a directory'
+  if (toolName === 'bash' || toolName === 'powershell') return summary ? `Run the command ${summary}` : 'Run a command'
+  return `Run the ${toolName} action`
+}
+
+function formatUsage(usage: TokenUsage | undefined, scope: 'model response' | 'turn total' | undefined): string {
+  if (!usage) return 'usage unavailable'
+  const suffix = scope === 'turn total' ? ' turn' : ''
+  return `${formatTokenCount(usage.input)} in / ${formatTokenCount(usage.output)} out${suffix}`
+}
+
+function formatActionMetrics(
+  duration: string | null,
+  usage: TokenUsage | undefined,
+  scope: 'model response' | 'turn total' | undefined
+): string {
+  return `${duration ?? 'running'} · ${formatUsage(usage, scope)}`
 }
 
 /** A short, human-readable description of what the call is doing, shown
@@ -826,6 +876,8 @@ function mapHistory(items: HistoryItem[]): TranscriptItem[] {
       toolCallId: item.toolCallId,
       toolName: item.toolName,
       args: item.input,
+      usage: item.usage,
+      usageScope: item.usage ? 'model response' : undefined,
       status: item.result === undefined ? 'running' : item.isError ? 'error' : 'done',
       result: item.result,
       startedAt: Date.now()
@@ -840,4 +892,8 @@ function stringifyDetail(value: unknown): string {
   } catch {
     return String(value)
   }
+}
+
+function formatTokenCount(count: number): string {
+  return count.toLocaleString()
 }
