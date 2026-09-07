@@ -1,6 +1,7 @@
-import { memo, useCallback, useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useRef, useState, type ClipboardEvent } from 'react'
 import type { ChatEvent, HistoryItem, ModelInfo, SessionRecord, SkillInfo, TokenUsage } from '../../../shared/types'
 import { KNOWN_TOOL_NAMES } from '../../../shared/types'
+import { readBlobAsDataUrl, resizeImageDataUrl, splitDataUrl, type PastedImage } from '../lib/imageAttachment'
 import { ChevronIcon, SendIcon, StopIcon, SpinnerIcon, PlusIcon, SlashIcon } from './icons'
 import { Markdown } from './Markdown'
 import { DiffView, diffStats } from './DiffView'
@@ -20,7 +21,7 @@ const THINKING_WORDS = [
 ]
 
 type TranscriptItem =
-  | { kind: 'user'; id: string; text: string }
+  | { kind: 'user'; id: string; text: string; images?: { dataUrl: string }[] }
   | { kind: 'text'; id: string; text: string }
   | { kind: 'thinking'; id: string; text: string; startedAt: number; endedAt?: number }
   | {
@@ -64,6 +65,7 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
   const [skillMenuOpen, setSkillMenuOpen] = useState(false)
   const skillPickerRef = useRef<HTMLDivElement>(null)
   const [attachedFile, setAttachedFile] = useState<string | null>(null)
+  const [pastedImages, setPastedImages] = useState<PastedImage[]>([])
   const [autoMode, setAutoMode] = useState(false)
   const [thinkingWord, setThinkingWord] = useState(THINKING_WORDS[0])
   const chatScrollRef = useRef<HTMLDivElement>(null)
@@ -75,16 +77,22 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
     // history is reconstructed (see promptBuilder.ts's label) -- a skill
     // reference plus the typed text, not the skill's full instructions.
     const label = selectedSkill ? `/${selectedSkill.name} ${text}` : text
-    setItems((prev) => [...prev, { kind: 'user', id: newId(), text: label }])
+    const sentImages = pastedImages.map((img) => ({ dataUrl: img.dataUrl }))
+    setItems((prev) => [
+      ...prev,
+      { kind: 'user', id: newId(), text: label, ...(sentImages.length > 0 ? { images: sentImages } : {}) }
+    ])
     setBusy(true)
     setThinking(true)
     const options = {
       skillFilePath: selectedSkill?.filePath,
       skillName: selectedSkill?.name,
-      attachedFilePath: attachedFile ?? undefined
+      attachedFilePath: attachedFile ?? undefined,
+      images: pastedImages.length > 0 ? pastedImages.map((img) => splitDataUrl(img.dataUrl)) : undefined
     }
     setSelectedSkill(null)
     setAttachedFile(null)
+    setPastedImages([])
     await window.api.session.prompt(session.id, text, options)
   }
 
@@ -387,6 +395,22 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
     if (path) setAttachedFile(path)
   }
 
+  async function handlePaste(e: ClipboardEvent<HTMLTextAreaElement>): Promise<void> {
+    const imageItems = Array.from(e.clipboardData.items).filter((item) => item.type.startsWith('image/'))
+    if (imageItems.length === 0) return
+    // Only intercept the paste when it actually carries image data -- a
+    // normal text paste must fall through to the textarea's default
+    // handling untouched.
+    e.preventDefault()
+    for (const item of imageItems) {
+      const file = item.getAsFile()
+      if (!file) continue
+      const dataUrl = await readBlobAsDataUrl(file)
+      const resized = await resizeImageDataUrl(dataUrl, file.type)
+      setPastedImages((prev) => [...prev, { id: newId(), dataUrl: resized, mimeType: file.type }])
+    }
+  }
+
   async function handleToggleAuto(): Promise<void> {
     const next = !autoMode
     setAutoMode(next)
@@ -512,7 +536,7 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
             </div>
           )}
         </div>
-        {(selectedSkill || attachedFile) && (
+        {(selectedSkill || attachedFile || pastedImages.length > 0) && (
           <div className="composer-chips">
             {selectedSkill && (
               <span className="composer-chip">
@@ -540,6 +564,19 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
                 </button>
               </span>
             )}
+            {pastedImages.map((img) => (
+              <span key={img.id} className="composer-image-chip">
+                <img src={img.dataUrl} alt="Pasted image" />
+                <button
+                  type="button"
+                  className="composer-chip-remove"
+                  onClick={() => setPastedImages((prev) => prev.filter((p) => p.id !== img.id))}
+                  title="Remove image"
+                >
+                  ×
+                </button>
+              </span>
+            ))}
           </div>
         )}
         <textarea
@@ -548,6 +585,7 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
           rows={1}
           value={input}
           onChange={(e) => setInput(e.target.value)}
+          onPaste={handlePaste}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey) {
               e.preventDefault()
