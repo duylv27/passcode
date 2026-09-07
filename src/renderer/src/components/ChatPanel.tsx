@@ -5,7 +5,7 @@ import { readBlobAsDataUrl, resizeImageDataUrl, splitDataUrl, type PastedImage }
 import { ChevronIcon, SendIcon, StopIcon, SpinnerIcon, PlusIcon, SlashIcon } from './icons'
 import { Markdown } from './Markdown'
 import { DiffView, diffStats } from './DiffView'
-import { ZoomViewerProvider } from './ZoomViewer'
+import { ZoomViewerProvider, useZoomViewer } from './ZoomViewer'
 
 const LAST_MODEL_KEY = 'passcode-last-model'
 
@@ -637,10 +637,27 @@ const TranscriptRow = memo(function TranscriptRow({
   item: SingleItem
   streaming: boolean
 }): JSX.Element {
+  const { open } = useZoomViewer()
+
   if (item.kind === 'user') {
     return (
       <div className="chat-line is-user">
-        <div className="turn-bubble">{item.text}</div>
+        <div className="turn-user-content">
+          {item.images && item.images.length > 0 && (
+            <div className="turn-images">
+              {item.images.map((img, i) => (
+                <img
+                  key={i}
+                  src={img.dataUrl}
+                  alt="Pasted image"
+                  className="turn-image-thumb"
+                  onClick={() => open({ type: 'image', src: img.dataUrl })}
+                />
+              ))}
+            </div>
+          )}
+          <div className="turn-bubble">{item.text}</div>
+        </div>
       </div>
     )
   }
@@ -905,7 +922,16 @@ function renderToolDetail(toolName: string, args: unknown, result: unknown): JSX
 
 function mapHistory(items: HistoryItem[]): TranscriptItem[] {
   return items.map((item) => {
-    if (item.kind === 'user') return { kind: 'user', id: newId(), text: item.text }
+    if (item.kind === 'user') {
+      return {
+        kind: 'user',
+        id: newId(),
+        text: item.text,
+        ...(item.images && item.images.length > 0
+          ? { images: item.images.map((img) => ({ dataUrl: `data:${img.mimeType};base64,${img.data}` })) }
+          : {})
+      }
+    }
     if (item.kind === 'text') return { kind: 'text', id: newId(), text: item.text }
     if (item.kind === 'thinking') return { kind: 'thinking', id: newId(), text: item.text, startedAt: Date.now() }
     return {

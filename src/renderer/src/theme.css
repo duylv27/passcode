@@ -890,6 +890,29 @@ button {
   word-break: break-word;
 }
 
+.turn-user-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  max-width: 85%;
+}
+
+.turn-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.turn-image-thumb {
+  max-width: 220px;
+  max-height: 160px;
+  border-radius: 10px;
+  cursor: zoom-in;
+  object-fit: cover;
+}
+
 .chat-line.is-markdown .md-body > *:first-child {
   margin-top: 0;
 }
