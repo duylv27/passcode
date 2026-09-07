@@ -206,7 +206,21 @@ export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionH
               .map((r) => ({ name: r.name, path: r.path }))
           : undefined
         const promptText = await deps.buildPromptText(text, { ...options, projectRepos })
-        await session.prompt(promptText)
+        // Images bypass buildPromptText entirely -- they're sent as real
+        // multimodal content via the SDK's own `images` option, not spliced
+        // into the prompt text. Only pass a second argument when there
+        // actually are images, so a plain-text turn's call shape is
+        // unchanged.
+        if (options?.images && options.images.length > 0) {
+          const images = options.images.map((img) => ({
+            type: 'image' as const,
+            data: img.data,
+            mimeType: img.mimeType
+          }))
+          await session.prompt(promptText, images)
+        } else {
+          await session.prompt(promptText)
+        }
       } catch (err) {
         deps.onEvent(sessionId, { type: 'error', message: (err as Error).message })
       } finally {

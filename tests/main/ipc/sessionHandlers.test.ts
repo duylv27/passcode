@@ -133,6 +133,27 @@ describe('sessionHandlers', () => {
     expect(promptMock).toHaveBeenCalledWith('built:hello')
   })
 
+  it('converts PromptOptions.images into SDK ImageContent and forwards them to the underlying session', async () => {
+    const session = handlers.createSession(repoId)
+    await handlers.openSession(session.id)
+    const options = { images: [{ data: 'aGVsbG8=', mimeType: 'image/png' }] }
+
+    await handlers.sendPrompt(session.id, 'what is this?', options)
+
+    expect(promptMock).toHaveBeenCalledWith('what is this?', [
+      { type: 'image', data: 'aGVsbG8=', mimeType: 'image/png' }
+    ])
+  })
+
+  it('calls the underlying session prompt with a single argument when there are no images', async () => {
+    const session = handlers.createSession(repoId)
+    await handlers.openSession(session.id)
+
+    await handlers.sendPrompt(session.id, 'hello')
+
+    expect(promptMock).toHaveBeenCalledWith('hello')
+  })
+
   it('maps and forwards a text_delta event, keyed by session id', async () => {
     const session = handlers.createSession(repoId)
     await handlers.openSession(session.id)
