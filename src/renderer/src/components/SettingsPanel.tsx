@@ -86,7 +86,18 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
       setQuota(null)
       return
     }
-    window.api.settings.getCopilotQuota().then(setQuota)
+    let cancelled = false
+    window.api.settings
+      .getCopilotQuota()
+      .then((result) => {
+        if (!cancelled) setQuota(result)
+      })
+      .catch(() => {
+        if (!cancelled) setQuota(null)
+      })
+    return () => {
+      cancelled = true
+    }
   }, [section, status?.copilot])
 
   async function toggleAutoApprove(toolName: string): Promise<void> {

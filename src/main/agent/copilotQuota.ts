@@ -1,4 +1,4 @@
-import { readStoredCredential } from '@earendil-works/pi-coding-agent'
+import type { Credential } from '@earendil-works/pi-ai'
 import type { CopilotQuota, CopilotQuotaCategory } from '../../shared/types'
 
 // Matches the headers the SDK's own Copilot token-refresh call sends to
@@ -31,8 +31,20 @@ function hostnameFromEnterpriseUrl(enterpriseUrl: unknown): string | null {
  * Every failure path returns null -- this is enrichment info, never
  * something that should throw to its caller. */
 export async function fetchCopilotQuota(): Promise<CopilotQuota | null> {
-  const credential = readStoredCredential('github-copilot')
-  if (!credential || credential.type !== 'oauth') return null
+  // @earendil-works/pi-coding-agent is ESM-only (no "require" export
+  // condition), so it must be dynamically imported from this CJS-bundled
+  // main-process module -- a static top-level import compiles to a
+  // require() call here and crashes at startup with
+  // ERR_PACKAGE_PATH_NOT_EXPORTED. See piSession.ts for the same pattern.
+  let credential: Credential | undefined
+  try {
+    const { readStoredCredential } = await import('@earendil-works/pi-coding-agent')
+    credential = readStoredCredential('github-copilot')
+  } catch (err) {
+    console.warn('[copilotQuota] failed to read stored credential:', err)
+    return null
+  }
+  if (!credential || credential.type !== 'oauth' || typeof credential.refresh !== 'string') return null
 
   const domain = hostnameFromEnterpriseUrl((credential as { enterpriseUrl?: unknown }).enterpriseUrl) ?? 'github.com'
   const url = `https://api.${domain}/copilot_internal/v2/token`
@@ -44,11 +56,13 @@ export async function fetchCopilotQuota(): Promise<CopilotQuota | null> {
         Accept: 'application/json',
         Authorization: `Bearer ${credential.refresh}`,
         ...COPILOT_HEADERS
-      }
+      },
+      signal: AbortSignal.timeout(5000)
     })
     if (!response.ok) return null
     raw = await response.json()
-  } catch {
+  } catch (err) {
+    console.warn('[copilotQuota] failed to fetch quota:', err)
     return null
   }
 
