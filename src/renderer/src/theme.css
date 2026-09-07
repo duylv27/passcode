@@ -880,7 +880,6 @@ button {
 }
 
 .turn-bubble {
-  max-width: 85%;
   background: var(--list-active);
   border-radius: 10px;
   padding: 8px 12px;
@@ -910,7 +909,6 @@ button {
   max-height: 160px;
   border-radius: 10px;
   cursor: zoom-in;
-  object-fit: cover;
 }
 
 .chat-line.is-markdown .md-body > *:first-child {

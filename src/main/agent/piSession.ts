@@ -99,7 +99,7 @@ function buildHistory(messages: readonly unknown[]): HistoryItem[] {
       // transcript only ever shows the short label ahead of it.
       const text = extractText(message.content).split(PROMPT_CONTEXT_DELIMITER)[0]
       const images = extractImages(message.content)
-      if (text) items.push({ kind: 'user', text, ...(images.length > 0 ? { images } : {}) })
+      if (text || images.length > 0) items.push({ kind: 'user', text, ...(images.length > 0 ? { images } : {}) })
     } else if (message.role === 'assistant') {
       const parts = Array.isArray(message.content) ? message.content : []
       for (const raw2 of parts) {

@@ -353,7 +353,7 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
 
   async function handleSend(): Promise<void> {
     const text = input.trim()
-    if (!text) return
+    if (!text && pastedImages.length === 0) return
     // Typing "/" opens the skill picker inline; Enter here should pick a
     // skill (when there's exactly one match) rather than send "/query" as
     // a literal message.
@@ -396,18 +396,36 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
   }
 
   async function handlePaste(e: ClipboardEvent<HTMLTextAreaElement>): Promise<void> {
-    const imageItems = Array.from(e.clipboardData.items).filter((item) => item.type.startsWith('image/'))
-    if (imageItems.length === 0) return
+    // Collect real image files synchronously, before any await -- the
+    // clipboard event's DataTransfer is invalidated once this handler
+    // yields, so getAsFile() must not be deferred past the first await
+    // (deferring it silently drops every image after the first on a
+    // multi-image paste). Filtering on kind === 'file' (not just the MIME
+    // type) also avoids swallowing a mixed clipboard -- e.g. copying a
+    // rich selection that carries both a text/html flavor and an image
+    // bitmap flavor -- where treating the image flavor as the whole paste
+    // would discard the user's actual text.
+    const files = Array.from(e.clipboardData.items)
+      .filter((item) => item.kind === 'file' && item.type.startsWith('image/'))
+      .map((item) => item.getAsFile())
+      .filter((file): file is File => file !== null)
+    if (files.length === 0) return
     // Only intercept the paste when it actually carries image data -- a
     // normal text paste must fall through to the textarea's default
     // handling untouched.
     e.preventDefault()
-    for (const item of imageItems) {
-      const file = item.getAsFile()
-      if (!file) continue
-      const dataUrl = await readBlobAsDataUrl(file)
-      const resized = await resizeImageDataUrl(dataUrl, file.type)
-      setPastedImages((prev) => [...prev, { id: newId(), dataUrl: resized, mimeType: file.type }])
+    try {
+      for (const file of files) {
+        const dataUrl = await readBlobAsDataUrl(file)
+        const resized = await resizeImageDataUrl(dataUrl, file.type)
+        const { mimeType } = splitDataUrl(resized)
+        setPastedImages((prev) => [...prev, { id: newId(), dataUrl: resized, mimeType }])
+      }
+    } catch (err) {
+      setItems((prev) => [
+        ...prev,
+        { kind: 'error', id: newId(), text: `Couldn't read the pasted image: ${(err as Error).message}` }
+      ])
     }
   }
 
@@ -613,7 +631,7 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
           <button className="composer-stop" onClick={handleStop} disabled={!busy} title="Stop">
             <StopIcon />
           </button>
-          <button className="composer-send" onClick={handleSend} disabled={!input.trim()} title="Send">
+          <button className="composer-send" onClick={handleSend} disabled={!input.trim() && pastedImages.length === 0} title="Send">
             <SendIcon />
           </button>
         </div>
