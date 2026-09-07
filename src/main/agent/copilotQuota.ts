@@ -24,12 +24,15 @@ function hostnameFromEnterpriseUrl(enterpriseUrl: unknown): string | null {
   }
 }
 
-/** Independently re-fetches the same GitHub Copilot token-exchange
- * response the SDK already calls internally, keeping the quota fields
- * (`quota_snapshots`, `quota_reset_date_utc`, `copilot_plan`) that the
- * SDK's own refresh logic discards after extracting just the token.
- * Every failure path returns null -- this is enrichment info, never
- * something that should throw to its caller. */
+/** Fetches account/quota info from GitHub Copilot's internal user-info
+ * endpoint (`/copilot_internal/user`) -- a separate, richer endpoint from
+ * the token-exchange call (`/copilot_internal/v2/token`) the SDK already
+ * makes internally to mint the short-lived Copilot API token. The token
+ * endpoint's response carries no quota data at all; this endpoint is
+ * where `quota_snapshots`, `copilot_plan`, and `quota_reset_date_utc`
+ * actually live. Authenticated the same way (the stored GitHub OAuth
+ * refresh token as bearer). Every failure path returns null -- this is
+ * enrichment info, never something that should throw to its caller. */
 export async function fetchCopilotQuota(): Promise<CopilotQuota | null> {
   // @earendil-works/pi-coding-agent is ESM-only (no "require" export
   // condition), so it must be dynamically imported from this CJS-bundled
@@ -47,7 +50,7 @@ export async function fetchCopilotQuota(): Promise<CopilotQuota | null> {
   if (!credential || credential.type !== 'oauth' || typeof credential.refresh !== 'string') return null
 
   const domain = hostnameFromEnterpriseUrl((credential as { enterpriseUrl?: unknown }).enterpriseUrl) ?? 'github.com'
-  const url = `https://api.${domain}/copilot_internal/v2/token`
+  const url = `https://api.${domain}/copilot_internal/user`
 
   let raw: unknown
   try {
@@ -59,7 +62,10 @@ export async function fetchCopilotQuota(): Promise<CopilotQuota | null> {
       },
       signal: AbortSignal.timeout(5000)
     })
-    if (!response.ok) return null
+    if (!response.ok) {
+      console.warn('[copilotQuota] non-OK response:', response.status, response.statusText)
+      return null
+    }
     raw = await response.json()
   } catch (err) {
     console.warn('[copilotQuota] failed to fetch quota:', err)
