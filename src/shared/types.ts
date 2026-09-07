@@ -75,7 +75,7 @@ export interface TokenUsage {
 }
 
 export type HistoryItem =
-  | { kind: 'user'; text: string }
+  | { kind: 'user'; text: string; images?: { data: string; mimeType: string }[] }
   | { kind: 'text'; text: string }
   | { kind: 'thinking'; text: string }
   | {
@@ -124,6 +124,9 @@ export interface PromptOptions {
   skillName?: string
   /** Absolute path to a file the user attached as context for this turn. */
   attachedFilePath?: string
+  /** Images pasted into the composer, sent as real multimodal content via
+   * the SDK's own `images` prompt option -- not spliced into prompt text. */
+  images?: { data: string; mimeType: string }[]
 }
 
 /** Known built-in tool names an approval policy can key on. Any other
