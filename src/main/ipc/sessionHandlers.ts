@@ -1,5 +1,6 @@
 import type { Model } from '@earendil-works/pi-ai'
 import type { RepoSession } from '../agent/piSession'
+import { appendUsageTelemetryRecord } from '../agent/usageTelemetry'
 import type { SessionsRepository } from '../db/sessionsRepository'
 import type { ReposRepository } from '../db/reposRepository'
 import type { ProjectsRepository } from '../db/projectsRepository'
@@ -13,7 +14,8 @@ import type {
   Repo,
   SessionRecord,
   SessionWithScope,
-  TokenUsage
+  TokenUsage,
+  UsageTelemetryConfig
 } from '../../shared/types'
 
 export type { ChatEvent }
@@ -31,6 +33,11 @@ export interface CreateSessionHandlersDeps {
   requestApproval: (sessionId: string, toolName: string, input: unknown) => Promise<boolean>
   findModel: (provider: string, modelId: string) => Model<any> | undefined
   buildPromptText: (text: string, options?: BuildPromptTextOptions) => Promise<string>
+  /** Read fresh on every emitted usage record (not cached at session-open
+   * time) so toggling the setting in a running app takes effect on the
+   * very next inference call. Omitted entirely (rather than a default
+   * config object) when the caller doesn't wire telemetry at all. */
+  getUsageTelemetryConfig?: () => UsageTelemetryConfig
 }
 
 export interface SessionHandlers {
@@ -85,6 +92,16 @@ export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionH
       if (!mapped) return
       if (mapped.type === 'model_usage') {
         pendingActionUsage = mapped.usage
+        if (deps.getUsageTelemetryConfig) {
+          const model = repoSession.getModel()
+          if (model) {
+            appendUsageTelemetryRecord(deps.getUsageTelemetryConfig(), {
+              model: { provider: model.provider, id: model.id, name: model.name },
+              usage: mapped.usage,
+              sessionId: piSessionId
+            })
+          }
+        }
         return
       }
       if (mapped.type === 'tool_start') {

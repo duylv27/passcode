@@ -16,6 +16,12 @@ import type { RepoSession } from '../../../src/main/agent/piSession'
 import type { HistoryItem } from '../../../src/shared/types'
 import type { Model } from '@earendil-works/pi-ai'
 
+const appendUsageTelemetryRecordMock = vi.fn()
+
+vi.mock('../../../src/main/agent/usageTelemetry', () => ({
+  appendUsageTelemetryRecord: appendUsageTelemetryRecordMock
+}))
+
 describe('sessionHandlers', () => {
   let repoId: string
   let events: Array<{ sessionId: string; event: ChatEvent }>
@@ -275,6 +281,52 @@ describe('sessionHandlers', () => {
     await handlers.openSession(session.id)
     subscribeListener?.({ type: 'turn_end', message: { role: 'assistant' } })
     expect(events).toContainEqual({ sessionId: session.id, event: { type: 'turn_end', usage: undefined } })
+  })
+
+  it('emits a usage telemetry record when a model_usage event arrives, using the current model and configured telemetry settings', async () => {
+    appendUsageTelemetryRecordMock.mockClear()
+    const telemetryConfig = { enabled: true, outputPath: '/fake/usage.jsonl' }
+    // reposRepo itself is local to the outer beforeEach and not in scope
+    // here -- follow the same fake-inline-repo workaround the existing
+    // "builds the prompt text..." test above already uses.
+    const localHandlers = createSessionHandlers({
+      reposRepo: { getById: () => ({ id: repoId, projectId: 'p1', path: '/repo/path', name: 'demo-repo' }) } as never,
+      sessionsRepo,
+      openRepoSession: openRepoSessionMock,
+      onEvent: () => {},
+      requestApproval: async () => true,
+      findModel: findModelMock,
+      buildPromptText: async (text) => text,
+      getUsageTelemetryConfig: () => telemetryConfig
+    })
+    const session = localHandlers.createSession(repoId)
+    await localHandlers.openSession(session.id)
+    currentModel = { provider: 'anthropic', id: 'claude-opus-4-5', name: 'Claude Opus 4.5' } as never
+
+    subscribeListener?.({
+      type: 'message_end',
+      message: { role: 'assistant', usage: { input: 500, output: 42 } }
+    })
+
+    expect(appendUsageTelemetryRecordMock).toHaveBeenCalledWith(telemetryConfig, {
+      model: { provider: 'anthropic', id: 'claude-opus-4-5', name: 'Claude Opus 4.5' },
+      usage: { input: 500, output: 42 },
+      sessionId: 'pi-session-1'
+    })
+  })
+
+  it('does not emit a usage telemetry record when getUsageTelemetryConfig is not provided', async () => {
+    appendUsageTelemetryRecordMock.mockClear()
+    const session = handlers.createSession(repoId)
+    await handlers.openSession(session.id)
+    currentModel = { provider: 'anthropic', id: 'claude-opus-4-5', name: 'Claude Opus 4.5' } as never
+
+    subscribeListener?.({
+      type: 'message_end',
+      message: { role: 'assistant', usage: { input: 500, output: 42 } }
+    })
+
+    expect(appendUsageTelemetryRecordMock).not.toHaveBeenCalled()
   })
 
   it('reuses the same underlying repo session across two prompts to the same session', async () => {

@@ -116,7 +116,8 @@ app.whenReady().then(async () => {
       requestApproval: (sessionId, toolName, input) =>
         approvalHandlers.requestApproval(sessionId, toolName, input),
       findModel: (provider, modelId) => modelRegistry.find(provider, modelId),
-      buildPromptText
+      buildPromptText,
+      getUsageTelemetryConfig: () => appSettingsRepo.getUsageTelemetryConfig()
     }),
     settings: createSettingsHandlers(modelRuntime, appSettingsRepo),
     models: createModelsHandlers(modelRegistry),
