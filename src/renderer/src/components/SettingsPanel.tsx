@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { AuthStatus, DeviceCodeChallenge, ToolApprovalPolicy } from '../../../shared/types'
+import type { AuthStatus, CopilotQuota, DeviceCodeChallenge, ToolApprovalPolicy } from '../../../shared/types'
 import { KNOWN_TOOL_NAMES } from '../../../shared/types'
 import { useTheme, type ThemePreference } from '../hooks/useTheme'
 
@@ -21,6 +21,18 @@ const TOOL_LABELS: Record<(typeof KNOWN_TOOL_NAMES)[number], string> = {
   powershell: 'PowerShell',
   edit: 'Edit',
   write: 'Write'
+}
+
+const COPILOT_QUOTA_LABELS: Record<string, string> = {
+  chat: 'Chat',
+  completions: 'Code completions',
+  premium_interactions: 'Premium requests'
+}
+
+function formatQuotaResetDate(resetDate: string): string {
+  const date = new Date(resetDate)
+  if (Number.isNaN(date.getTime())) return 'unknown date'
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 type Section = 'general' | 'providers' | 'permissions'
@@ -56,6 +68,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
   const [loggingIn, setLoggingIn] = useState(false)
   const [policy, setPolicy] = useState<ToolApprovalPolicy | null>(null)
   const [theme, setTheme] = useTheme()
+  const [quota, setQuota] = useState<CopilotQuota | null>(null)
 
   async function refresh(): Promise<void> {
     setStatus(await window.api.settings.getAuthStatus())
@@ -67,6 +80,14 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
     const unsubscribe = window.api.settings.onCopilotChallenge(setChallenge)
     return unsubscribe
   }, [])
+
+  useEffect(() => {
+    if (section !== 'providers' || !status?.copilot) {
+      setQuota(null)
+      return
+    }
+    window.api.settings.getCopilotQuota().then(setQuota)
+  }, [section, status?.copilot])
 
   async function toggleAutoApprove(toolName: string): Promise<void> {
     if (!policy) return
@@ -189,6 +210,43 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
                     </span>
                   )}
                   {copilotError && <span className="settings-row-error">{copilotError}</span>}
+                  {quota && (
+                    <div className="copilot-quota">
+                      <span className="copilot-quota-subtitle">
+                        {quota.planName} plan · resets {formatQuotaResetDate(quota.resetDate)}
+                      </span>
+                      {quota.categories.map((category) => (
+                        <div key={category.id} className="copilot-quota-category">
+                          <span className="copilot-quota-category-label">
+                            {COPILOT_QUOTA_LABELS[category.id] ?? category.id}
+                          </span>
+                          {category.unlimited ? (
+                            <span className="copilot-quota-pill">Unlimited</span>
+                          ) : (
+                            <div className="copilot-quota-meter">
+                              <div className="copilot-quota-bar">
+                                <div
+                                  className="copilot-quota-bar-fill"
+                                  style={{
+                                    width: `${Math.max(0, Math.min(100, category.percentRemaining))}%`,
+                                    background:
+                                      category.percentRemaining < 20 ? 'var(--danger)' : 'var(--success)'
+                                  }}
+                                />
+                              </div>
+                              <span className="copilot-quota-meter-text">
+                                {category.remaining.toLocaleString()} / {category.entitlement.toLocaleString()}{' '}
+                                remaining ({Math.round(category.percentRemaining)}%)
+                                {category.overagePermitted && category.overageCount > 0
+                                  ? ` · ${category.overageCount.toLocaleString()} over quota`
+                                  : ''}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 {!status?.copilot && (
                   <div className="settings-row-control">
