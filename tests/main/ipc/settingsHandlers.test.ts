@@ -7,6 +7,14 @@ import {
 import type { AppSettingsRepository } from '../../../src/main/db/appSettingsRepository'
 import type { UsageTelemetryConfig } from '../../../src/shared/types'
 
+const { probeUsageTelemetryPathMock } = vi.hoisted(() => ({
+  probeUsageTelemetryPathMock: vi.fn(async () => ({ ok: true as const }))
+}))
+
+vi.mock('../../../src/main/agent/usageTelemetry', () => ({
+  probeUsageTelemetryPath: probeUsageTelemetryPathMock
+}))
+
 describe('settingsHandlers', () => {
   let modelRuntime: ModelRuntimeLike
   let handlers: SettingsHandlers
@@ -22,6 +30,8 @@ describe('settingsHandlers', () => {
       login: vi.fn(async () => ({ type: 'oauth', refresh: '', access: '', expires: 0 }) as never)
     }
     storedTelemetryConfig = { enabled: false, outputPath: '' }
+    probeUsageTelemetryPathMock.mockReset()
+    probeUsageTelemetryPathMock.mockResolvedValue({ ok: true })
     appSettingsRepo = {
       getToolApprovalPolicy: () => ({ autoApprove: {} }),
       setToolApprovalPolicy: () => {},
@@ -122,7 +132,17 @@ describe('settingsHandlers', () => {
   })
 
   it('persists a new usage telemetry config via the repository', async () => {
-    await handlers.setUsageTelemetryConfig({ enabled: true, outputPath: '/new/path.jsonl' })
+    const result = await handlers.setUsageTelemetryConfig({ enabled: true, outputPath: '/new/path.jsonl' })
     expect(storedTelemetryConfig).toEqual({ enabled: true, outputPath: '/new/path.jsonl' })
+    expect(result).toEqual({ ok: true })
+  })
+
+  it('still persists the config but returns the probe error when the path is not writable', async () => {
+    probeUsageTelemetryPathMock.mockResolvedValueOnce({ ok: false, error: 'ENOENT: no such file or directory' })
+
+    const result = await handlers.setUsageTelemetryConfig({ enabled: true, outputPath: '/bad/path.jsonl' })
+
+    expect(result).toEqual({ ok: false, error: 'ENOENT: no such file or directory' })
+    expect(storedTelemetryConfig).toEqual({ enabled: true, outputPath: '/bad/path.jsonl' })
   })
 })

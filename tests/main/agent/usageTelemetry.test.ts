@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { appendUsageTelemetryRecord } from '../../../src/main/agent/usageTelemetry'
+import { appendUsageTelemetryRecord, probeUsageTelemetryPath } from '../../../src/main/agent/usageTelemetry'
 
 describe('appendUsageTelemetryRecord', () => {
   let dir: string
@@ -60,6 +60,11 @@ describe('appendUsageTelemetryRecord', () => {
 
     expect(Array.isArray(record.hrTime)).toBe(true)
     expect(record.hrTime).toHaveLength(2)
+    expect(record.hrTime[0]).toBeGreaterThan(1_700_000_000)
+    expect(record.hrTime[0]).toBeLessThan(Date.now() / 1000 + 5)
+    expect(record.hrTime[1]).toBeLessThan(1_000_000_000)
+    expect(record.attributes['event.name']).toBe('gen_ai.client.inference.operation.details')
+    expect(record.attributes['gen_ai.operation.name']).toBe('chat')
     expect(record.resource._rawAttributes).toContainEqual(['service.name', 'passcode-desktop'])
     const rawAttrs = Object.fromEntries(record.resource._rawAttributes)
     expect(rawAttrs['session.id']).toBe('session-abc')
@@ -139,5 +144,44 @@ describe('appendUsageTelemetryRecord', () => {
     await flush()
     expect(consoleWarn).toHaveBeenCalled()
     consoleWarn.mockRestore()
+  })
+})
+
+describe('probeUsageTelemetryPath', () => {
+  let dir: string
+  let outputPath: string
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'usage-telemetry-probe-test-'))
+    outputPath = join(dir, 'probe.jsonl')
+  })
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('returns ok without touching the filesystem when disabled', async () => {
+    const result = await probeUsageTelemetryPath({ enabled: false, outputPath: '' })
+    expect(result).toEqual({ ok: true })
+    expect(() => readFileSync(outputPath, 'utf-8')).toThrow()
+  })
+
+  it('returns an error when enabled with no output path', async () => {
+    const result = await probeUsageTelemetryPath({ enabled: true, outputPath: '' })
+    expect(result.ok).toBe(false)
+  })
+
+  it('returns ok and does not write any content for a valid, writable path', async () => {
+    const result = await probeUsageTelemetryPath({ enabled: true, outputPath })
+    expect(result).toEqual({ ok: true })
+    expect(readFileSync(outputPath, 'utf-8')).toBe('')
+  })
+
+  it('returns an error for a path whose parent directory does not exist', async () => {
+    const result = await probeUsageTelemetryPath({
+      enabled: true,
+      outputPath: join(dir, 'does', 'not', 'exist', 'usage.jsonl')
+    })
+    expect(result.ok).toBe(false)
   })
 })

@@ -1,4 +1,4 @@
-import { appendFile } from 'node:fs/promises'
+import { appendFile, open } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import { userInfo } from 'node:os'
 import type { TokenUsage, UsageTelemetryConfig } from '../../shared/types'
@@ -25,6 +25,27 @@ function resolveIdentity(): { userName: string; teamId?: string } {
   return { userName, teamId: attrs['team.id'] }
 }
 
+/** Validates that a usage-telemetry config's output path is actually
+ * writable, without leaving any content behind -- opens the file in
+ * append mode (creating it if it doesn't exist, exactly like a real
+ * write would) and immediately closes it. Used when the user saves the
+ * setting in the UI, so a typo'd path or a missing directory surfaces
+ * as an immediate, specific error instead of silently persisting a
+ * config that will never actually write anything. */
+export async function probeUsageTelemetryPath(
+  config: UsageTelemetryConfig
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!config.enabled) return { ok: true }
+  if (!config.outputPath) return { ok: false, error: 'Enter a file path to enable usage telemetry.' }
+  try {
+    const handle = await open(config.outputPath, 'a')
+    await handle.close()
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, error: (err as Error).message }
+  }
+}
+
 /** Appends one OpenTelemetry-shaped log record for a single real LLM
  * inference call, matching the exact JSON shape VS Code's Copilot Chat
  * extension already writes to its own OTel export file -- so an existing
@@ -39,36 +60,40 @@ export function appendUsageTelemetryRecord(
 ): void {
   if (!config.enabled || !config.outputPath) return
 
-  const now = Date.now()
-  const hrTime: [number, number] = [Math.floor(now / 1000), (now % 1000) * 1_000_000]
-  const { userName, teamId } = resolveIdentity()
+  try {
+    const now = Date.now()
+    const hrTime: [number, number] = [Math.floor(now / 1000), (now % 1000) * 1_000_000]
+    const { userName, teamId } = resolveIdentity()
 
-  const rawAttributes: [string, string][] = [
-    ['service.name', 'passcode-desktop'],
-    ['service.version', APP_VERSION],
-    ['session.id', params.sessionId],
-    ['user.name', userName]
-  ]
-  if (teamId) rawAttributes.push(['team.id', teamId])
+    const rawAttributes: [string, string][] = [
+      ['service.name', 'passcode-desktop'],
+      ['service.version', APP_VERSION],
+      ['session.id', params.sessionId],
+      ['user.name', userName]
+    ]
+    if (teamId) rawAttributes.push(['team.id', teamId])
 
-  const record = {
-    hrTime,
-    hrTimeObserved: hrTime,
-    resource: { _rawAttributes: rawAttributes },
-    instrumentationScope: { name: 'passcode-desktop', version: APP_VERSION },
-    attributes: {
-      'event.name': 'gen_ai.client.inference.operation.details',
-      'gen_ai.operation.name': 'chat',
-      'gen_ai.request.model': params.model.id,
-      'gen_ai.response.model': params.model.id,
-      'gen_ai.response.id': randomUUID(),
-      'gen_ai.usage.input_tokens': params.usage.input,
-      'gen_ai.usage.output_tokens': params.usage.output
-    },
-    _body: `GenAI inference: ${params.model.id}`
+    const record = {
+      hrTime,
+      hrTimeObserved: hrTime,
+      resource: { _rawAttributes: rawAttributes },
+      instrumentationScope: { name: 'passcode-desktop', version: APP_VERSION },
+      attributes: {
+        'event.name': 'gen_ai.client.inference.operation.details',
+        'gen_ai.operation.name': 'chat',
+        'gen_ai.request.model': params.model.id,
+        'gen_ai.response.model': params.model.id,
+        'gen_ai.response.id': randomUUID(),
+        'gen_ai.usage.input_tokens': params.usage.input,
+        'gen_ai.usage.output_tokens': params.usage.output
+      },
+      _body: `GenAI inference: ${params.model.id}`
+    }
+
+    void appendFile(config.outputPath, JSON.stringify(record) + '\n', 'utf-8').catch((err) => {
+      console.warn('[usageTelemetry] failed to write usage record:', err)
+    })
+  } catch (err) {
+    console.warn('[usageTelemetry] failed to build usage record:', err)
   }
-
-  void appendFile(config.outputPath, JSON.stringify(record) + '\n', 'utf-8').catch((err) => {
-    console.warn('[usageTelemetry] failed to write usage record:', err)
-  })
 }

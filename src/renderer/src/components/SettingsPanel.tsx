@@ -77,6 +77,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
   const [quota, setQuota] = useState<CopilotQuota | null>(null)
   const [telemetryConfig, setTelemetryConfig] = useState<UsageTelemetryConfig | null>(null)
   const [telemetryPathDraft, setTelemetryPathDraft] = useState('')
+  const [telemetryError, setTelemetryError] = useState<string | null>(null)
 
   async function refresh(): Promise<void> {
     setStatus(await window.api.settings.getAuthStatus())
@@ -125,14 +126,16 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
     if (!telemetryConfig) return
     const next = { ...telemetryConfig, enabled: !telemetryConfig.enabled }
     setTelemetryConfig(next)
-    await window.api.settings.setUsageTelemetryConfig(next)
+    const result = await window.api.settings.setUsageTelemetryConfig(next)
+    setTelemetryError(result.ok ? null : result.error)
   }
 
   async function saveTelemetryPath(): Promise<void> {
     if (!telemetryConfig) return
     const next = { ...telemetryConfig, outputPath: telemetryPathDraft }
     setTelemetryConfig(next)
-    await window.api.settings.setUsageTelemetryConfig(next)
+    const result = await window.api.settings.setUsageTelemetryConfig(next)
+    setTelemetryError(result.ok ? null : result.error)
   }
 
   async function handleSaveKey(): Promise<void> {
@@ -219,6 +222,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
                   <div className="settings-row-text">
                     <span className="settings-row-title">Output File</span>
                     <span className="settings-row-desc">Path to append OTel log records to (JSONL, one record per line)</span>
+                    {telemetryError && <span className="settings-row-error">{telemetryError}</span>}
                   </div>
                   <div className="settings-row-control settings-key-control">
                     <input
@@ -226,6 +230,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
                       type="text"
                       value={telemetryPathDraft}
                       onChange={(e) => setTelemetryPathDraft(e.target.value)}
+                      onBlur={saveTelemetryPath}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') saveTelemetryPath()
                       }}

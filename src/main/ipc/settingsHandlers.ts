@@ -1,5 +1,6 @@
 import type { AuthCheck, AuthInteraction, AuthType, Credential } from '@earendil-works/pi-ai'
 import { fetchCopilotQuota } from '../agent/copilotQuota'
+import { probeUsageTelemetryPath } from '../agent/usageTelemetry'
 import type { AppSettingsRepository } from '../db/appSettingsRepository'
 import type { AuthStatus, CopilotQuota, DeviceCodeChallenge, UsageTelemetryConfig } from '../../shared/types'
 
@@ -17,7 +18,7 @@ export interface SettingsHandlers {
   ): Promise<{ ok: true } | { ok: false; error: string }>
   getCopilotQuota(): Promise<CopilotQuota | null>
   getUsageTelemetryConfig(): Promise<UsageTelemetryConfig>
-  setUsageTelemetryConfig(config: UsageTelemetryConfig): Promise<void>
+  setUsageTelemetryConfig(config: UsageTelemetryConfig): Promise<{ ok: true } | { ok: false; error: string }>
 }
 
 export function createSettingsHandlers(
@@ -71,7 +72,12 @@ export function createSettingsHandlers(
       return appSettingsRepo.getUsageTelemetryConfig()
     },
     async setUsageTelemetryConfig(config: UsageTelemetryConfig) {
+      // Persist regardless of probe outcome -- a bad path shouldn't lose
+      // the user's toggle/path input, it should just surface an error so
+      // they can fix it without re-entering everything.
+      const probeResult = await probeUsageTelemetryPath(config)
       appSettingsRepo.setUsageTelemetryConfig(config)
+      return probeResult
     }
   }
 }
