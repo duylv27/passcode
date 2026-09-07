@@ -43,6 +43,22 @@ export interface AuthStatus {
   copilot: boolean
 }
 
+export interface CopilotQuotaCategory {
+  id: string
+  unlimited: boolean
+  remaining: number
+  entitlement: number
+  percentRemaining: number
+  overageCount: number
+  overagePermitted: boolean
+}
+
+export interface CopilotQuota {
+  planName: string
+  resetDate: string
+  categories: CopilotQuotaCategory[]
+}
+
 export interface DeviceCodeChallenge {
   userCode: string
   verificationUri: string
