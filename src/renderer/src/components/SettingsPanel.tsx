@@ -1,5 +1,11 @@
 import { useEffect, useState } from 'react'
-import type { AuthStatus, CopilotQuota, DeviceCodeChallenge, ToolApprovalPolicy } from '../../../shared/types'
+import type {
+  AuthStatus,
+  CopilotQuota,
+  DeviceCodeChallenge,
+  ToolApprovalPolicy,
+  UsageTelemetryConfig
+} from '../../../shared/types'
 import { KNOWN_TOOL_NAMES } from '../../../shared/types'
 import { useTheme, type ThemePreference } from '../hooks/useTheme'
 
@@ -69,6 +75,8 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
   const [policy, setPolicy] = useState<ToolApprovalPolicy | null>(null)
   const [theme, setTheme] = useTheme()
   const [quota, setQuota] = useState<CopilotQuota | null>(null)
+  const [telemetryConfig, setTelemetryConfig] = useState<UsageTelemetryConfig | null>(null)
+  const [telemetryPathDraft, setTelemetryPathDraft] = useState('')
 
   async function refresh(): Promise<void> {
     setStatus(await window.api.settings.getAuthStatus())
@@ -77,6 +85,10 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
   useEffect(() => {
     refresh()
     window.api.approvals.getPolicy().then(setPolicy)
+    window.api.settings.getUsageTelemetryConfig().then((config) => {
+      setTelemetryConfig(config)
+      setTelemetryPathDraft(config.outputPath)
+    })
     const unsubscribe = window.api.settings.onCopilotChallenge(setChallenge)
     return unsubscribe
   }, [])
@@ -107,6 +119,20 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
     }
     setPolicy(next)
     await window.api.approvals.setPolicy(next)
+  }
+
+  async function toggleUsageTelemetry(): Promise<void> {
+    if (!telemetryConfig) return
+    const next = { ...telemetryConfig, enabled: !telemetryConfig.enabled }
+    setTelemetryConfig(next)
+    await window.api.settings.setUsageTelemetryConfig(next)
+  }
+
+  async function saveTelemetryPath(): Promise<void> {
+    if (!telemetryConfig) return
+    const next = { ...telemetryConfig, outputPath: telemetryPathDraft }
+    setTelemetryConfig(next)
+    await window.api.settings.setUsageTelemetryConfig(next)
   }
 
   async function handleSaveKey(): Promise<void> {
@@ -177,6 +203,40 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
                   </button>
                 ))}
               </div>
+              <div className="settings-row">
+                <div className="settings-row-text">
+                  <span className="settings-row-title">Usage Telemetry</span>
+                  <span className="settings-row-desc">
+                    Export token usage as OpenTelemetry log records for external aggregation
+                  </span>
+                </div>
+                <div className="settings-row-control">
+                  <Switch checked={!!telemetryConfig?.enabled} onChange={toggleUsageTelemetry} />
+                </div>
+              </div>
+              {telemetryConfig?.enabled && (
+                <div className="settings-row">
+                  <div className="settings-row-text">
+                    <span className="settings-row-title">Output File</span>
+                    <span className="settings-row-desc">Path to append OTel log records to (JSONL, one record per line)</span>
+                  </div>
+                  <div className="settings-row-control settings-key-control">
+                    <input
+                      className="settings-input"
+                      type="text"
+                      value={telemetryPathDraft}
+                      onChange={(e) => setTelemetryPathDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') saveTelemetryPath()
+                      }}
+                      placeholder="C:\Code\.telemetry\copilot-working.jsonl"
+                    />
+                    <button className="settings-btn" onClick={saveTelemetryPath}>
+                      Save
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
