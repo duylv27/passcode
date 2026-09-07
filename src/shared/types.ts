@@ -215,6 +215,7 @@ export interface Api {
     getAuthStatus(): Promise<AuthStatus>
     loginCopilot(): Promise<{ ok: true } | { ok: false; error: string }>
     onCopilotChallenge(listener: (challenge: DeviceCodeChallenge) => void): () => void
+    getCopilotQuota(): Promise<CopilotQuota | null>
   }
   approvals: {
     getPolicy(): Promise<ToolApprovalPolicy>

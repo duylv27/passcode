@@ -76,6 +76,7 @@ export function registerIpcHandlers(handlers: IpcHandlers): void {
   ipcMain.handle('settings:loginCopilot', (event) =>
     handlers.settings.loginCopilot((challenge) => event.sender.send('settings:copilotChallenge', challenge))
   )
+  ipcMain.handle('settings:getCopilotQuota', () => handlers.settings.getCopilotQuota())
 
   ipcMain.handle('approvals:getPolicy', () => handlers.approvals.getPolicy())
   ipcMain.handle('approvals:setPolicy', (_e, policy: ToolApprovalPolicy) =>

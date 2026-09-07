@@ -1,5 +1,6 @@
 import type { AuthCheck, AuthInteraction, AuthType, Credential } from '@earendil-works/pi-ai'
-import type { AuthStatus, DeviceCodeChallenge } from '../../shared/types'
+import { fetchCopilotQuota } from '../agent/copilotQuota'
+import type { AuthStatus, CopilotQuota, DeviceCodeChallenge } from '../../shared/types'
 
 export interface ModelRuntimeLike {
   setRuntimeApiKey(providerId: string, apiKey: string): Promise<void>
@@ -13,6 +14,7 @@ export interface SettingsHandlers {
   loginCopilot(
     onChallenge: (challenge: DeviceCodeChallenge) => void
   ): Promise<{ ok: true } | { ok: false; error: string }>
+  getCopilotQuota(): Promise<CopilotQuota | null>
 }
 
 export function createSettingsHandlers(modelRuntime: ModelRuntimeLike): SettingsHandlers {
@@ -55,6 +57,9 @@ export function createSettingsHandlers(modelRuntime: ModelRuntimeLike): Settings
       } catch (err) {
         return { ok: false, error: (err as Error).message }
       }
+    },
+    async getCopilotQuota() {
+      return fetchCopilotQuota()
     }
   }
 }

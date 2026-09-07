@@ -53,7 +53,8 @@ const api: Api = {
       const wrapped = (_e: unknown, challenge: DeviceCodeChallenge): void => listener(challenge)
       ipcRenderer.on('settings:copilotChallenge', wrapped)
       return () => ipcRenderer.removeListener('settings:copilotChallenge', wrapped)
-    }
+    },
+    getCopilotQuota: () => ipcRenderer.invoke('settings:getCopilotQuota')
   },
   approvals: {
     getPolicy: () => ipcRenderer.invoke('approvals:getPolicy'),
