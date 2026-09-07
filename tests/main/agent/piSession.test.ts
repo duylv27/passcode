@@ -67,7 +67,23 @@ describe('createRepoSession', () => {
     )
 
     await repoSession.prompt('hello')
-    expect(promptMock).toHaveBeenCalledWith('hello')
+    expect(promptMock).toHaveBeenCalledWith('hello', { streamingBehavior: 'steer' })
+  })
+
+  it('forwards images to the underlying session alongside the steer behavior', async () => {
+    const { repoSession } = await createRepoSession({
+      cwd: '/repo/path',
+      modelRuntime: {} as never,
+      requestApproval: noApproval
+    })
+    const images = [{ type: 'image' as const, data: 'aGVsbG8=', mimeType: 'image/png' }]
+
+    await repoSession.prompt('what is in this screenshot?', images)
+
+    expect(promptMock).toHaveBeenCalledWith('what is in this screenshot?', {
+      images,
+      streamingBehavior: 'steer'
+    })
   })
 
   it('forwards subscribe and abort to the underlying session', async () => {
@@ -197,6 +213,44 @@ describe('createRepoSession', () => {
       },
       { kind: 'text', text: 'Tests pass.' }
     ])
+  })
+
+  it('reconstructs a pasted image alongside user text', async () => {
+    mockMessages = [
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: 'what is in this screenshot?' },
+          { type: 'image', data: 'aGVsbG8=', mimeType: 'image/png' }
+        ]
+      }
+    ]
+
+    const { repoSession } = await createRepoSession({
+      cwd: '/repo/path',
+      modelRuntime: {} as never,
+      requestApproval: noApproval
+    })
+
+    expect(repoSession.getHistory()).toEqual([
+      {
+        kind: 'user',
+        text: 'what is in this screenshot?',
+        images: [{ data: 'aGVsbG8=', mimeType: 'image/png' }]
+      }
+    ])
+  })
+
+  it('omits the images field for a plain-text user turn', async () => {
+    mockMessages = [{ role: 'user', content: 'add a health check' }]
+
+    const { repoSession } = await createRepoSession({
+      cwd: '/repo/path',
+      modelRuntime: {} as never,
+      requestApproval: noApproval
+    })
+
+    expect(repoSession.getHistory()).toEqual([{ kind: 'user', text: 'add a health check' }])
   })
 
   it('shows only the label for a user turn that injected skill/attachment context, not the full injected text', async () => {

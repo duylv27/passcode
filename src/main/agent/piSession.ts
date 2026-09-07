@@ -1,11 +1,11 @@
 import type { AgentSessionEvent, ModelRuntime } from '@earendil-works/pi-coding-agent'
-import type { Model } from '@earendil-works/pi-ai'
+import type { ImageContent, Model } from '@earendil-works/pi-ai'
 import type { HistoryItem, TokenUsage } from '../../shared/types'
 import { getAdditionalSkillPaths } from './skills'
 import { PROMPT_CONTEXT_DELIMITER } from './promptBuilder'
 
 export interface RepoSession {
-  prompt(text: string): Promise<void>
+  prompt(text: string, images?: ImageContent[]): Promise<void>
   subscribe(listener: (event: AgentSessionEvent) => void): () => void
   abort(): Promise<void>
   /** The conversation loaded so far -- empty for a brand-new session, populated when resumed. */
@@ -70,7 +70,8 @@ export async function createRepoSession(
       // requiring the caller to wait or queue -- streamingBehavior is only
       // consulted when a turn is actually in flight, so this is a no-op
       // otherwise and safe to always pass.
-      prompt: (text: string) => session.prompt(text, { streamingBehavior: 'steer' }),
+      prompt: (text: string, images?: ImageContent[]) =>
+        session.prompt(text, { images, streamingBehavior: 'steer' }),
       subscribe: (listener) => session.subscribe(listener),
       abort: () => session.abort(),
       getHistory: () => buildHistory(session.agent.state.messages),
@@ -97,7 +98,8 @@ function buildHistory(messages: readonly unknown[]): HistoryItem[] {
       // (a skill's instructions, an attached file's content) -- the
       // transcript only ever shows the short label ahead of it.
       const text = extractText(message.content).split(PROMPT_CONTEXT_DELIMITER)[0]
-      if (text) items.push({ kind: 'user', text })
+      const images = extractImages(message.content)
+      if (text) items.push({ kind: 'user', text, ...(images.length > 0 ? { images } : {}) })
     } else if (message.role === 'assistant') {
       const parts = Array.isArray(message.content) ? message.content : []
       for (const raw2 of parts) {
@@ -147,4 +149,14 @@ function extractText(content: unknown): string {
       .join('')
   }
   return ''
+}
+
+function extractImages(content: unknown): { data: string; mimeType: string }[] {
+  if (!Array.isArray(content)) return []
+  return content
+    .filter(
+      (part): part is { type: string; data: string; mimeType: string } =>
+        (part as { type?: string })?.type === 'image'
+    )
+    .map((part) => ({ data: part.data, mimeType: part.mimeType }))
 }
