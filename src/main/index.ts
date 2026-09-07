@@ -118,7 +118,7 @@ app.whenReady().then(async () => {
       findModel: (provider, modelId) => modelRegistry.find(provider, modelId),
       buildPromptText
     }),
-    settings: createSettingsHandlers(modelRuntime),
+    settings: createSettingsHandlers(modelRuntime, appSettingsRepo),
     models: createModelsHandlers(modelRegistry),
     skills: createSkillsHandlers(reposRepo),
     files: createFilesHandlers({

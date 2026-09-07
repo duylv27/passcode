@@ -221,6 +221,8 @@ export interface Api {
     loginCopilot(): Promise<{ ok: true } | { ok: false; error: string }>
     onCopilotChallenge(listener: (challenge: DeviceCodeChallenge) => void): () => void
     getCopilotQuota(): Promise<CopilotQuota | null>
+    getUsageTelemetryConfig(): Promise<UsageTelemetryConfig>
+    setUsageTelemetryConfig(config: UsageTelemetryConfig): Promise<void>
   }
   approvals: {
     getPolicy(): Promise<ToolApprovalPolicy>

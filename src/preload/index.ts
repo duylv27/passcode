@@ -54,7 +54,9 @@ const api: Api = {
       ipcRenderer.on('settings:copilotChallenge', wrapped)
       return () => ipcRenderer.removeListener('settings:copilotChallenge', wrapped)
     },
-    getCopilotQuota: () => ipcRenderer.invoke('settings:getCopilotQuota')
+    getCopilotQuota: () => ipcRenderer.invoke('settings:getCopilotQuota'),
+    getUsageTelemetryConfig: () => ipcRenderer.invoke('settings:getUsageTelemetryConfig'),
+    setUsageTelemetryConfig: (config) => ipcRenderer.invoke('settings:setUsageTelemetryConfig', config)
   },
   approvals: {
     getPolicy: () => ipcRenderer.invoke('approvals:getPolicy'),

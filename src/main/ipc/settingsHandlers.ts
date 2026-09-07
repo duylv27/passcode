@@ -1,6 +1,7 @@
 import type { AuthCheck, AuthInteraction, AuthType, Credential } from '@earendil-works/pi-ai'
 import { fetchCopilotQuota } from '../agent/copilotQuota'
-import type { AuthStatus, CopilotQuota, DeviceCodeChallenge } from '../../shared/types'
+import type { AppSettingsRepository } from '../db/appSettingsRepository'
+import type { AuthStatus, CopilotQuota, DeviceCodeChallenge, UsageTelemetryConfig } from '../../shared/types'
 
 export interface ModelRuntimeLike {
   setRuntimeApiKey(providerId: string, apiKey: string): Promise<void>
@@ -15,9 +16,14 @@ export interface SettingsHandlers {
     onChallenge: (challenge: DeviceCodeChallenge) => void
   ): Promise<{ ok: true } | { ok: false; error: string }>
   getCopilotQuota(): Promise<CopilotQuota | null>
+  getUsageTelemetryConfig(): Promise<UsageTelemetryConfig>
+  setUsageTelemetryConfig(config: UsageTelemetryConfig): Promise<void>
 }
 
-export function createSettingsHandlers(modelRuntime: ModelRuntimeLike): SettingsHandlers {
+export function createSettingsHandlers(
+  modelRuntime: ModelRuntimeLike,
+  appSettingsRepo: AppSettingsRepository
+): SettingsHandlers {
   return {
     async setAnthropicApiKey(apiKey: string) {
       if (!apiKey.trim()) return { ok: false, error: 'API key must not be empty' }
@@ -60,6 +66,12 @@ export function createSettingsHandlers(modelRuntime: ModelRuntimeLike): Settings
     },
     async getCopilotQuota() {
       return fetchCopilotQuota()
+    },
+    async getUsageTelemetryConfig() {
+      return appSettingsRepo.getUsageTelemetryConfig()
+    },
+    async setUsageTelemetryConfig(config: UsageTelemetryConfig) {
+      appSettingsRepo.setUsageTelemetryConfig(config)
     }
   }
 }

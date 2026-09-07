@@ -4,10 +4,14 @@ import {
   type ModelRuntimeLike,
   type SettingsHandlers
 } from '../../../src/main/ipc/settingsHandlers'
+import type { AppSettingsRepository } from '../../../src/main/db/appSettingsRepository'
+import type { UsageTelemetryConfig } from '../../../src/shared/types'
 
 describe('settingsHandlers', () => {
   let modelRuntime: ModelRuntimeLike
   let handlers: SettingsHandlers
+  let appSettingsRepo: AppSettingsRepository
+  let storedTelemetryConfig: UsageTelemetryConfig
 
   beforeEach(() => {
     modelRuntime = {
@@ -17,7 +21,16 @@ describe('settingsHandlers', () => {
       ),
       login: vi.fn(async () => ({ type: 'oauth', refresh: '', access: '', expires: 0 }) as never)
     }
-    handlers = createSettingsHandlers(modelRuntime)
+    storedTelemetryConfig = { enabled: false, outputPath: '' }
+    appSettingsRepo = {
+      getToolApprovalPolicy: () => ({ autoApprove: {} }),
+      setToolApprovalPolicy: () => {},
+      getUsageTelemetryConfig: () => storedTelemetryConfig,
+      setUsageTelemetryConfig: (config) => {
+        storedTelemetryConfig = config
+      }
+    }
+    handlers = createSettingsHandlers(modelRuntime, appSettingsRepo)
   })
 
   it('sets a valid Anthropic API key', async () => {
@@ -101,5 +114,15 @@ describe('settingsHandlers', () => {
       ok: false,
       error: 'Interactive login prompt of type "secret" is not supported yet'
     })
+  })
+
+  it('returns the current usage telemetry config from the repository', async () => {
+    storedTelemetryConfig = { enabled: true, outputPath: '/some/path.jsonl' }
+    expect(await handlers.getUsageTelemetryConfig()).toEqual({ enabled: true, outputPath: '/some/path.jsonl' })
+  })
+
+  it('persists a new usage telemetry config via the repository', async () => {
+    await handlers.setUsageTelemetryConfig({ enabled: true, outputPath: '/new/path.jsonl' })
+    expect(storedTelemetryConfig).toEqual({ enabled: true, outputPath: '/new/path.jsonl' })
   })
 })

@@ -9,7 +9,7 @@ import type { SkillsHandlers } from './skillsHandlers'
 import type { FilesHandlers } from './filesHandlers'
 import type { WindowHandlers } from './windowHandlers'
 import type { SessionPreviewHandlers } from './sessionPreviewHandlers'
-import type { PromptOptions, ToolApprovalPolicy } from '../../shared/types'
+import type { PromptOptions, ToolApprovalPolicy, UsageTelemetryConfig } from '../../shared/types'
 
 export interface IpcHandlers {
   projects: ProjectsHandlers
@@ -77,6 +77,10 @@ export function registerIpcHandlers(handlers: IpcHandlers): void {
     handlers.settings.loginCopilot((challenge) => event.sender.send('settings:copilotChallenge', challenge))
   )
   ipcMain.handle('settings:getCopilotQuota', () => handlers.settings.getCopilotQuota())
+  ipcMain.handle('settings:getUsageTelemetryConfig', () => handlers.settings.getUsageTelemetryConfig())
+  ipcMain.handle('settings:setUsageTelemetryConfig', (_e, config: UsageTelemetryConfig) =>
+    handlers.settings.setUsageTelemetryConfig(config)
+  )
 
   ipcMain.handle('approvals:getPolicy', () => handlers.approvals.getPolicy())
   ipcMain.handle('approvals:setPolicy', (_e, policy: ToolApprovalPolicy) =>
