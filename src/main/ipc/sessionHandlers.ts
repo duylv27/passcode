@@ -326,17 +326,22 @@ function mapAgentEvent(event: unknown): ChatEvent | ChatEvent[] | null {
     isError?: boolean
     message?: { role?: string; usage?: { input: number; output: number } }
     errorMessage?: string
+    reason?: 'manual' | 'threshold' | 'overflow'
   }
   if (e.type === 'compaction_start') {
     return { type: 'compaction_status', status: 'start' }
   }
   if (e.type === 'compaction_end') {
     // Manual compaction failures already surface via compactSession's own
-    // catch (the awaited compact() call rejects), but auto-compaction runs
-    // entirely inside the SDK with nothing in our code awaiting it -- its
-    // only signal out is this event, so a failure here must be forwarded as
-    // a real error or it's silently swallowed while the badge stays full.
-    if (e.errorMessage) {
+    // catch (the awaited compact() call rejects, since it's the same error
+    // the SDK both reports here and rethrows out of compact() -- see
+    // AgentSession.compact()). Auto-compaction (reason 'threshold' or
+    // 'overflow') runs entirely inside the SDK with nothing in our code
+    // awaiting it, so this event is its only signal out; a failure there
+    // must be forwarded as a real error here or it's silently swallowed
+    // while the badge stays full. Checking the reason keeps a manual
+    // failure from producing two error bubbles for the same failure.
+    if (e.errorMessage && e.reason !== 'manual') {
       return [
         { type: 'error', message: e.errorMessage },
         { type: 'compaction_status', status: 'end' }

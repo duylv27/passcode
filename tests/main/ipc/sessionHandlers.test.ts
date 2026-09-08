@@ -698,6 +698,38 @@ describe('sessionHandlers', () => {
     })
   })
 
+  it('does not forward an extra error event when a manual compaction_end carries an errorMessage', async () => {
+    const session = handlers.createSession(repoId)
+    await handlers.openSession(session.id)
+    events.length = 0
+
+    subscribeListener?.({ type: 'compaction_start', reason: 'manual' })
+    subscribeListener?.({
+      type: 'compaction_end',
+      reason: 'manual',
+      result: undefined,
+      aborted: false,
+      willRetry: false,
+      errorMessage: 'summarization failed'
+    })
+
+    // A manual "Compact now" failure is already surfaced once by
+    // compactSession's own catch around the awaited compact() call (the SDK
+    // both emits this errorMessage on compaction_end AND rethrows the same
+    // error out of compact()). If mapAgentEvent also forwarded an error here,
+    // the user would see two error bubbles for one failure -- so at the
+    // subscribe/mapAgentEvent level a manual compaction_end must forward only
+    // the terminal compaction_status, no error.
+    expect(events).not.toContainEqual({
+      sessionId: session.id,
+      event: { type: 'error', message: 'summarization failed' }
+    })
+    expect(events).toContainEqual({
+      sessionId: session.id,
+      event: { type: 'compaction_status', status: 'end' }
+    })
+  })
+
   it('does not re-emit context_usage after compaction_start, only after compaction_end', async () => {
     contextUsage = { tokens: 100, contextWindow: 200000, percent: 0.05 }
     const session = handlers.createSession(repoId)
