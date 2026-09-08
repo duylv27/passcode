@@ -95,32 +95,40 @@ export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionH
     repoSession.subscribe((event) => {
       const mapped = mapAgentEvent(event)
       if (!mapped) return
-      if (mapped.type === 'model_usage') {
-        pendingActionUsage = mapped.usage
-        if (deps.getUsageTelemetryConfig) {
-          const model = repoSession.getModel()
-          if (model) {
-            appendUsageTelemetryRecord(deps.getUsageTelemetryConfig(), {
-              model: { provider: model.provider, id: model.id, name: model.name },
-              usage: mapped.usage,
-              sessionId: piSessionId
-            })
+      // mapAgentEvent normally maps one SDK event to one ChatEvent, but a
+      // failed compaction (compaction_end with errorMessage) needs to
+      // surface both the terminal compaction_status (so the renderer clears
+      // its "Compacting..." state) and a distinct error event -- so it may
+      // return several ChatEvents for a single SDK event.
+      const mappedEvents = Array.isArray(mapped) ? mapped : [mapped]
+      for (const item of mappedEvents) {
+        if (item.type === 'model_usage') {
+          pendingActionUsage = item.usage
+          if (deps.getUsageTelemetryConfig) {
+            const model = repoSession.getModel()
+            if (model) {
+              appendUsageTelemetryRecord(deps.getUsageTelemetryConfig(), {
+                model: { provider: model.provider, id: model.id, name: model.name },
+                usage: item.usage,
+                sessionId: piSessionId
+              })
+            }
           }
+          continue
         }
-        return
-      }
-      if (mapped.type === 'tool_start') {
-        deps.onEvent(sessionId, { ...mapped, usage: pendingActionUsage })
-        return
-      }
-      if (mapped.type === 'turn_end') pendingActionUsage = undefined
-      deps.onEvent(sessionId, mapped)
-      // Context usage only actually changes at these two moments -- a real
-      // response completing, or a compaction finishing -- so re-checking
-      // here keeps the composer's badge live with no polling.
-      if (mapped.type === 'turn_end' || (mapped.type === 'compaction_status' && mapped.status === 'end')) {
-        const usage = repoSession.getContextUsage()
-        if (usage) deps.onEvent(sessionId, { type: 'context_usage', usage })
+        if (item.type === 'tool_start') {
+          deps.onEvent(sessionId, { ...item, usage: pendingActionUsage })
+          continue
+        }
+        if (item.type === 'turn_end') pendingActionUsage = undefined
+        deps.onEvent(sessionId, item)
+        // Context usage only actually changes at these two moments -- a real
+        // response completing, or a compaction finishing -- so re-checking
+        // here keeps the composer's badge live with no polling.
+        if (item.type === 'turn_end' || (item.type === 'compaction_status' && item.status === 'end')) {
+          const usage = repoSession.getContextUsage()
+          if (usage) deps.onEvent(sessionId, { type: 'context_usage', usage })
+        }
       }
     })
 
@@ -307,7 +315,7 @@ export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionH
   }
 }
 
-function mapAgentEvent(event: unknown): ChatEvent | null {
+function mapAgentEvent(event: unknown): ChatEvent | ChatEvent[] | null {
   const e = event as {
     type?: string
     assistantMessageEvent?: { type?: string; delta?: string }
@@ -317,11 +325,23 @@ function mapAgentEvent(event: unknown): ChatEvent | null {
     result?: unknown
     isError?: boolean
     message?: { role?: string; usage?: { input: number; output: number } }
+    errorMessage?: string
   }
   if (e.type === 'compaction_start') {
     return { type: 'compaction_status', status: 'start' }
   }
   if (e.type === 'compaction_end') {
+    // Manual compaction failures already surface via compactSession's own
+    // catch (the awaited compact() call rejects), but auto-compaction runs
+    // entirely inside the SDK with nothing in our code awaiting it -- its
+    // only signal out is this event, so a failure here must be forwarded as
+    // a real error or it's silently swallowed while the badge stays full.
+    if (e.errorMessage) {
+      return [
+        { type: 'error', message: e.errorMessage },
+        { type: 'compaction_status', status: 'end' }
+      ]
+    }
     return { type: 'compaction_status', status: 'end' }
   }
   if (e.type === 'message_update' && e.assistantMessageEvent?.type === 'text_delta') {

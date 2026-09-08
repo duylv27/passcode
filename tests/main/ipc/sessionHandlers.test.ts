@@ -669,6 +669,35 @@ describe('sessionHandlers', () => {
     expect(events).toContainEqual({ sessionId: session.id, event: { type: 'compaction_status', status: 'end' } })
   })
 
+  it('forwards an error event when compaction_end carries an errorMessage (e.g. failed auto-compaction)', async () => {
+    const session = handlers.createSession(repoId)
+    await handlers.openSession(session.id)
+    events.length = 0
+
+    subscribeListener?.({ type: 'compaction_start', reason: 'threshold' })
+    subscribeListener?.({
+      type: 'compaction_end',
+      reason: 'threshold',
+      result: undefined,
+      aborted: false,
+      willRetry: false,
+      errorMessage: 'summarization failed'
+    })
+
+    // Auto-compaction runs entirely inside the SDK, so this compaction_end
+    // event is the only signal out -- its errorMessage must not be dropped.
+    expect(events).toContainEqual({
+      sessionId: session.id,
+      event: { type: 'error', message: 'summarization failed' }
+    })
+    // The renderer still needs the terminal status to clear its
+    // "Compacting..." state regardless of success or failure.
+    expect(events).toContainEqual({
+      sessionId: session.id,
+      event: { type: 'compaction_status', status: 'end' }
+    })
+  })
+
   it('does not re-emit context_usage after compaction_start, only after compaction_end', async () => {
     contextUsage = { tokens: 100, contextWindow: 200000, percent: 0.05 }
     const session = handlers.createSession(repoId)

@@ -483,7 +483,13 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
   }
 
   async function handleCompactNow(): Promise<void> {
-    if (compacting) return
+    if (compacting || busy) return
+    // Set optimistically (before the round-trip to the SDK's own
+    // `compaction_start` event) so a second rapid click can't slip through
+    // the `compacting` guard above while the first click's IPC call is
+    // still in flight. `compaction_status` remains the source of truth for
+    // clearing this back to false.
+    setCompacting(true)
     await window.api.session.compact(session.id)
   }
 
@@ -664,7 +670,8 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
                       type="button"
                       className="composer-btn"
                       onClick={handleCompactNow}
-                      disabled={compacting}
+                      disabled={compacting || busy}
+                      title={busy ? 'Wait for the current response to finish before compacting' : undefined}
                     >
                       {compacting ? 'Compacting…' : 'Compact'}
                     </button>
