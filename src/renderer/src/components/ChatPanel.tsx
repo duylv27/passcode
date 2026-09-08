@@ -1,5 +1,14 @@
 import { memo, useCallback, useEffect, useRef, useState, type ClipboardEvent } from 'react'
-import type { ChatEvent, HistoryItem, ModelInfo, SessionRecord, SkillInfo, TokenUsage } from '../../../shared/types'
+import type {
+  ChatEvent,
+  CompactionThresholds,
+  ContextUsage,
+  HistoryItem,
+  ModelInfo,
+  SessionRecord,
+  SkillInfo,
+  TokenUsage
+} from '../../../shared/types'
 import { KNOWN_TOOL_NAMES } from '../../../shared/types'
 import { readBlobAsDataUrl, resizeImageDataUrl, splitDataUrl, type PastedImage } from '../lib/imageAttachment'
 import { ChevronIcon, SendIcon, StopIcon, SpinnerIcon, PlusIcon, SlashIcon } from './icons'
@@ -60,6 +69,12 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
   const [currentModel, setCurrentModel] = useState<ModelInfo | null>(null)
   const [modelMenuOpen, setModelMenuOpen] = useState(false)
   const modelPickerRef = useRef<HTMLDivElement>(null)
+  const [contextUsage, setContextUsage] = useState<ContextUsage | null>(null)
+  const [autoCompactEnabled, setAutoCompactEnabled] = useState(false)
+  const [compacting, setCompacting] = useState(false)
+  const [compactionThresholds, setCompactionThresholds] = useState<CompactionThresholds | null>(null)
+  const [contextPopoverOpen, setContextPopoverOpen] = useState(false)
+  const contextPopoverRef = useRef<HTMLDivElement>(null)
   const [skills, setSkills] = useState<SkillInfo[]>([])
   const [selectedSkill, setSelectedSkill] = useState<SkillInfo | null>(null)
   const [skillMenuOpen, setSkillMenuOpen] = useState(false)
@@ -162,10 +177,26 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
   }, [skillMenuOpen])
 
   useEffect(() => {
+    if (!contextPopoverOpen) return
+    function handleClickOutside(e: MouseEvent): void {
+      if (contextPopoverRef.current && !contextPopoverRef.current.contains(e.target as Node)) {
+        setContextPopoverOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [contextPopoverOpen])
+
+  useEffect(() => {
     setItems([])
     setBusy(false)
     setThinking(false)
     setCurrentModel(null)
+    setContextUsage(null)
+    setAutoCompactEnabled(false)
+    setCompacting(false)
+    setCompactionThresholds(null)
+    setContextPopoverOpen(false)
     turnActionIdsRef.current = []
     window.api.session.open(session.id)
 
@@ -342,6 +373,12 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
         // a session and back while a turn was still running server-side --
         // the reset above otherwise always leaves this false.
         setBusy(event.busy)
+      } else if (event.type === 'context_usage') {
+        setContextUsage(event.usage)
+      } else if (event.type === 'compaction_status') {
+        setCompacting(event.status === 'start')
+      } else if (event.type === 'auto_compaction') {
+        setAutoCompactEnabled(event.enabled)
       }
     })
 
@@ -435,6 +472,25 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
     const autoApprove: Record<string, boolean> = {}
     for (const name of KNOWN_TOOL_NAMES) autoApprove[name] = next
     await window.api.approvals.setPolicy({ autoApprove })
+  }
+
+  async function handleOpenContextPopover(): Promise<void> {
+    const next = !contextPopoverOpen
+    setContextPopoverOpen(next)
+    if (next && !compactionThresholds) {
+      setCompactionThresholds(await window.api.session.getCompactionThresholds(session.id))
+    }
+  }
+
+  async function handleCompactNow(): Promise<void> {
+    if (compacting) return
+    await window.api.session.compact(session.id)
+  }
+
+  async function handleToggleAutoCompaction(): Promise<void> {
+    const next = !autoCompactEnabled
+    setAutoCompactEnabled(next)
+    await window.api.session.setAutoCompactionEnabled(session.id, next)
   }
 
   const toggleExpanded = useCallback((id: string): void => {
@@ -549,6 +605,93 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
                       </button>
                     )
                   })}
+                </div>
+              )}
+            </div>
+          )}
+          {contextUsage && (
+            <div className="context-usage" ref={contextPopoverRef}>
+              <button
+                type="button"
+                className="context-usage-badge"
+                onClick={handleOpenContextPopover}
+                title="Context window usage"
+              >
+                <span
+                  className={`context-usage-ring is-${contextUsageBand(contextUsage.percent)}`}
+                  style={{ ['--pct' as string]: contextUsage.percent ?? 0 }}
+                />
+                <b>{contextUsage.percent === null ? '—' : Math.round(contextUsage.percent)}%</b>
+              </button>
+              {contextPopoverOpen && (
+                <div className="context-usage-popover">
+                  <div className="context-usage-popover-header">
+                    <h3>Context window</h3>
+                  </div>
+                  <div className={`context-usage-meter-row is-${contextUsageBand(contextUsage.percent)}`}>
+                    <span className="context-usage-pct">
+                      {contextUsage.percent === null ? '—' : Math.round(contextUsage.percent)}%
+                    </span>
+                    <span className="context-usage-tokens">
+                      {contextUsage.tokens === null ? '—' : contextUsage.tokens.toLocaleString()} /{' '}
+                      {contextUsage.contextWindow.toLocaleString()} tokens
+                    </span>
+                  </div>
+                  <div className="context-usage-track">
+                    <div
+                      className={`context-usage-fill is-${contextUsageBand(contextUsage.percent)}`}
+                      style={{ width: `${contextUsage.percent ?? 0}%` }}
+                    />
+                  </div>
+                  <p className="context-usage-caption">
+                    {contextUsage.percent === null
+                      ? 'Usage unknown -- will update after the next response.'
+                      : contextUsageBand(contextUsage.percent) === 'danger'
+                        ? 'Near the limit -- auto-compaction will run very soon.'
+                        : contextUsageBand(contextUsage.percent) === 'warning'
+                          ? 'Getting full -- auto-compaction will trigger before long.'
+                          : 'Comfortable -- plenty of room before the next compaction.'}
+                  </p>
+
+                  <hr className="context-usage-divider" />
+
+                  <div className="context-usage-row">
+                    <div className="context-usage-row-text">
+                      <span className="context-usage-row-title">Compact now</span>
+                      <span className="context-usage-row-desc">Summarize older turns to free up space.</span>
+                    </div>
+                    <button
+                      type="button"
+                      className="composer-btn"
+                      onClick={handleCompactNow}
+                      disabled={compacting}
+                    >
+                      {compacting ? 'Compacting…' : 'Compact'}
+                    </button>
+                  </div>
+
+                  <hr className="context-usage-divider" />
+
+                  <div className="context-usage-row">
+                    <div className="context-usage-row-text">
+                      <span className="context-usage-row-title">Auto-compact</span>
+                      <span className="context-usage-row-desc">Compact automatically when nearing the limit.</span>
+                    </div>
+                    <Switch checked={autoCompactEnabled} onChange={handleToggleAutoCompaction} />
+                  </div>
+
+                  {compactionThresholds && (
+                    <div className="context-usage-thresholds">
+                      <div className="context-usage-threshold">
+                        <span>Reserve tokens</span>
+                        <b>{compactionThresholds.reserveTokens.toLocaleString()}</b>
+                      </div>
+                      <div className="context-usage-threshold">
+                        <span>Keep recent tokens</span>
+                        <b>{compactionThresholds.keepRecentTokens.toLocaleString()}</b>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -978,4 +1121,22 @@ function stringifyDetail(value: unknown): string {
 
 function formatTokenCount(count: number): string {
   return count.toLocaleString()
+}
+
+function contextUsageBand(percent: number | null): 'success' | 'warning' | 'danger' | 'unknown' {
+  if (percent === null) return 'unknown'
+  if (percent >= 85) return 'danger'
+  if (percent >= 60) return 'warning'
+  return 'success'
+}
+
+function Switch({ checked, onChange }: { checked: boolean; onChange: () => void }): JSX.Element {
+  return (
+    <label className="switch">
+      <input type="checkbox" checked={checked} onChange={onChange} />
+      <span className="switch-track">
+        <span className="switch-thumb" />
+      </span>
+    </label>
+  )
 }
