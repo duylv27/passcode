@@ -58,6 +58,7 @@ export interface SessionHandlers {
   getAutoCompactionEnabled(sessionId: string): Promise<boolean>
   setAutoCompactionEnabled(sessionId: string, enabled: boolean): Promise<void>
   getCompactionThresholds(sessionId: string): Promise<CompactionThresholds>
+  setContextWindowOverride(sessionId: string, contextWindow: number | null): Promise<void>
 }
 
 export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionHandlers {
@@ -311,6 +312,29 @@ export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionH
     async getCompactionThresholds(sessionId: string): Promise<CompactionThresholds> {
       const session = await ensureSession(sessionId)
       return session.getCompactionThresholds()
+    },
+    async setContextWindowOverride(sessionId: string, contextWindow: number | null): Promise<void> {
+      try {
+        const session = await ensureSession(sessionId)
+        const currentModel = session.getModel()
+        if (!currentModel) return
+        // null resets to the model's own registry default, not whatever the
+        // last override happened to be -- re-resolving from the registry
+        // (rather than caching the pristine value) keeps this correct even
+        // if the model itself changed since the override was applied.
+        const nextModel =
+          contextWindow === null
+            ? (deps.findModel(currentModel.provider, currentModel.id) ?? currentModel)
+            : { ...currentModel, contextWindow }
+        await session.setModel(nextModel)
+        // setModel doesn't itself emit context_usage -- re-check and forward
+        // it here so the badge reflects the new window immediately, rather
+        // than waiting for the next turn_end/compaction to refresh it.
+        const usage = session.getContextUsage()
+        if (usage) deps.onEvent(sessionId, { type: 'context_usage', usage })
+      } catch (err) {
+        deps.onEvent(sessionId, { type: 'error', message: (err as Error).message })
+      }
     }
   }
 }

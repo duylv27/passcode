@@ -225,6 +225,8 @@ export interface Api {
     getAutoCompactionEnabled(sessionId: string): Promise<boolean>
     setAutoCompactionEnabled(sessionId: string, enabled: boolean): Promise<void>
     getCompactionThresholds(sessionId: string): Promise<CompactionThresholds>
+    /** `null` resets to the model's own default context window. */
+    setContextWindowOverride(sessionId: string, contextWindow: number | null): Promise<void>
     onEvent(listener: (sessionId: string, event: ChatEvent) => void): () => void
   }
   models: {

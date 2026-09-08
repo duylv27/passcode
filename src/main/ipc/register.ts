@@ -71,6 +71,9 @@ export function registerIpcHandlers(handlers: IpcHandlers): void {
   ipcMain.handle('session:getCompactionThresholds', (_e, sessionId: string) =>
     handlers.session.getCompactionThresholds(sessionId)
   )
+  ipcMain.handle('session:setContextWindowOverride', (_e, sessionId: string, contextWindow: number | null) =>
+    handlers.session.setContextWindowOverride(sessionId, contextWindow)
+  )
 
   ipcMain.handle('models:list', () => handlers.models.listModels())
 

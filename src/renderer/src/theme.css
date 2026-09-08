@@ -1343,6 +1343,13 @@ button {
   font-size: 11.5px;
 }
 
+.timeline-row-error {
+  padding: 4px 0;
+  color: var(--danger);
+  font-size: 11.5px;
+  font-style: italic;
+}
+
 .timeline-terminal {
   margin-top: 4px;
   padding: 8px 10px;
@@ -1792,12 +1799,12 @@ button {
 
 .context-usage-badge b {
   color: var(--fg);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .context-usage-ring {
-  width: 13px;
-  height: 13px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   flex-shrink: 0;
   background: conic-gradient(var(--ring-color, var(--fg-faint)) calc(var(--pct, 0) * 1%), var(--border-subtle) 0);
@@ -1806,9 +1813,9 @@ button {
 .context-usage-ring::after {
   content: '';
   display: block;
-  width: 7px;
-  height: 7px;
-  margin: 3px;
+  width: 11px;
+  height: 11px;
+  margin: 1.5px;
   border-radius: 50%;
   background: var(--input-bg);
 }
@@ -1951,6 +1958,85 @@ button {
 
 .composer-btn:disabled {
   opacity: 0.6;
+}
+
+.composer-btn-ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--fg-dim);
+}
+
+.composer-btn-ghost:hover {
+  background: var(--list-hover);
+  color: var(--fg);
+}
+
+.context-usage-window-value {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--fg);
+  white-space: nowrap;
+}
+
+.context-usage-window-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.context-usage-window-track-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 16px;
+  display: flex;
+  align-items: center;
+}
+
+/* The real <input type="range"> stays invisible but interactive -- it owns
+   drag/keyboard/click handling. The decorative track/fill/thumb below it is
+   what's actually seen, which sidesteps every browser's own (inconsistent)
+   thumb-centering math entirely. */
+.context-usage-window-slider-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.context-usage-window-track {
+  position: relative;
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--border-subtle);
+  pointer-events: none;
+}
+
+.context-usage-window-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.context-usage-window-thumb {
+  position: absolute;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 3px solid var(--input-bg);
+  transform: translate(-50%, -50%);
 }
 
 .composer-send {

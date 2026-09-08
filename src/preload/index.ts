@@ -34,6 +34,8 @@ const api: Api = {
     setAutoCompactionEnabled: (sessionId, enabled) =>
       ipcRenderer.invoke('session:setAutoCompactionEnabled', sessionId, enabled),
     getCompactionThresholds: (sessionId) => ipcRenderer.invoke('session:getCompactionThresholds', sessionId),
+    setContextWindowOverride: (sessionId, contextWindow) =>
+      ipcRenderer.invoke('session:setContextWindowOverride', sessionId, contextWindow),
     onEvent: (listener) => {
       const wrapped = (_e: unknown, sessionId: string, event: ChatEvent): void => listener(sessionId, event)
       ipcRenderer.on('session:event', wrapped)

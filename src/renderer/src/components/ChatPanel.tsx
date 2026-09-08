@@ -1,4 +1,13 @@
-import { memo, useCallback, useEffect, useRef, useState, type ClipboardEvent } from 'react'
+import {
+  Component,
+  memo,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ClipboardEvent,
+  type ReactNode
+} from 'react'
 import type {
   ChatEvent,
   CompactionThresholds,
@@ -17,6 +26,14 @@ import { DiffView, diffStats } from './DiffView'
 import { ZoomViewerProvider, useZoomViewer } from './ZoomViewer'
 
 const LAST_MODEL_KEY = 'passcode-last-model'
+
+// Generous fixed bounds rather than deriving from the model's own default --
+// an override is meant to force earlier compaction for testing, and the
+// model's true default is always one Reset click away regardless of where
+// the slider currently sits.
+const CONTEXT_WINDOW_MIN = 4_000
+const CONTEXT_WINDOW_MAX = 1_000_000
+const CONTEXT_WINDOW_STEP = 1_000
 
 const THINKING_WORDS = [
   'Thinking',
@@ -59,6 +76,30 @@ function newId(): string {
   return `item-${idCounter}`
 }
 
+// A crash rendering one transcript row (e.g. malformed tool-call data from
+// an interrupted turn in saved history) used to take the entire app down to
+// a blank screen, since nothing caught it. Scoping the boundary to a single
+// row means the rest of the transcript still renders even if one item's
+// data is bad.
+class RowErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+  state = { hasError: false }
+
+  static getDerivedStateFromError(): { hasError: boolean } {
+    return { hasError: true }
+  }
+
+  componentDidCatch(error: unknown): void {
+    console.error('Failed to render a transcript row:', error)
+  }
+
+  render(): ReactNode {
+    if (this.state.hasError) {
+      return <div className="timeline-row-error">Couldn't display this item.</div>
+    }
+    return this.props.children
+  }
+}
+
 export function ChatPanel({ session, repoName }: Props): JSX.Element {
   const [items, setItems] = useState<TranscriptItem[]>([])
   const [input, setInput] = useState('')
@@ -74,6 +115,7 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
   const [compacting, setCompacting] = useState(false)
   const [compactionThresholds, setCompactionThresholds] = useState<CompactionThresholds | null>(null)
   const [contextPopoverOpen, setContextPopoverOpen] = useState(false)
+  const [contextWindowInput, setContextWindowInput] = useState('')
   const contextPopoverRef = useRef<HTMLDivElement>(null)
   const [skills, setSkills] = useState<SkillInfo[]>([])
   const [selectedSkill, setSelectedSkill] = useState<SkillInfo | null>(null)
@@ -197,6 +239,7 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
     setCompacting(false)
     setCompactionThresholds(null)
     setContextPopoverOpen(false)
+    setContextWindowInput('')
     turnActionIdsRef.current = []
     window.api.session.open(session.id)
 
@@ -482,6 +525,26 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
     }
   }
 
+  // Reseeds the editable field whenever the popover opens or the effective
+  // window changes (our own override applying, or a reset) -- not on every
+  // context_usage event, since tokens/percent change far more often than
+  // contextWindow and would otherwise stomp on whatever the user is typing.
+  useEffect(() => {
+    if (contextPopoverOpen && contextUsage) {
+      setContextWindowInput(String(contextUsage.contextWindow))
+    }
+  }, [contextPopoverOpen, contextUsage?.contextWindow])
+
+  async function handleContextWindowSliderCommit(value: string): Promise<void> {
+    const parsed = Math.round(Number(value))
+    if (!Number.isFinite(parsed) || parsed <= 0) return
+    await window.api.session.setContextWindowOverride(session.id, parsed)
+  }
+
+  async function handleResetContextWindow(): Promise<void> {
+    await window.api.session.setContextWindowOverride(session.id, null)
+  }
+
   async function handleCompactNow(): Promise<void> {
     if (compacting || busy) return
     // Set optimistically (before the round-trip to the SDK's own
@@ -534,20 +597,18 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
             group.type === 'timeline' ? (
               <div className="timeline" key={group.items[0].id}>
                 {group.items.map((item) => (
-                  <TimelineRow
-                    key={item.id}
-                    item={item}
-                    expanded={expandedIds.has(item.id)}
-                    onToggle={toggleExpanded}
-                  />
+                  <RowErrorBoundary key={item.id}>
+                    <TimelineRow item={item} expanded={expandedIds.has(item.id)} onToggle={toggleExpanded} />
+                  </RowErrorBoundary>
                 ))}
               </div>
             ) : (
-              <TranscriptRow
-                key={group.item.id}
-                item={group.item}
-                streaming={busy && group.item.id === visibleItems[visibleItems.length - 1]?.id}
-              />
+              <RowErrorBoundary key={group.item.id}>
+                <TranscriptRow
+                  item={group.item}
+                  streaming={busy && group.item.id === visibleItems[visibleItems.length - 1]?.id}
+                />
+              </RowErrorBoundary>
             )
           )
         )}
@@ -699,6 +760,56 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
                       </div>
                     </div>
                   )}
+
+                  <hr className="context-usage-divider" />
+
+                  <div className="context-usage-row">
+                    <div className="context-usage-row-text">
+                      <span className="context-usage-row-title">Context window</span>
+                      <span className="context-usage-row-desc">
+                        Override the token limit used for this session.
+                      </span>
+                    </div>
+                    <b className="context-usage-window-value">
+                      {Number(contextWindowInput || 0).toLocaleString()}
+                    </b>
+                  </div>
+                  <div className="context-usage-window-controls">
+                    <div className="context-usage-window-track-wrap">
+                      <input
+                        type="range"
+                        min={CONTEXT_WINDOW_MIN}
+                        max={CONTEXT_WINDOW_MAX}
+                        step={CONTEXT_WINDOW_STEP}
+                        className="context-usage-window-slider-input"
+                        value={contextWindowInput || 0}
+                        onChange={(e) => setContextWindowInput(e.target.value)}
+                        onPointerUp={(e) => handleContextWindowSliderCommit(e.currentTarget.value)}
+                        onKeyUp={(e) => handleContextWindowSliderCommit(e.currentTarget.value)}
+                      />
+                      <div className="context-usage-window-track">
+                        <div
+                          className="context-usage-window-fill"
+                          style={{
+                            width: `${(((Number(contextWindowInput) || CONTEXT_WINDOW_MIN) - CONTEXT_WINDOW_MIN) / (CONTEXT_WINDOW_MAX - CONTEXT_WINDOW_MIN)) * 100}%`
+                          }}
+                        />
+                        <div
+                          className="context-usage-window-thumb"
+                          style={{
+                            left: `${(((Number(contextWindowInput) || CONTEXT_WINDOW_MIN) - CONTEXT_WINDOW_MIN) / (CONTEXT_WINDOW_MAX - CONTEXT_WINDOW_MIN)) * 100}%`
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="composer-btn composer-btn-ghost"
+                      onClick={handleResetContextWindow}
+                    >
+                      Reset
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -1049,6 +1160,12 @@ function computeToolDiffStats(toolName: string, args: unknown): { adds: number; 
     let adds = 0
     let dels = 0
     for (const edit of a.edits) {
+      // A tool call whose argument-streaming was interrupted (e.g. the turn
+      // was aborted mid-response) can leave edits[] entries with a missing
+      // oldText/newText in saved history -- skip those rather than handing
+      // the diff library a non-string, which throws and used to take down
+      // the whole transcript render with it.
+      if (typeof edit.oldText !== 'string' || typeof edit.newText !== 'string') continue
       const stat = diffStats(edit.oldText, edit.newText)
       adds += stat.adds
       dels += stat.dels
@@ -1069,9 +1186,13 @@ function renderToolDetail(toolName: string, args: unknown, result: unknown): JSX
   if (toolName === 'edit' && a?.edits?.length) {
     return (
       <>
-        {a.edits.map((edit, i) => (
-          <DiffView key={i} oldText={edit.oldText} newText={edit.newText} />
-        ))}
+        {a.edits.map((edit, i) =>
+          typeof edit.oldText === 'string' && typeof edit.newText === 'string' ? (
+            <DiffView key={i} oldText={edit.oldText} newText={edit.newText} />
+          ) : (
+            <pre key={i}>{stringifyDetail(edit)}</pre>
+          )
+        )}
       </>
     )
   }
