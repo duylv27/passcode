@@ -8,6 +8,7 @@ import type {
 } from '../../../shared/types'
 import { KNOWN_TOOL_NAMES } from '../../../shared/types'
 import { useTheme, type ThemePreference } from '../hooks/useTheme'
+import { ToastStack, type ToastMessage } from './Toast'
 
 const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
   { value: 'light', label: 'Light' },
@@ -78,7 +79,15 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
   const [telemetryConfig, setTelemetryConfig] = useState<UsageTelemetryConfig | null>(null)
   const [telemetryPathDraft, setTelemetryPathDraft] = useState('')
   const [telemetryError, setTelemetryError] = useState<string | null>(null)
-  const [telemetrySaved, setTelemetrySaved] = useState(false)
+  const [toasts, setToasts] = useState<ToastMessage[]>([])
+
+  function pushToast(text: string, variant: ToastMessage['variant']): void {
+    setToasts((prev) => [...prev, { id: crypto.randomUUID(), text, variant }])
+  }
+
+  function dismissToast(id: string): void {
+    setToasts((prev) => prev.filter((t) => t.id !== id))
+  }
 
   async function refresh(): Promise<void> {
     setStatus(await window.api.settings.getAuthStatus())
@@ -123,16 +132,15 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
     await window.api.approvals.setPolicy(next)
   }
 
-  // Shows a transient "Saved" confirmation on success (auto-clears after
-  // 2s) or a persistent inline error on failure -- so clicking Save always
-  // gives some visible outcome, not just silence either way.
+  // A success toast is transient and easy to notice regardless of scroll
+  // position; a failure stays as a persistent inline message next to the
+  // field, since a filesystem error is worth reading carefully rather
+  // than having it disappear after a few seconds.
   function reportTelemetrySaveResult(result: { ok: true } | { ok: false; error: string }): void {
     if (result.ok) {
       setTelemetryError(null)
-      setTelemetrySaved(true)
-      setTimeout(() => setTelemetrySaved(false), 2000)
+      pushToast('Usage telemetry settings saved', 'success')
     } else {
-      setTelemetrySaved(false)
       setTelemetryError(result.error)
     }
   }
@@ -179,6 +187,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
   return (
     <div className="settings-overlay" onClick={onClose}>
       <div className="settings-dialog" onClick={(e) => e.stopPropagation()}>
+        <ToastStack messages={toasts} onDismiss={dismissToast} />
         <div className="settings-nav">
           {SECTIONS.map((s) => (
             <button
@@ -253,7 +262,6 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
                       <button className="settings-btn" onClick={saveTelemetryPath}>
                         Save
                       </button>
-                      {telemetrySaved && <span className="settings-save-confirm">Saved</span>}
                     </div>
                   </div>
                 )}
