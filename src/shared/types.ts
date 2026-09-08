@@ -221,6 +221,10 @@ export interface Api {
     prompt(sessionId: string, text: string, options?: PromptOptions): Promise<void>
     abort(sessionId: string): Promise<void>
     setModel(sessionId: string, provider: string, modelId: string): Promise<void>
+    compact(sessionId: string): Promise<void>
+    getAutoCompactionEnabled(sessionId: string): Promise<boolean>
+    setAutoCompactionEnabled(sessionId: string, enabled: boolean): Promise<void>
+    getCompactionThresholds(sessionId: string): Promise<CompactionThresholds>
     onEvent(listener: (sessionId: string, event: ChatEvent) => void): () => void
   }
   models: {

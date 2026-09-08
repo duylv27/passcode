@@ -29,6 +29,11 @@ const api: Api = {
     abort: (sessionId) => ipcRenderer.invoke('session:abort', sessionId),
     setModel: (sessionId, provider, modelId) =>
       ipcRenderer.invoke('session:setModel', sessionId, provider, modelId),
+    compact: (sessionId) => ipcRenderer.invoke('session:compact', sessionId),
+    getAutoCompactionEnabled: (sessionId) => ipcRenderer.invoke('session:getAutoCompactionEnabled', sessionId),
+    setAutoCompactionEnabled: (sessionId, enabled) =>
+      ipcRenderer.invoke('session:setAutoCompactionEnabled', sessionId, enabled),
+    getCompactionThresholds: (sessionId) => ipcRenderer.invoke('session:getCompactionThresholds', sessionId),
     onEvent: (listener) => {
       const wrapped = (_e: unknown, sessionId: string, event: ChatEvent): void => listener(sessionId, event)
       ipcRenderer.on('session:event', wrapped)

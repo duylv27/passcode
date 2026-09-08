@@ -61,6 +61,16 @@ export function registerIpcHandlers(handlers: IpcHandlers): void {
   ipcMain.handle('session:setModel', (_e, sessionId: string, provider: string, modelId: string) =>
     handlers.session.setSessionModel(sessionId, provider, modelId)
   )
+  ipcMain.handle('session:compact', (_e, sessionId: string) => handlers.session.compactSession(sessionId))
+  ipcMain.handle('session:getAutoCompactionEnabled', (_e, sessionId: string) =>
+    handlers.session.getAutoCompactionEnabled(sessionId)
+  )
+  ipcMain.handle('session:setAutoCompactionEnabled', (_e, sessionId: string, enabled: boolean) =>
+    handlers.session.setAutoCompactionEnabled(sessionId, enabled)
+  )
+  ipcMain.handle('session:getCompactionThresholds', (_e, sessionId: string) =>
+    handlers.session.getCompactionThresholds(sessionId)
+  )
 
   ipcMain.handle('models:list', () => handlers.models.listModels())
 
