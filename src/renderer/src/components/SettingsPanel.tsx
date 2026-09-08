@@ -78,6 +78,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
   const [telemetryConfig, setTelemetryConfig] = useState<UsageTelemetryConfig | null>(null)
   const [telemetryPathDraft, setTelemetryPathDraft] = useState('')
   const [telemetryError, setTelemetryError] = useState<string | null>(null)
+  const [telemetrySaved, setTelemetrySaved] = useState(false)
 
   async function refresh(): Promise<void> {
     setStatus(await window.api.settings.getAuthStatus())
@@ -122,20 +123,32 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
     await window.api.approvals.setPolicy(next)
   }
 
+  // Shows a transient "Saved" confirmation on success (auto-clears after
+  // 2s) or a persistent inline error on failure -- so clicking Save always
+  // gives some visible outcome, not just silence either way.
+  function reportTelemetrySaveResult(result: { ok: true } | { ok: false; error: string }): void {
+    if (result.ok) {
+      setTelemetryError(null)
+      setTelemetrySaved(true)
+      setTimeout(() => setTelemetrySaved(false), 2000)
+    } else {
+      setTelemetrySaved(false)
+      setTelemetryError(result.error)
+    }
+  }
+
   async function toggleUsageTelemetry(): Promise<void> {
     if (!telemetryConfig) return
     const next = { ...telemetryConfig, enabled: !telemetryConfig.enabled }
     setTelemetryConfig(next)
-    const result = await window.api.settings.setUsageTelemetryConfig(next)
-    setTelemetryError(result.ok ? null : result.error)
+    reportTelemetrySaveResult(await window.api.settings.setUsageTelemetryConfig(next))
   }
 
   async function saveTelemetryPath(): Promise<void> {
     if (!telemetryConfig) return
     const next = { ...telemetryConfig, outputPath: telemetryPathDraft }
     setTelemetryConfig(next)
-    const result = await window.api.settings.setUsageTelemetryConfig(next)
-    setTelemetryError(result.ok ? null : result.error)
+    reportTelemetrySaveResult(await window.api.settings.setUsageTelemetryConfig(next))
   }
 
   async function handleSaveKey(): Promise<void> {
@@ -184,7 +197,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
               ✕
             </button>
           </div>
-
+          <div className="settings-scroll-area">
           {section === 'general' && (
             <div className="settings-group">
               <div className="settings-row settings-row-theme">
@@ -206,42 +219,45 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
                   </button>
                 ))}
               </div>
-              <div className="settings-row">
-                <div className="settings-row-text">
-                  <span className="settings-row-title">Usage Telemetry</span>
-                  <span className="settings-row-desc">
-                    Export token usage as OpenTelemetry log records for external aggregation
-                  </span>
-                </div>
-                <div className="settings-row-control">
-                  <Switch checked={!!telemetryConfig?.enabled} onChange={toggleUsageTelemetry} />
-                </div>
-              </div>
-              {telemetryConfig?.enabled && (
-                <div className="settings-row">
+              <div className="settings-row settings-row-telemetry">
+                <div className="settings-telemetry-main">
                   <div className="settings-row-text">
-                    <span className="settings-row-title">Output File</span>
-                    <span className="settings-row-desc">Path to append OTel log records to (JSONL, one record per line)</span>
-                    {telemetryError && <span className="settings-row-error">{telemetryError}</span>}
+                    <span className="settings-row-title">Usage Telemetry</span>
+                    <span className="settings-row-desc">
+                      Export token usage as OpenTelemetry log records for external aggregation
+                    </span>
                   </div>
-                  <div className="settings-row-control settings-key-control">
-                    <input
-                      className="settings-input"
-                      type="text"
-                      value={telemetryPathDraft}
-                      onChange={(e) => setTelemetryPathDraft(e.target.value)}
-                      onBlur={saveTelemetryPath}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') saveTelemetryPath()
-                      }}
-                      placeholder="C:\Code\.telemetry\copilot-working.jsonl"
-                    />
-                    <button className="settings-btn" onClick={saveTelemetryPath}>
-                      Save
-                    </button>
+                  <div className="settings-row-control">
+                    <Switch checked={!!telemetryConfig?.enabled} onChange={toggleUsageTelemetry} />
                   </div>
                 </div>
-              )}
+                {telemetryConfig?.enabled && (
+                  <div className="settings-telemetry-sub">
+                    <div className="settings-row-text">
+                      <span className="settings-row-title">Output File</span>
+                      <span className="settings-row-desc">Path to append OTel log records to (JSONL, one record per line)</span>
+                      {telemetryError && <span className="settings-row-error">{telemetryError}</span>}
+                    </div>
+                    <div className="settings-row-control settings-key-control">
+                      <input
+                        className="settings-input"
+                        type="text"
+                        value={telemetryPathDraft}
+                        onChange={(e) => setTelemetryPathDraft(e.target.value)}
+                        onBlur={saveTelemetryPath}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') saveTelemetryPath()
+                        }}
+                        placeholder="C:\Code\.telemetry\copilot-working.jsonl"
+                      />
+                      <button className="settings-btn" onClick={saveTelemetryPath}>
+                        Save
+                      </button>
+                      {telemetrySaved && <span className="settings-save-confirm">Saved</span>}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -355,6 +371,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
               })}
             </div>
           )}
+          </div>
         </div>
       </div>
     </div>
