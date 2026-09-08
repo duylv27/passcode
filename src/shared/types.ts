@@ -90,6 +90,17 @@ export interface TokenUsage {
   output: number
 }
 
+export interface ContextUsage {
+  tokens: number | null
+  contextWindow: number
+  percent: number | null
+}
+
+export interface CompactionThresholds {
+  reserveTokens: number
+  keepRecentTokens: number
+}
+
 export type HistoryItem =
   | { kind: 'user'; text: string; images?: { data: string; mimeType: string }[] }
   | { kind: 'text'; text: string }
@@ -119,6 +130,13 @@ export type ChatEvent =
    * button/busy indicator if a turn was already in flight -- e.g. after
    * switching tabs and back while the agent was still running. */
   | { type: 'busy'; busy: boolean }
+  /** Sent whenever context usage can actually have changed -- after a
+   * turn completes and after a compaction finishes -- not polled. */
+  | { type: 'context_usage'; usage: ContextUsage }
+  | { type: 'compaction_status'; status: 'start' | 'end' }
+  /** Sent once per session open/switch, reflecting the session's current
+   * (in-memory, not persisted) auto-compaction setting. */
+  | { type: 'auto_compaction'; enabled: boolean }
 
 export interface ModelInfo {
   provider: string

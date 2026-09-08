@@ -7,6 +7,12 @@ const setModelMock = vi.fn(async () => {})
 const getSessionFileMock = vi.fn(() => '/fake/agent/sessions/repo/abc.jsonl')
 let mockMessages: unknown[] = []
 let mockModel: unknown = { provider: 'anthropic', id: 'claude-opus-4-5', name: 'Claude Opus 4.5' }
+const getContextUsageMock = vi.fn(() => ({ tokens: 12345, contextWindow: 200000, percent: 6.17 }))
+const compactMock = vi.fn(async () => ({}))
+const setAutoCompactionEnabledMock = vi.fn()
+let mockAutoCompactionEnabled = true
+const getCompactionReserveTokensMock = vi.fn(() => 16384)
+const getCompactionKeepRecentTokensMock = vi.fn(() => 20000)
 const createAgentSessionMock = vi.fn(async () => ({
   session: {
     prompt: promptMock,
@@ -16,7 +22,15 @@ const createAgentSessionMock = vi.fn(async () => ({
     sessionManager: { getSessionFile: getSessionFileMock },
     agent: { state: { get messages() { return mockMessages } } },
     get model() { return mockModel },
-    setModel: setModelMock
+    setModel: setModelMock,
+    getContextUsage: getContextUsageMock,
+    compact: compactMock,
+    get autoCompactionEnabled() { return mockAutoCompactionEnabled },
+    setAutoCompactionEnabled: setAutoCompactionEnabledMock,
+    settingsManager: {
+      getCompactionReserveTokens: getCompactionReserveTokensMock,
+      getCompactionKeepRecentTokens: getCompactionKeepRecentTokensMock
+    }
   }
 }))
 const getAgentDirMock = vi.fn(() => '/fake/agent/dir')
@@ -50,6 +64,7 @@ describe('createRepoSession', () => {
   beforeEach(() => {
     mockMessages = []
     mockModel = { provider: 'anthropic', id: 'claude-opus-4-5', name: 'Claude Opus 4.5' }
+    mockAutoCompactionEnabled = true
   })
 
   it('creates a session scoped to the repo cwd with the expected tools', async () => {
@@ -318,5 +333,53 @@ describe('createRepoSession', () => {
     const model = { provider: 'openai', id: 'gpt-5', name: 'GPT-5' } as never
     await repoSession.setModel(model)
     expect(setModelMock).toHaveBeenCalledWith(model)
+  })
+
+  it('exposes the current context usage from the underlying session', async () => {
+    const { repoSession } = await createRepoSession({
+      cwd: '/repo/path',
+      modelRuntime: {} as never,
+      requestApproval: noApproval
+    })
+    expect(repoSession.getContextUsage()).toEqual({ tokens: 12345, contextWindow: 200000, percent: 6.17 })
+  })
+
+  it('forwards compact to the underlying session and discards its result', async () => {
+    const { repoSession } = await createRepoSession({
+      cwd: '/repo/path',
+      modelRuntime: {} as never,
+      requestApproval: noApproval
+    })
+    await expect(repoSession.compact()).resolves.toBeUndefined()
+    expect(compactMock).toHaveBeenCalled()
+  })
+
+  it('reads the current auto-compaction setting from the underlying session', async () => {
+    mockAutoCompactionEnabled = false
+    const { repoSession } = await createRepoSession({
+      cwd: '/repo/path',
+      modelRuntime: {} as never,
+      requestApproval: noApproval
+    })
+    expect(repoSession.getAutoCompactionEnabled()).toBe(false)
+  })
+
+  it('forwards setAutoCompactionEnabled to the underlying session', async () => {
+    const { repoSession } = await createRepoSession({
+      cwd: '/repo/path',
+      modelRuntime: {} as never,
+      requestApproval: noApproval
+    })
+    repoSession.setAutoCompactionEnabled(false)
+    expect(setAutoCompactionEnabledMock).toHaveBeenCalledWith(false)
+  })
+
+  it('reads compaction thresholds from the underlying session settings manager', async () => {
+    const { repoSession } = await createRepoSession({
+      cwd: '/repo/path',
+      modelRuntime: {} as never,
+      requestApproval: noApproval
+    })
+    expect(repoSession.getCompactionThresholds()).toEqual({ reserveTokens: 16384, keepRecentTokens: 20000 })
   })
 })

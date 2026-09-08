@@ -1,6 +1,6 @@
 import type { AgentSessionEvent, ModelRuntime } from '@earendil-works/pi-coding-agent'
 import type { ImageContent, Model } from '@earendil-works/pi-ai'
-import type { HistoryItem, TokenUsage } from '../../shared/types'
+import type { CompactionThresholds, ContextUsage, HistoryItem, TokenUsage } from '../../shared/types'
 import { getAdditionalSkillPaths } from './skills'
 import { PROMPT_CONTEXT_DELIMITER } from './promptBuilder'
 
@@ -12,6 +12,14 @@ export interface RepoSession {
   getHistory(): HistoryItem[]
   getModel(): Model<any> | undefined
   setModel(model: Model<any>): Promise<void>
+  getContextUsage(): ContextUsage | undefined
+  /** Result discarded -- the caller learns completion via the
+   * 'compaction_status' event forwarded from the same subscription,
+   * not this call's own resolution. */
+  compact(): Promise<void>
+  getAutoCompactionEnabled(): boolean
+  setAutoCompactionEnabled(enabled: boolean): void
+  getCompactionThresholds(): CompactionThresholds
 }
 
 export interface CreateRepoSessionOptions {
@@ -76,7 +84,17 @@ export async function createRepoSession(
       abort: () => session.abort(),
       getHistory: () => buildHistory(session.agent.state.messages),
       getModel: () => session.model,
-      setModel: (model: Model<any>) => session.setModel(model)
+      setModel: (model: Model<any>) => session.setModel(model),
+      getContextUsage: () => session.getContextUsage(),
+      compact: async () => {
+        await session.compact()
+      },
+      getAutoCompactionEnabled: () => session.autoCompactionEnabled,
+      setAutoCompactionEnabled: (enabled: boolean) => session.setAutoCompactionEnabled(enabled),
+      getCompactionThresholds: () => ({
+        reserveTokens: session.settingsManager.getCompactionReserveTokens(),
+        keepRecentTokens: session.settingsManager.getCompactionKeepRecentTokens()
+      })
     }
   }
 }
