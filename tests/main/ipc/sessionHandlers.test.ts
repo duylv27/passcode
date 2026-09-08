@@ -645,8 +645,19 @@ describe('sessionHandlers', () => {
     })
   })
 
-  it('maps compaction_start/compaction_end SDK events to compaction_status, and re-emits context_usage after compaction_end', async () => {
-    contextUsage = { tokens: 100, contextWindow: 200000, percent: 0.05 }
+  it('emits the current auto-compaction setting on session open even when disabled', async () => {
+    getAutoCompactionEnabledMock.mockReturnValue(false)
+    const session = handlers.createSession(repoId)
+
+    await handlers.openSession(session.id)
+
+    expect(events).toContainEqual({
+      sessionId: session.id,
+      event: { type: 'auto_compaction', enabled: false }
+    })
+  })
+
+  it('maps compaction_start/compaction_end SDK events to compaction_status', async () => {
     const session = handlers.createSession(repoId)
     await handlers.openSession(session.id)
     events.length = 0
@@ -656,10 +667,29 @@ describe('sessionHandlers', () => {
 
     expect(events).toContainEqual({ sessionId: session.id, event: { type: 'compaction_status', status: 'start' } })
     expect(events).toContainEqual({ sessionId: session.id, event: { type: 'compaction_status', status: 'end' } })
-    expect(events).toContainEqual({
-      sessionId: session.id,
-      event: { type: 'context_usage', usage: { tokens: 100, contextWindow: 200000, percent: 0.05 } }
-    })
+  })
+
+  it('does not re-emit context_usage after compaction_start, only after compaction_end', async () => {
+    contextUsage = { tokens: 100, contextWindow: 200000, percent: 0.05 }
+    const session = handlers.createSession(repoId)
+    await handlers.openSession(session.id)
+    events.length = 0
+
+    subscribeListener?.({ type: 'compaction_start', reason: 'manual' })
+
+    // No context_usage event should exist yet -- only compaction_status:start.
+    expect(events.filter((e) => e.event.type === 'context_usage')).toHaveLength(0)
+
+    subscribeListener?.({ type: 'compaction_end', reason: 'manual', result: {}, aborted: false, willRetry: false })
+
+    // Exactly one context_usage event should now exist, emitted after compaction_end.
+    const usageEvents = events.filter((e) => e.event.type === 'context_usage')
+    expect(usageEvents).toEqual([
+      {
+        sessionId: session.id,
+        event: { type: 'context_usage', usage: { tokens: 100, contextWindow: 200000, percent: 0.05 } }
+      }
+    ])
   })
 
   it('re-emits context_usage after a turn ends', async () => {
