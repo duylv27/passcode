@@ -12,6 +12,7 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "dist:win": "electron-vite build && electron-builder --win",
+    "release:win": "electron-vite build && electron-builder --win --publish always",
     "test": "vitest run"
   },
   "build": {
@@ -26,6 +27,9 @@
     "win": {
       "target": "nsis",
       "icon": "build/icon.png"
+    },
+    "publish": {
+      "provider": "github"
     }
   },
   "dependencies": {
