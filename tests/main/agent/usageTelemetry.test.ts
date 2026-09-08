@@ -177,6 +177,15 @@ describe('probeUsageTelemetryPath', () => {
     expect(readFileSync(outputPath, 'utf-8')).toBe('')
   })
 
+  it('returns an error when the path points at a directory instead of a file', async () => {
+    // Regression test: open(dirPath, 'a') succeeds on Windows -- the
+    // EISDIR error only surfaces on the actual write -- so this case
+    // needs an explicit isDirectory() check, not just open+close.
+    const result = await probeUsageTelemetryPath({ enabled: true, outputPath: dir })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toContain('directory')
+  })
+
   it('returns an error for a path whose parent directory does not exist', async () => {
     const result = await probeUsageTelemetryPath({
       enabled: true,

@@ -1,4 +1,4 @@
-import { appendFile, open } from 'node:fs/promises'
+import { appendFile, open, stat } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import { userInfo } from 'node:os'
 import type { TokenUsage, UsageTelemetryConfig } from '../../shared/types'
@@ -31,13 +31,25 @@ function resolveIdentity(): { userName: string; teamId?: string } {
  * write would) and immediately closes it. Used when the user saves the
  * setting in the UI, so a typo'd path or a missing directory surfaces
  * as an immediate, specific error instead of silently persisting a
- * config that will never actually write anything. */
+ * config that will never actually write anything.
+ *
+ * Directories get an explicit check before the open/close probe: on
+ * Windows (and some other platforms), `open(dirPath, 'a')` succeeds --
+ * opening a directory for append doesn't fail until the first actual
+ * write does, with an EISDIR error the probe would otherwise never see. */
 export async function probeUsageTelemetryPath(
   config: UsageTelemetryConfig
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   if (!config.enabled) return { ok: true }
   if (!config.outputPath) return { ok: false, error: 'Enter a file path to enable usage telemetry.' }
   try {
+    const stats = await stat(config.outputPath).catch(() => null)
+    if (stats?.isDirectory()) {
+      return {
+        ok: false,
+        error: `"${config.outputPath}" is a directory, not a file. Include a filename, e.g. "${config.outputPath}\\copilot-working.jsonl".`
+      }
+    }
     const handle = await open(config.outputPath, 'a')
     await handle.close()
     return { ok: true }
