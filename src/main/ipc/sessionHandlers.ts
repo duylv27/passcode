@@ -7,6 +7,7 @@ import type { ProjectsRepository } from '../db/projectsRepository'
 import type { BuildPromptTextOptions } from '../agent/promptBuilder'
 import type {
   ChatEvent,
+  CompactionThresholds,
   CreateProjectSessionError,
   CreateProjectSessionResult,
   Project,
@@ -53,6 +54,10 @@ export interface SessionHandlers {
   sendPrompt(sessionId: string, text: string, options?: PromptOptions): Promise<void>
   abortSession(sessionId: string): Promise<void>
   setSessionModel(sessionId: string, provider: string, modelId: string): Promise<void>
+  compactSession(sessionId: string): Promise<void>
+  getAutoCompactionEnabled(sessionId: string): Promise<boolean>
+  setAutoCompactionEnabled(sessionId: string, enabled: boolean): Promise<void>
+  getCompactionThresholds(sessionId: string): Promise<CompactionThresholds>
 }
 
 export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionHandlers {
@@ -110,6 +115,13 @@ export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionH
       }
       if (mapped.type === 'turn_end') pendingActionUsage = undefined
       deps.onEvent(sessionId, mapped)
+      // Context usage only actually changes at these two moments -- a real
+      // response completing, or a compaction finishing -- so re-checking
+      // here keeps the composer's badge live with no polling.
+      if (mapped.type === 'turn_end' || (mapped.type === 'compaction_status' && mapped.status === 'end')) {
+        const usage = repoSession.getContextUsage()
+        if (usage) deps.onEvent(sessionId, { type: 'context_usage', usage })
+      }
     })
 
     openSessions.set(sessionId, repoSession)
@@ -125,6 +137,11 @@ export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionH
 
     const model = repoSession.getModel()
     if (model) deps.onEvent(sessionId, { type: 'model', provider: model.provider, id: model.id, name: model.name })
+
+    const usage = repoSession.getContextUsage()
+    if (usage) deps.onEvent(sessionId, { type: 'context_usage', usage })
+
+    deps.onEvent(sessionId, { type: 'auto_compaction', enabled: repoSession.getAutoCompactionEnabled() })
 
     deps.onEvent(sessionId, { type: 'busy', busy: busySessions.has(sessionId) })
   }
@@ -266,6 +283,26 @@ export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionH
       } catch (err) {
         deps.onEvent(sessionId, { type: 'error', message: (err as Error).message })
       }
+    },
+    async compactSession(sessionId: string): Promise<void> {
+      try {
+        const session = await ensureSession(sessionId)
+        await session.compact()
+      } catch (err) {
+        deps.onEvent(sessionId, { type: 'error', message: (err as Error).message })
+      }
+    },
+    async getAutoCompactionEnabled(sessionId: string): Promise<boolean> {
+      const session = await ensureSession(sessionId)
+      return session.getAutoCompactionEnabled()
+    },
+    async setAutoCompactionEnabled(sessionId: string, enabled: boolean): Promise<void> {
+      const session = await ensureSession(sessionId)
+      session.setAutoCompactionEnabled(enabled)
+    },
+    async getCompactionThresholds(sessionId: string): Promise<CompactionThresholds> {
+      const session = await ensureSession(sessionId)
+      return session.getCompactionThresholds()
     }
   }
 }
@@ -280,6 +317,12 @@ function mapAgentEvent(event: unknown): ChatEvent | null {
     result?: unknown
     isError?: boolean
     message?: { role?: string; usage?: { input: number; output: number } }
+  }
+  if (e.type === 'compaction_start') {
+    return { type: 'compaction_status', status: 'start' }
+  }
+  if (e.type === 'compaction_end') {
+    return { type: 'compaction_status', status: 'end' }
   }
   if (e.type === 'message_update' && e.assistantMessageEvent?.type === 'text_delta') {
     return { type: 'text_delta', delta: e.assistantMessageEvent.delta ?? '' }

@@ -35,6 +35,11 @@ describe('sessionHandlers', () => {
   let sessionsRepo: SessionsRepository
   let openRepoSessionMock: ReturnType<typeof vi.fn>
   let findModelMock: ReturnType<typeof vi.fn>
+  let compactMock: ReturnType<typeof vi.fn>
+  let getAutoCompactionEnabledMock: ReturnType<typeof vi.fn>
+  let setAutoCompactionEnabledMock: ReturnType<typeof vi.fn>
+  let getCompactionThresholdsMock: ReturnType<typeof vi.fn>
+  let contextUsage: import('../../../src/shared/types').ContextUsage | undefined
 
   beforeEach(() => {
     const db = new Database(':memory:')
@@ -54,6 +59,11 @@ describe('sessionHandlers', () => {
     historyItems = []
     currentModel = undefined
     subscribeListener = undefined
+    compactMock = vi.fn(async () => {})
+    getAutoCompactionEnabledMock = vi.fn(() => false)
+    setAutoCompactionEnabledMock = vi.fn()
+    getCompactionThresholdsMock = vi.fn(() => ({ reserveTokens: 16384, keepRecentTokens: 20000 }))
+    contextUsage = undefined
     const repoSession: RepoSession = {
       prompt: promptMock,
       subscribe: (listener) => {
@@ -63,7 +73,12 @@ describe('sessionHandlers', () => {
       abort: abortMock,
       getHistory: () => historyItems,
       getModel: () => currentModel,
-      setModel: setModelMock
+      setModel: setModelMock,
+      getContextUsage: () => contextUsage,
+      compact: compactMock,
+      getAutoCompactionEnabled: getAutoCompactionEnabledMock,
+      setAutoCompactionEnabled: setAutoCompactionEnabledMock,
+      getCompactionThresholds: getCompactionThresholdsMock
     }
 
     openRepoSessionMock = vi.fn(async () => ({
@@ -595,5 +610,112 @@ describe('sessionHandlers', () => {
     reposRepo.delete(localRepoId)
 
     expect(localHandlers.listAllSessions()).toEqual([])
+  })
+
+  it('emits context_usage on session open when the underlying session reports usage', async () => {
+    contextUsage = { tokens: 500, contextWindow: 200000, percent: 0.25 }
+    const session = handlers.createSession(repoId)
+
+    await handlers.openSession(session.id)
+
+    expect(events).toContainEqual({
+      sessionId: session.id,
+      event: { type: 'context_usage', usage: { tokens: 500, contextWindow: 200000, percent: 0.25 } }
+    })
+  })
+
+  it('does not emit context_usage on session open when the underlying session reports no usage yet', async () => {
+    contextUsage = undefined
+    const session = handlers.createSession(repoId)
+
+    await handlers.openSession(session.id)
+
+    expect(events.find((e) => e.event.type === 'context_usage')).toBeUndefined()
+  })
+
+  it('emits the current auto-compaction setting on session open', async () => {
+    getAutoCompactionEnabledMock.mockReturnValue(true)
+    const session = handlers.createSession(repoId)
+
+    await handlers.openSession(session.id)
+
+    expect(events).toContainEqual({
+      sessionId: session.id,
+      event: { type: 'auto_compaction', enabled: true }
+    })
+  })
+
+  it('maps compaction_start/compaction_end SDK events to compaction_status, and re-emits context_usage after compaction_end', async () => {
+    contextUsage = { tokens: 100, contextWindow: 200000, percent: 0.05 }
+    const session = handlers.createSession(repoId)
+    await handlers.openSession(session.id)
+    events.length = 0
+
+    subscribeListener?.({ type: 'compaction_start', reason: 'manual' })
+    subscribeListener?.({ type: 'compaction_end', reason: 'manual', result: {}, aborted: false, willRetry: false })
+
+    expect(events).toContainEqual({ sessionId: session.id, event: { type: 'compaction_status', status: 'start' } })
+    expect(events).toContainEqual({ sessionId: session.id, event: { type: 'compaction_status', status: 'end' } })
+    expect(events).toContainEqual({
+      sessionId: session.id,
+      event: { type: 'context_usage', usage: { tokens: 100, contextWindow: 200000, percent: 0.05 } }
+    })
+  })
+
+  it('re-emits context_usage after a turn ends', async () => {
+    contextUsage = { tokens: 42, contextWindow: 200000, percent: 0.02 }
+    const session = handlers.createSession(repoId)
+    await handlers.openSession(session.id)
+    events.length = 0
+
+    subscribeListener?.({ type: 'turn_end' })
+
+    expect(events).toContainEqual({
+      sessionId: session.id,
+      event: { type: 'context_usage', usage: { tokens: 42, contextWindow: 200000, percent: 0.02 } }
+    })
+  })
+
+  it('compacts a session via compactSession', async () => {
+    const session = handlers.createSession(repoId)
+    await handlers.openSession(session.id)
+
+    await handlers.compactSession(session.id)
+
+    expect(compactMock).toHaveBeenCalled()
+  })
+
+  it('reports a compaction error via the error event rather than throwing', async () => {
+    compactMock.mockRejectedValueOnce(new Error('compaction aborted'))
+    const session = handlers.createSession(repoId)
+    await handlers.openSession(session.id)
+
+    await handlers.compactSession(session.id)
+
+    expect(events).toContainEqual({
+      sessionId: session.id,
+      event: { type: 'error', message: 'compaction aborted' }
+    })
+  })
+
+  it('reads and writes the auto-compaction setting', async () => {
+    getAutoCompactionEnabledMock.mockReturnValue(true)
+    const session = handlers.createSession(repoId)
+    await handlers.openSession(session.id)
+
+    expect(await handlers.getAutoCompactionEnabled(session.id)).toBe(true)
+
+    await handlers.setAutoCompactionEnabled(session.id, false)
+    expect(setAutoCompactionEnabledMock).toHaveBeenCalledWith(false)
+  })
+
+  it('reads compaction thresholds', async () => {
+    const session = handlers.createSession(repoId)
+    await handlers.openSession(session.id)
+
+    expect(await handlers.getCompactionThresholds(session.id)).toEqual({
+      reserveTokens: 16384,
+      keepRecentTokens: 20000
+    })
   })
 })
