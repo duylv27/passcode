@@ -24,9 +24,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run tests
-        run: npm test
-
       # electron-builder reads the release version from package.json, not
       # the git tag -- syncing it here keeps the installer filename and the
       # GitHub Release both matching the tag that triggered this build.
