@@ -405,6 +405,8 @@ function mapAgentEvent(event: unknown): ChatEvent | ChatEvent[] | null {
     message?: {
       role?: string
       usage?: { input: number; output: number; cacheRead: number; cacheWrite: number }
+      stopReason?: string
+      errorMessage?: string
     }
     errorMessage?: string
     reason?: 'manual' | 'threshold' | 'overflow'
@@ -438,6 +440,14 @@ function mapAgentEvent(event: unknown): ChatEvent | ChatEvent[] | null {
   }
   if (e.type === 'message_update' && e.assistantMessageEvent?.type === 'thinking_end') {
     return { type: 'thinking_end' }
+  }
+  // A failed model call (bad credentials, no credit balance, rate limit,
+  // content policy, etc.) still arrives as a normal message_end with a
+  // real (if all-zero) `usage` object -- checking for errorMessage first
+  // is what stops this from being silently absorbed into a model_usage
+  // event with nothing shown to the user.
+  if (e.type === 'message_end' && e.message?.role === 'assistant' && e.message.errorMessage) {
+    return { type: 'error', message: e.message.errorMessage }
   }
   if (e.type === 'message_end' && e.message?.role === 'assistant' && e.message.usage) {
     return {
