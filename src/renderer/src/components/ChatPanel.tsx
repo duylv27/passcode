@@ -34,7 +34,14 @@ import {
   SlashIcon,
   AnthropicIcon,
   GitHubIcon,
-  GeminiIcon
+  GeminiIcon,
+  ReadIcon,
+  WriteIcon,
+  EditIcon,
+  SearchIcon,
+  FolderIcon,
+  ListIcon,
+  TerminalIcon
 } from './icons'
 import { Markdown } from './Markdown'
 import { DiffView, diffStats } from './DiffView'
@@ -1277,10 +1284,17 @@ const TimelineRow = memo(function TimelineRow({
   const runOutput = isShell && typeof item.result === 'string' ? truncateOutput(item.result) : null
   const stat =
     item.status !== 'running' ? computeToolDiffStats(item.toolName, item.args) : null
+  const ToolIcon = TOOL_ICONS[item.toolName]
 
   return (
     <div className="timeline-row">
-      <span className={`timeline-dot is-${item.status}`} />
+      {ToolIcon ? (
+        <span className={`timeline-tool-icon is-${item.status}`}>
+          <ToolIcon />
+        </span>
+      ) : (
+        <span className={`timeline-dot is-${item.status}`} />
+      )}
       <button className="timeline-row-header" onClick={handleToggle}>
         <span className="timeline-row-title">{toolActionLabel(item.toolName)}</span>
         {summary && <span className="timeline-row-summary">{summary}</span>}
@@ -1338,6 +1352,21 @@ const TOOL_ACTION_LABELS: Record<string, string> = {
   ls: 'List directory',
   bash: 'Run command',
   powershell: 'Run command'
+}
+
+/** Per-tool-type marker shown in place of a plain status dot, so the
+ * timeline reads as "what kind of action happened" at a glance rather
+ * than a row of identical dots. A tool name with no entry here falls
+ * back to the plain dot (see TimelineRow) rather than rendering nothing. */
+const TOOL_ICONS: Record<string, (props: { className?: string }) => JSX.Element> = {
+  read: ReadIcon,
+  write: WriteIcon,
+  edit: EditIcon,
+  grep: SearchIcon,
+  find: FolderIcon,
+  ls: ListIcon,
+  bash: TerminalIcon,
+  powershell: TerminalIcon
 }
 
 /** A plain-English name for the action, shown in place of the raw tool
