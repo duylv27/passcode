@@ -32,6 +32,7 @@
   --input-bg: #fbfcfb;
   --button-bg: #55677a;
   --button-hover: #44525f;
+  --button-fg: #ffffff;
 
   --success: #2e7d32;
   --danger: #c0392b;
@@ -79,6 +80,7 @@
   --input-bg: #191c1e;
   --button-bg: #9fb3c4;
   --button-hover: #b5c6d3;
+  --button-fg: #0c1116;
 
   --success: #3fb950;
   --danger: #f85149;
@@ -667,7 +669,7 @@ button {
 .btn-primary {
   background: var(--button-bg);
   border-color: transparent;
-  color: #ffffff;
+  color: var(--button-fg);
 }
 
 .btn-primary:hover:not(:disabled) {
@@ -2556,7 +2558,7 @@ button {
   padding: 6px 14px;
   font-size: 12.5px;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--button-fg);
   white-space: nowrap;
 }
 
@@ -2692,7 +2694,7 @@ button {
   border-radius: var(--radius-sm);
   background: var(--button-bg);
   border: none;
-  color: var(--fg-bright);
+  color: var(--button-fg);
   font-size: 12.5px;
   font-weight: 600;
 }
@@ -2993,7 +2995,7 @@ button {
   background: var(--button-bg);
   border: none;
   border-radius: var(--radius-sm);
-  color: #ffffff;
+  color: var(--button-fg);
   font-size: 12.5px;
 }
 
