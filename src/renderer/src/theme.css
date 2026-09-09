@@ -37,9 +37,9 @@
   --danger: #c0392b;
   --warning: #a3690f;
 
-  --font-ui: 'Newsreader', Georgia, 'Times New Roman', serif;
-  --font-mono: 'Courier Prime', Consolas, 'Cascadia Code', ui-monospace, monospace;
-  --font-serif: 'Newsreader', Georgia, 'Times New Roman', serif;
+  --font-ui: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', Consolas, 'Cascadia Code', ui-monospace, monospace;
+  --font-serif: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 
   --radius: 9px;
   --radius-sm: 6px;
