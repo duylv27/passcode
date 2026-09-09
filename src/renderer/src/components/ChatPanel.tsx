@@ -127,6 +127,12 @@ class RowErrorBoundary extends Component<{ children: ReactNode }, { hasError: bo
 
 export function ChatPanel({ session, repoName, modelsRefreshKey }: Props): JSX.Element {
   const [items, setItems] = useState<TranscriptItem[]>([])
+  // True from the moment a session is opened until its 'history' event
+  // arrives -- without this, switching sessions resets `items` to []
+  // synchronously, flashing the empty-state placeholder for a beat before
+  // the real transcript populates (same class of bug fixed earlier for
+  // the sidebar's session/project lists).
+  const [loadingHistory, setLoadingHistory] = useState(true)
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
   const [thinking, setThinking] = useState(false)
@@ -285,6 +291,7 @@ export function ChatPanel({ session, repoName, modelsRefreshKey }: Props): JSX.E
 
   useEffect(() => {
     setItems([])
+    setLoadingHistory(true)
     setBusy(false)
     setThinking(false)
     setCurrentModel(null)
@@ -453,6 +460,7 @@ export function ChatPanel({ session, repoName, modelsRefreshKey }: Props): JSX.E
       } else if (event.type === 'history') {
         hasPriorTurns = event.items.length > 0
         setItems(mapHistory(event.items))
+        setLoadingHistory(false)
       } else if (event.type === 'model') {
         // The 'model' event itself doesn't carry providerName (sessionHandlers.ts
         // only knows provider/id/name at that point) -- look it up from the
@@ -711,7 +719,7 @@ export function ChatPanel({ session, repoName, modelsRefreshKey }: Props): JSX.E
     <ZoomViewerProvider>
       <div className="chat">
       <div className="chat-scroll" ref={chatScrollRef}>
-        {visibleItems.length === 0 && !thinking ? (
+        {loadingHistory ? null : visibleItems.length === 0 && !thinking ? (
           <div className="chat-empty">Ask it to explore the code, run something, or make a change.</div>
         ) : (
           groupForRender(visibleItems).map((group) =>

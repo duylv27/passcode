@@ -61,7 +61,11 @@ function Switch({ checked, onChange }: { checked: boolean; onChange: () => void 
   )
 }
 
-function StatusDot({ connected }: { connected: boolean }): JSX.Element {
+// `connected` is `undefined` while getAuthStatus() is still in flight --
+// rendering nothing then (rather than falling back to "not connected")
+// avoids a flash from the wrong state to the right one once it resolves.
+function StatusDot({ connected }: { connected: boolean | undefined }): JSX.Element | null {
+  if (connected === undefined) return null
   return <span className={`provider-dot${connected ? ' is-connected' : ''}`} title={connected ? 'Connected' : 'Not connected'} />
 }
 
@@ -288,7 +292,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
                 <div className="settings-row-text">
                   <span className="settings-row-title">
                     Anthropic API Key
-                    <StatusDot connected={!!status?.anthropic} />
+                    <StatusDot connected={status?.anthropic} />
                   </span>
                   <span className="settings-row-desc">Used for direct Anthropic model access</span>
                   {anthropicError && <span className="settings-row-error">{anthropicError}</span>}
@@ -314,7 +318,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
                 <div className="settings-row-text">
                   <span className="settings-row-title">
                     Gemini API Key
-                    <StatusDot connected={!!status?.gemini} />
+                    <StatusDot connected={status?.gemini} />
                   </span>
                   <span className="settings-row-desc">Used for direct Google Gemini model access</span>
                   {geminiError && <span className="settings-row-error">{geminiError}</span>}
@@ -340,7 +344,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
                 <div className="settings-row-text">
                   <span className="settings-row-title">
                     GitHub Copilot
-                    <StatusDot connected={!!status?.copilot} />
+                    <StatusDot connected={status?.copilot} />
                   </span>
                   <span className="settings-row-desc">Sign in with a device code</span>
                   {challenge && (
@@ -387,7 +391,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
                     </div>
                   )}
                 </div>
-                {!status?.copilot && (
+                {status && !status.copilot && (
                   <div className="settings-row-control">
                     <button className="settings-btn" onClick={handleCopilotLogin} disabled={loggingIn}>
                       {loggingIn ? 'Signing in…' : 'Sign in'}
