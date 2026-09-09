@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { SessionRecord } from '../../../shared/types'
-import { RepoIcon, ErrorIcon, PinIcon } from './icons'
+import { RepoIcon, ErrorIcon, PinIcon, StarIcon } from './icons'
 import { TabContextMenu } from './TabContextMenu'
 
 interface Props {
@@ -12,6 +12,7 @@ interface Props {
   onCloseOthers: (session: SessionRecord) => void
   onCloseAll: () => void
   onTogglePin: (session: SessionRecord) => void
+  onToggleBookmark: (session: SessionRecord) => void
 }
 
 /** Every currently-open session across every project, shown as editor-style
@@ -26,7 +27,8 @@ export function SessionTabs({
   onClose,
   onCloseOthers,
   onCloseAll,
-  onTogglePin
+  onTogglePin,
+  onToggleBookmark
 }: Props): JSX.Element {
   const [menu, setMenu] = useState<{ x: number; y: number; session: SessionRecord } | null>(null)
 
@@ -46,6 +48,13 @@ export function SessionTabs({
             <button className="tab-select" onClick={() => onSelect(s)}>
               {pinned ? <PinIcon className="row-icon is-pinned" /> : <RepoIcon />}
               <span className="tab-title">{s.title}</span>
+            </button>
+            <button
+              className={`tab-bookmark${s.bookmarked ? ' is-bookmarked' : ''}`}
+              onClick={() => onToggleBookmark(s)}
+              title={s.bookmarked ? 'Remove bookmark' : 'Bookmark'}
+            >
+              <StarIcon filled={s.bookmarked} />
             </button>
             <button className="tab-close" onClick={() => onClose(s)} title="Close tab">
               <ErrorIcon />

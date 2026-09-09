@@ -49,4 +49,7 @@ export function initSchema(db: DatabaseSync): void {
   if (!columns.some((c) => c.name === 'project_id')) {
     db.exec('ALTER TABLE sessions ADD COLUMN project_id TEXT')
   }
+  if (!columns.some((c) => c.name === 'bookmarked')) {
+    db.exec('ALTER TABLE sessions ADD COLUMN bookmarked INTEGER NOT NULL DEFAULT 0')
+  }
 }

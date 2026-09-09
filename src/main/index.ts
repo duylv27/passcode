@@ -1,6 +1,7 @@
 import { app, BrowserWindow, dialog, Menu } from 'electron'
 import { join } from 'node:path'
 import { existsSync } from 'node:fs'
+import { mkdir } from 'node:fs/promises'
 import type { ModelRuntime } from '@earendil-works/pi-coding-agent'
 import { openDatabase } from './db/db'
 import { createProjectsRepository } from './db/projectsRepository'
@@ -86,8 +87,32 @@ app.whenReady().then(async () => {
 
   const { ModelRuntime, ModelRegistry } = await import('@earendil-works/pi-coding-agent')
   const modelRuntime: ModelRuntime = await ModelRuntime.create()
+  // setRuntimeApiKey() is in-memory only (wiped on every process restart --
+  // see appSettingsRepository.ts) -- replay whatever was saved last time
+  // before the first availability refresh, so a provider stays "Connected"
+  // across restarts instead of silently reverting to disconnected.
+  for (const [providerId, apiKey] of Object.entries(appSettingsRepo.getProviderApiKeys())) {
+    await modelRuntime.setRuntimeApiKey(providerId, apiKey)
+  }
   const modelRegistry = new ModelRegistry(modelRuntime)
   await modelRegistry.refresh()
+
+  // Backing store for project-less "general" sessions -- a repo row always
+  // needs a real project_id (schema FK, NOT NULL), so this hidden project +
+  // one scratch-directory repo is created once (lazily, on first use) and
+  // remembered rather than recreated every time. Excluded from
+  // projectsHandlers' listProjects() so it never appears as a real project.
+  async function ensureGeneralRepo(): Promise<{ projectId: string; repoId: string }> {
+    const stored = appSettingsRepo.getGeneralRepo()
+    if (stored && reposRepo.getById(stored.repoId)) return stored
+    const scratchDir = join(app.getPath('userData'), 'general-scratch')
+    await mkdir(scratchDir, { recursive: true })
+    const project = projectsRepo.create('General')
+    const repo = reposRepo.create(project.id, scratchDir, 'General')
+    const info = { projectId: project.id, repoId: repo.id }
+    appSettingsRepo.setGeneralRepo(info)
+    return info
+  }
 
   let mainWindow = createWindow()
   mainWindow.on('maximize', () => mainWindow.webContents.send('window:maximizeChanged', true))
@@ -102,7 +127,7 @@ app.whenReady().then(async () => {
   })
 
   registerIpcHandlers({
-    projects: createProjectsHandlers(projectsRepo),
+    projects: createProjectsHandlers(projectsRepo, () => appSettingsRepo.getGeneralRepo()?.projectId),
     repos: createReposHandlers(reposRepo, isGitRepo, getGitStatus),
     session: createSessionHandlers({
       reposRepo,
@@ -117,7 +142,8 @@ app.whenReady().then(async () => {
         approvalHandlers.requestApproval(sessionId, toolName, input),
       findModel: (provider, modelId) => modelRegistry.find(provider, modelId),
       buildPromptText,
-      getUsageTelemetryConfig: () => appSettingsRepo.getUsageTelemetryConfig()
+      getUsageTelemetryConfig: () => appSettingsRepo.getUsageTelemetryConfig(),
+      ensureGeneralRepo
     }),
     settings: createSettingsHandlers(modelRuntime, appSettingsRepo),
     models: createModelsHandlers(modelRegistry),

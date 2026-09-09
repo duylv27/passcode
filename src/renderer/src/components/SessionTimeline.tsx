@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import type { GitStatus, Project, Repo, SessionRecord, SessionWithScope } from '../../../shared/types'
 import { SessionTimelineRow } from './SessionTimelineRow'
-import { ChevronIcon } from './icons'
+import { ChevronIcon, PlusIcon, StarIcon } from './icons'
 
 interface Props {
   activeSessionId: string | undefined
@@ -48,6 +48,12 @@ export function SessionTimeline({
   const [previews, setPreviews] = useState<Record<string, string | null>>({})
   const [busySessionIds, setBusySessionIds] = useState<Set<string>>(new Set())
   const [olderCollapsed, setOlderCollapsed] = useState(() => readOlderCollapsed())
+  const [bookmarkedOnly, setBookmarkedOnly] = useState(false)
+  // Distinguishes "still fetching" from "genuinely no sessions" -- without
+  // this, the empty state flashed on screen for a beat before every refresh
+  // (initial load, and again each time refreshKey bumps) even when there
+  // was real data on the way.
+  const [loading, setLoading] = useState(true)
 
   async function refresh(): Promise<void> {
     const sessionEntries = await window.api.session.listAll()
@@ -68,6 +74,7 @@ export function SessionTimeline({
       )
     )
     setPreviews(Object.fromEntries(previewEntries))
+    setLoading(false)
   }
 
   useEffect(() => {
@@ -87,6 +94,32 @@ export function SessionTimeline({
     })
   }, [])
 
+  // A general session has no project of its own -- its repoId/project only
+  // become known once listAll() resolves them, so re-fetch and pull the new
+  // entry out of the refreshed list rather than adding a second IPC call
+  // just to hand back {repo, project} at creation time.
+  async function handleCreateGeneralSession(): Promise<void> {
+    const result = await window.api.session.createGeneralSession()
+    if (!result.ok) return
+    const sessionEntries = await window.api.session.listAll()
+    setEntries(sessionEntries)
+    const created = sessionEntries.find((e) => e.session.id === result.session.id)
+    if (created) onOpenSession(created.session, created.repo, created.project)
+  }
+
+  // SessionTimelineRow's own rename only updates the DB and its own local
+  // edit-field state -- without also patching entries here, the new title
+  // didn't show until refreshKey changed (e.g. switching views away and
+  // back, which force-refetches) rather than reflecting immediately.
+  function handleRowRenamed(session: SessionRecord): void {
+    setEntries((prev) => prev.map((e) => (e.session.id === session.id ? { ...e, session } : e)))
+    onSessionRenamed(session)
+  }
+
+  function handleRowBookmarkChanged(session: SessionRecord): void {
+    setEntries((prev) => prev.map((e) => (e.session.id === session.id ? { ...e, session } : e)))
+  }
+
   function toggleOlderCollapsed(): void {
     setOlderCollapsed((prev) => {
       const next = !prev
@@ -100,8 +133,9 @@ export function SessionTimeline({
   }
 
   const now = new Date()
+  const visibleEntries = bookmarkedOnly ? entries.filter((e) => e.session.bookmarked) : entries
   const groups = new Map<string, SessionWithScope[]>()
-  for (const entry of entries) {
+  for (const entry of visibleEntries) {
     const label = dayLabel(entry.session.lastOpenedAt ?? entry.session.createdAt, now)
     const list = groups.get(label)
     if (list) list.push(entry)
@@ -112,7 +146,24 @@ export function SessionTimeline({
 
   return (
     <div className="tree-sessions">
-      {entries.length === 0 && <div className="sidebar-empty">No sessions yet.</div>}
+      <button className="picker-add-row is-general" onClick={handleCreateGeneralSession}>
+        <PlusIcon className="row-icon" />
+        <span>New general session</span>
+      </button>
+      {entries.length > 0 && (
+        <button
+          className={`session-timeline-filter${bookmarkedOnly ? ' is-active' : ''}`}
+          onClick={() => setBookmarkedOnly((v) => !v)}
+        >
+          <StarIcon filled={bookmarkedOnly} />
+          <span>{bookmarkedOnly ? 'Bookmarked' : 'All sessions'}</span>
+        </button>
+      )}
+      {!loading && visibleEntries.length === 0 && (
+        <div className="sidebar-empty">
+          {bookmarkedOnly ? 'No bookmarked sessions.' : 'No sessions yet.'}
+        </div>
+      )}
       {Array.from(groups.entries()).map(([label, groupEntries]) => (
         <div key={label} className="session-timeline-day-group">
           <div className="session-timeline-day-header">{label}</div>
@@ -128,7 +179,8 @@ export function SessionTimeline({
               preview={previews[session.id]}
               onOpenSession={onOpenSession}
               onSessionDeleted={onSessionDeleted}
-              onSessionRenamed={onSessionRenamed}
+              onSessionRenamed={handleRowRenamed}
+              onSessionBookmarkChanged={handleRowBookmarkChanged}
             />
           ))}
         </div>
@@ -152,7 +204,8 @@ export function SessionTimeline({
                 preview={previews[session.id]}
                 onOpenSession={onOpenSession}
                 onSessionDeleted={onSessionDeleted}
-                onSessionRenamed={onSessionRenamed}
+                onSessionRenamed={handleRowRenamed}
+                onSessionBookmarkChanged={handleRowBookmarkChanged}
               />
             ))}
         </div>

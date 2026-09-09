@@ -15,12 +15,27 @@ import type {
   HistoryItem,
   ModelInfo,
   SessionRecord,
+  SessionStats,
   SkillInfo,
+  SkillSource,
+  ThinkingInfo,
+  ThinkingLevel,
+  ToolInfo,
   TokenUsage
 } from '../../../shared/types'
 import { KNOWN_TOOL_NAMES } from '../../../shared/types'
 import { readBlobAsDataUrl, resizeImageDataUrl, splitDataUrl, type PastedImage } from '../lib/imageAttachment'
-import { ChevronIcon, SendIcon, StopIcon, SpinnerIcon, PlusIcon, SlashIcon } from './icons'
+import {
+  ChevronIcon,
+  SendIcon,
+  StopIcon,
+  SpinnerIcon,
+  PlusIcon,
+  SlashIcon,
+  AnthropicIcon,
+  GitHubIcon,
+  GeminiIcon
+} from './icons'
 import { Markdown } from './Markdown'
 import { DiffView, diffStats } from './DiffView'
 import { ZoomViewerProvider, useZoomViewer } from './ZoomViewer'
@@ -68,6 +83,9 @@ type TranscriptItem =
 interface Props {
   session: SessionRecord
   repoName: string
+  /** Bumped by App.tsx when Settings closes, so a provider key saved while
+   * it was open (making new models available) shows up without a reload. */
+  modelsRefreshKey: number
 }
 
 let idCounter = 0
@@ -100,7 +118,7 @@ class RowErrorBoundary extends Component<{ children: ReactNode }, { hasError: bo
   }
 }
 
-export function ChatPanel({ session, repoName }: Props): JSX.Element {
+export function ChatPanel({ session, repoName, modelsRefreshKey }: Props): JSX.Element {
   const [items, setItems] = useState<TranscriptItem[]>([])
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
@@ -117,6 +135,13 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
   const [contextPopoverOpen, setContextPopoverOpen] = useState(false)
   const [contextWindowInput, setContextWindowInput] = useState('')
   const contextPopoverRef = useRef<HTMLDivElement>(null)
+  const [sessionStats, setSessionStats] = useState<SessionStats | null>(null)
+  const [statsPopoverOpen, setStatsPopoverOpen] = useState(false)
+  const statsPopoverRef = useRef<HTMLDivElement>(null)
+  const [toolsInfo, setToolsInfo] = useState<{ all: ToolInfo[]; active: string[] } | null>(null)
+  const [toolsPopoverOpen, setToolsPopoverOpen] = useState(false)
+  const toolsPopoverRef = useRef<HTMLDivElement>(null)
+  const [thinkingInfo, setThinkingInfo] = useState<ThinkingInfo | null>(null)
   const [skills, setSkills] = useState<SkillInfo[]>([])
   const [selectedSkill, setSelectedSkill] = useState<SkillInfo | null>(null)
   const [skillMenuOpen, setSkillMenuOpen] = useState(false)
@@ -158,7 +183,7 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
 
   useEffect(() => {
     window.api.models.list().then(setModels)
-  }, [])
+  }, [modelsRefreshKey])
 
   useEffect(() => {
     window.api.skills.list(session.repoId).then(setSkills)
@@ -230,6 +255,28 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
   }, [contextPopoverOpen])
 
   useEffect(() => {
+    if (!statsPopoverOpen) return
+    function handleClickOutside(e: MouseEvent): void {
+      if (statsPopoverRef.current && !statsPopoverRef.current.contains(e.target as Node)) {
+        setStatsPopoverOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [statsPopoverOpen])
+
+  useEffect(() => {
+    if (!toolsPopoverOpen) return
+    function handleClickOutside(e: MouseEvent): void {
+      if (toolsPopoverRef.current && !toolsPopoverRef.current.contains(e.target as Node)) {
+        setToolsPopoverOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [toolsPopoverOpen])
+
+  useEffect(() => {
     setItems([])
     setBusy(false)
     setThinking(false)
@@ -240,6 +287,11 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
     setCompactionThresholds(null)
     setContextPopoverOpen(false)
     setContextWindowInput('')
+    setSessionStats(null)
+    setStatsPopoverOpen(false)
+    setToolsInfo(null)
+    setToolsPopoverOpen(false)
+    setThinkingInfo(null)
     turnActionIdsRef.current = []
     window.api.session.open(session.id)
 
@@ -395,7 +447,21 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
         hasPriorTurns = event.items.length > 0
         setItems(mapHistory(event.items))
       } else if (event.type === 'model') {
-        setCurrentModel({ provider: event.provider, id: event.id, name: event.name })
+        // The 'model' event itself doesn't carry providerName (sessionHandlers.ts
+        // only knows provider/id/name at that point) -- look it up from the
+        // already-fetched models list, falling back to the raw provider id
+        // if that list hasn't loaded yet.
+        const matched = modelsRef.current.find((m) => m.provider === event.provider && m.id === event.id)
+        setCurrentModel({
+          provider: event.provider,
+          providerName: matched?.providerName ?? event.provider,
+          id: event.id,
+          name: event.name
+        })
+        // Thinking support/available-levels are per-model -- refetch on
+        // every model change (manual switch or override) rather than
+        // trying to derive them client-side.
+        window.api.session.getThinkingInfo(session.id).then(setThinkingInfo)
         if (!restoredModel && !hasPriorTurns) {
           restoredModel = true
           const stored = localStorage.getItem(LAST_MODEL_KEY)
@@ -422,6 +488,8 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
         setCompacting(event.status === 'start')
       } else if (event.type === 'auto_compaction') {
         setAutoCompactEnabled(event.enabled)
+      } else if (event.type === 'thinking_level') {
+        setThinkingInfo((prev) => (prev ? { ...prev, level: event.level } : prev))
       }
     })
 
@@ -459,6 +527,10 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
     setModelMenuOpen(false)
     window.api.session.setModel(session.id, model.provider, model.id)
     localStorage.setItem(LAST_MODEL_KEY, JSON.stringify({ provider: model.provider, id: model.id }))
+  }
+
+  function handleToggleModelMenu(): void {
+    setModelMenuOpen((v) => !v)
   }
 
   function handleSelectSkill(skill: SkillInfo): void {
@@ -525,6 +597,35 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
     }
   }
 
+  async function handleOpenStatsPopover(): Promise<void> {
+    const next = !statsPopoverOpen
+    setStatsPopoverOpen(next)
+    // Refetched every open (not cached-forever like thresholds) since,
+    // unlike thresholds, these numbers change constantly during a session.
+    if (next) setSessionStats(await window.api.session.getSessionStats(session.id))
+  }
+
+  async function handleOpenToolsPopover(): Promise<void> {
+    const next = !toolsPopoverOpen
+    setToolsPopoverOpen(next)
+    if (next) setToolsInfo(await window.api.session.getToolsInfo(session.id))
+  }
+
+  async function handleToggleTool(toolName: string): Promise<void> {
+    if (!toolsInfo) return
+    const nextActive = toolsInfo.active.includes(toolName)
+      ? toolsInfo.active.filter((t) => t !== toolName)
+      : [...toolsInfo.active, toolName]
+    setToolsInfo({ ...toolsInfo, active: nextActive })
+    await window.api.session.setActiveTools(session.id, nextActive)
+  }
+
+  async function handleThinkingLevelCommit(level: ThinkingLevel): Promise<void> {
+    if (!thinkingInfo || level === thinkingInfo.level) return
+    setThinkingInfo({ ...thinkingInfo, level })
+    await window.api.session.setThinkingLevel(session.id, level)
+  }
+
   // Reseeds the editable field whenever the popover opens or the effective
   // window changes (our own override applying, or a reset) -- not on every
   // context_usage event, since tokens/percent change far more often than
@@ -534,6 +635,7 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
       setContextWindowInput(String(contextUsage.contextWindow))
     }
   }, [contextPopoverOpen, contextUsage?.contextWindow])
+
 
   async function handleContextWindowSliderCommit(value: string): Promise<void> {
     const parsed = Math.round(Number(value))
@@ -586,6 +688,18 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
         )
   const showSkillMenu = skills.length > 0 && (skillMenuOpen || slashQuery !== null) && filteredSkills.length > 0
 
+  // Grouped by provider (in the order providers first appear in `models`,
+  // which already reflects the registry's own ordering) rather than a flat
+  // list with a tag repeated on every row -- with GitHub Copilot alone able
+  // to proxy half a dozen Claude variants, a per-row provider label got
+  // noisy and pushed names onto a second line in a narrow menu.
+  const modelGroups: { providerName: string; models: ModelInfo[] }[] = []
+  for (const m of models) {
+    const group = modelGroups.find((g) => g.providerName === m.providerName)
+    if (group) group.models.push(m)
+    else modelGroups.push({ providerName: m.providerName, models: [m] })
+  }
+
   return (
     <ZoomViewerProvider>
       <div className="chat">
@@ -629,7 +743,10 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
                 className="skill-picker-option"
                 onClick={() => handleSelectSkill(skill)}
               >
-                <span className="skill-picker-option-name">{skill.name}</span>
+                <span className="skill-picker-option-title">
+                  <span className="skill-picker-option-name">{skill.name}</span>
+                  <span className={`skill-source-badge is-${skill.source}`}>{skillSourceLabel(skill.source)}</span>
+                </span>
                 <span className="skill-picker-option-desc">{skill.description}</span>
               </button>
             ))}
@@ -649,32 +766,50 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
               <button
                 type="button"
                 className="model-picker-trigger"
-                onClick={() => setModelMenuOpen((v) => !v)}
+                onClick={handleToggleModelMenu}
                 title="Model"
               >
+                {currentModel && (
+                  <span className={`model-provider-icon is-${currentModel.provider}`}>
+                    <ProviderMark provider={currentModel.provider} providerName={currentModel.providerName} />
+                  </span>
+                )}
                 <span className="model-picker-label">{currentModel ? currentModel.name : 'Model…'}</span>
                 <ChevronIcon className={`chevron model-picker-chevron${modelMenuOpen ? ' is-open' : ''}`} />
               </button>
               {modelMenuOpen && (
                 <div className="model-picker-menu" role="listbox">
-                  {models.map((m) => {
-                    const isSelected = currentModel?.provider === m.provider && currentModel?.id === m.id
-                    return (
-                      <button
-                        key={`${m.provider}/${m.id}`}
-                        type="button"
-                        role="option"
-                        aria-selected={isSelected}
-                        className={`model-picker-option${isSelected ? ' is-selected' : ''}`}
-                        onClick={() => handleModelChange(m)}
-                      >
-                        {m.name}
-                      </button>
-                    )
-                  })}
+                  {modelGroups.map((group) => (
+                    <div key={group.providerName} className="model-picker-group">
+                      <div className="model-picker-group-label">
+                        <span className={`model-provider-icon is-${group.models[0].provider}`}>
+                          <ProviderMark provider={group.models[0].provider} providerName={group.providerName} />
+                        </span>
+                        {group.providerName}
+                      </div>
+                      {group.models.map((m) => {
+                        const isSelected = currentModel?.provider === m.provider && currentModel?.id === m.id
+                        return (
+                          <button
+                            key={`${m.provider}/${m.id}`}
+                            type="button"
+                            role="option"
+                            aria-selected={isSelected}
+                            className={`model-picker-option${isSelected ? ' is-selected' : ''}`}
+                            onClick={() => handleModelChange(m)}
+                          >
+                            {m.name}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
+          )}
+          {thinkingInfo?.supported && thinkingInfo.available.length > 1 && (
+            <ThinkingSlider info={thinkingInfo} onCommit={handleThinkingLevelCommit} />
           )}
           {contextUsage && (
             <div className="context-usage" ref={contextPopoverRef}>
@@ -814,12 +949,92 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
               )}
             </div>
           )}
+          <div className="context-usage" ref={statsPopoverRef}>
+            <button type="button" className="composer-icon-badge" onClick={handleOpenStatsPopover} title="Session stats">
+              ▤
+            </button>
+            {statsPopoverOpen && (
+              <div className="context-usage-popover">
+                <div className="context-usage-popover-header">
+                  <h3>Session stats</h3>
+                </div>
+                <p className="context-usage-caption">
+                  Totals across the whole session, including history that's been compacted away.
+                </p>
+                {sessionStats ? (
+                  <div className="session-stats-grid">
+                    <div className="session-stats-cell">
+                      <span className="session-stats-label">Messages</span>
+                      <span className="session-stats-value">{sessionStats.totalMessages.toLocaleString()}</span>
+                    </div>
+                    <div className="session-stats-cell">
+                      <span className="session-stats-label">Tool calls</span>
+                      <span className="session-stats-value">{sessionStats.toolCalls.toLocaleString()}</span>
+                    </div>
+                    <div className="session-stats-cell">
+                      <span className="session-stats-label">Est. cost</span>
+                      <span className="session-stats-value is-accent">${sessionStats.cost.toFixed(2)}</span>
+                    </div>
+                    <div className="session-stats-cell">
+                      <span className="session-stats-label">Input tokens</span>
+                      <span className="session-stats-value">{sessionStats.tokens.input.toLocaleString()}</span>
+                    </div>
+                    <div className="session-stats-cell">
+                      <span className="session-stats-label">Output tokens</span>
+                      <span className="session-stats-value">{sessionStats.tokens.output.toLocaleString()}</span>
+                    </div>
+                    <div className="session-stats-cell">
+                      <span className="session-stats-label">Cache read</span>
+                      <span className="session-stats-value">{sessionStats.tokens.cacheRead.toLocaleString()}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="sidebar-empty">Loading…</div>
+                )}
+              </div>
+            )}
+          </div>
+          <div className="context-usage" ref={toolsPopoverRef}>
+            <button type="button" className="composer-icon-badge" onClick={handleOpenToolsPopover} title="Active tools">
+              ⚙
+            </button>
+            {toolsPopoverOpen && (
+              <div className="context-usage-popover">
+                <div className="context-usage-popover-header">
+                  <h3>Active tools</h3>
+                </div>
+                <p className="context-usage-caption">
+                  A disabled tool is never offered to the model at all this turn onward -- stricter than
+                  requiring approval for it.
+                </p>
+                {toolsInfo ? (
+                  toolsInfo.all.map((tool) => (
+                    <div className="context-usage-row" key={tool.name}>
+                      <div className="context-usage-row-text">
+                        <span className="context-usage-row-title">{tool.name}</span>
+                        <span className="context-usage-row-desc">{tool.description}</span>
+                      </div>
+                      <Switch
+                        checked={toolsInfo.active.includes(tool.name)}
+                        onChange={() => handleToggleTool(tool.name)}
+                      />
+                    </div>
+                  ))
+                ) : (
+                  <div className="sidebar-empty">Loading…</div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
         {(selectedSkill || attachedFile || pastedImages.length > 0) && (
           <div className="composer-chips">
             {selectedSkill && (
               <span className="composer-chip">
                 <SlashIcon /> {selectedSkill.name}
+                <span className={`skill-source-badge is-${selectedSkill.source}`}>
+                  {skillSourceLabel(selectedSkill.source)}
+                </span>
                 <button
                   type="button"
                   className="composer-chip-remove"
@@ -901,6 +1116,62 @@ export function ChatPanel({ session, repoName }: Props): JSX.Element {
     </ZoomViewerProvider>
   )
 }
+
+// Isolated into its own component so a live drag only re-renders this tiny
+// control, not the whole ChatPanel (which would otherwise re-filter/regroup
+// the entire transcript on every pointermove tick and cause real UI lag,
+// not just visual jank in the slider itself). Local `index`/`dragging` state
+// lives here; the parent only hears about the change once, on commit.
+const ThinkingSlider = memo(function ThinkingSlider({
+  info,
+  onCommit
+}: {
+  info: ThinkingInfo
+  onCommit: (level: ThinkingLevel) => void
+}): JSX.Element {
+  const [index, setIndex] = useState(() => Math.max(0, info.available.indexOf(info.level)))
+  const [dragging, setDragging] = useState(false)
+
+  // Resyncs the slider's position whenever the effective level changes from
+  // outside a drag -- a model switch (new available set), an auto-clamp on
+  // model change, or our own commit landing back via the thinking_level event.
+  useEffect(() => {
+    const i = info.available.indexOf(info.level)
+    setIndex(i === -1 ? 0 : i)
+  }, [info])
+
+  function commit(indexStr: string): void {
+    setDragging(false)
+    const level = info.available[Number(indexStr)]
+    if (level) onCommit(level)
+  }
+
+  return (
+    <div className="thinking-slider" title={`Reasoning effort: ${info.level}`}>
+      <div className="thinking-slider-track-wrap">
+        <input
+          type="range"
+          min={0}
+          max={info.available.length - 1}
+          step={1}
+          className="thinking-slider-input"
+          value={index}
+          onChange={(e) => setIndex(Number(e.target.value))}
+          onPointerDown={() => setDragging(true)}
+          onPointerUp={(e) => commit(e.currentTarget.value)}
+          onKeyUp={(e) => commit(e.currentTarget.value)}
+        />
+        <div className={`thinking-slider-segments${dragging ? ' is-dragging' : ''}`}>
+          {info.available.map((level, i) => (
+            <div key={level} className={`thinking-slider-segment${i === index ? ' is-current' : ''}`}>
+              {i === index ? level : ''}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+})
 
 type TimelineItem = Extract<TranscriptItem, { kind: 'thinking' | 'tool' }>
 type SingleItem = Exclude<TranscriptItem, { kind: 'thinking' | 'tool' }>
@@ -1256,6 +1527,31 @@ function contextUsageBand(percent: number | null): 'success' | 'warning' | 'dang
   if (percent >= 85) return 'danger'
   if (percent >= 60) return 'warning'
   return 'success'
+}
+
+/** Official brand mark for a raw provider id, falling back to the
+ * provider's initial letter for anything not in our known set (a custom
+ * registered provider, for instance). */
+function ProviderMark({ provider, providerName }: { provider: string; providerName: string }): JSX.Element {
+  if (provider === 'anthropic') return <AnthropicIcon />
+  if (provider === 'github-copilot') return <GitHubIcon />
+  if (provider === 'google') return <GeminiIcon />
+  return <>{providerName.charAt(0)}</>
+}
+
+function skillSourceLabel(source: SkillSource): string {
+  switch (source) {
+    case 'pi':
+      return 'Pi'
+    case 'project':
+      return 'Project'
+    case 'claude':
+      return 'Claude Code'
+    case 'copilot':
+      return 'Copilot'
+    case 'other':
+      return 'Custom'
+  }
 }
 
 function Switch({ checked, onChange }: { checked: boolean; onChange: () => void }): JSX.Element {

@@ -66,4 +66,49 @@ describe('AppSettingsRepository', () => {
     })
     expect(repo.getUsageTelemetryConfig()).toEqual({ enabled: true, outputPath: '/x.jsonl' })
   })
+
+  it('returns no provider API keys when none has been saved', () => {
+    expect(repo.getProviderApiKeys()).toEqual({})
+  })
+
+  it('persists and retrieves a saved provider API key', () => {
+    repo.setProviderApiKey('anthropic', 'sk-test-123')
+    expect(repo.getProviderApiKeys()).toEqual({ anthropic: 'sk-test-123' })
+  })
+
+  it('accumulates keys for multiple providers rather than overwriting the whole set', () => {
+    repo.setProviderApiKey('anthropic', 'sk-test-123')
+    repo.setProviderApiKey('google', 'AIza-test-456')
+    expect(repo.getProviderApiKeys()).toEqual({ anthropic: 'sk-test-123', google: 'AIza-test-456' })
+  })
+
+  it('overwrites a previously saved key for the same provider rather than duplicating it', () => {
+    repo.setProviderApiKey('anthropic', 'sk-old')
+    repo.setProviderApiKey('anthropic', 'sk-new')
+    expect(repo.getProviderApiKeys()).toEqual({ anthropic: 'sk-new' })
+  })
+
+  it('does not let a saved provider API key leak into the tool approval policy or vice versa', () => {
+    repo.setToolApprovalPolicy({ autoApprove: { bash: true } })
+    repo.setProviderApiKey('anthropic', 'sk-test-123')
+    expect(repo.getToolApprovalPolicy()).toEqual({
+      autoApprove: { ...DEFAULT_TOOL_APPROVAL_POLICY.autoApprove, bash: true }
+    })
+    expect(repo.getProviderApiKeys()).toEqual({ anthropic: 'sk-test-123' })
+  })
+
+  it('returns no general repo info when none has been saved', () => {
+    expect(repo.getGeneralRepo()).toBeNull()
+  })
+
+  it('persists and retrieves saved general repo info', () => {
+    repo.setGeneralRepo({ projectId: 'proj-1', repoId: 'repo-1' })
+    expect(repo.getGeneralRepo()).toEqual({ projectId: 'proj-1', repoId: 'repo-1' })
+  })
+
+  it('overwrites previously saved general repo info rather than duplicating it', () => {
+    repo.setGeneralRepo({ projectId: 'proj-1', repoId: 'repo-1' })
+    repo.setGeneralRepo({ projectId: 'proj-2', repoId: 'repo-2' })
+    expect(repo.getGeneralRepo()).toEqual({ projectId: 'proj-2', repoId: 'repo-2' })
+  })
 })

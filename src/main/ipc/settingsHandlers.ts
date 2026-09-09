@@ -1,5 +1,6 @@
 import type { AuthCheck, AuthInteraction, AuthType, Credential } from '@earendil-works/pi-ai'
 import { fetchCopilotQuota } from '../agent/copilotQuota'
+import { validateAnthropicApiKey, validateGeminiApiKey } from '../agent/providerValidation'
 import { probeUsageTelemetryPath } from '../agent/usageTelemetry'
 import type { AppSettingsRepository } from '../db/appSettingsRepository'
 import type { AuthStatus, CopilotQuota, DeviceCodeChallenge, UsageTelemetryConfig } from '../../shared/types'
@@ -12,6 +13,7 @@ export interface ModelRuntimeLike {
 
 export interface SettingsHandlers {
   setAnthropicApiKey(apiKey: string): Promise<{ ok: true } | { ok: false; error: string }>
+  setGeminiApiKey(apiKey: string): Promise<{ ok: true } | { ok: false; error: string }>
   getAuthStatus(): Promise<AuthStatus>
   loginCopilot(
     onChallenge: (challenge: DeviceCodeChallenge) => void
@@ -27,20 +29,44 @@ export function createSettingsHandlers(
 ): SettingsHandlers {
   return {
     async setAnthropicApiKey(apiKey: string) {
-      if (!apiKey.trim()) return { ok: false, error: 'API key must not be empty' }
+      const trimmed = apiKey.trim()
+      if (!trimmed) return { ok: false, error: 'API key must not be empty' }
+      // Validate against the real API before persisting -- checkAuth() alone
+      // only confirms a key is stored for this provider, not that it works,
+      // since Anthropic's provider definition has no auth.apiKey.check hook.
+      const validation = await validateAnthropicApiKey(trimmed)
+      if (!validation.ok) return validation
       try {
-        await modelRuntime.setRuntimeApiKey('anthropic', apiKey.trim())
+        await modelRuntime.setRuntimeApiKey('anthropic', trimmed)
+        // setRuntimeApiKey() is in-memory only (see appSettingsRepository.ts) --
+        // persist it ourselves so it survives a restart, replayed in
+        // main/index.ts on the next launch.
+        appSettingsRepo.setProviderApiKey('anthropic', trimmed)
+        return { ok: true }
+      } catch (err) {
+        return { ok: false, error: (err as Error).message }
+      }
+    },
+    async setGeminiApiKey(apiKey: string) {
+      const trimmed = apiKey.trim()
+      if (!trimmed) return { ok: false, error: 'API key must not be empty' }
+      const validation = await validateGeminiApiKey(trimmed)
+      if (!validation.ok) return validation
+      try {
+        await modelRuntime.setRuntimeApiKey('google', trimmed)
+        appSettingsRepo.setProviderApiKey('google', trimmed)
         return { ok: true }
       } catch (err) {
         return { ok: false, error: (err as Error).message }
       }
     },
     async getAuthStatus() {
-      const [anthropic, copilot] = await Promise.all([
+      const [anthropic, copilot, gemini] = await Promise.all([
         modelRuntime.checkAuth('anthropic'),
-        modelRuntime.checkAuth('github-copilot')
+        modelRuntime.checkAuth('github-copilot'),
+        modelRuntime.checkAuth('google')
       ])
-      return { anthropic: anthropic !== undefined, copilot: copilot !== undefined }
+      return { anthropic: anthropic !== undefined, copilot: copilot !== undefined, gemini: gemini !== undefined }
     },
     async loginCopilot(onChallenge) {
       try {

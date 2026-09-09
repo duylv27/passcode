@@ -1,6 +1,14 @@
 import type { AgentSessionEvent, ModelRuntime } from '@earendil-works/pi-coding-agent'
 import type { ImageContent, Model } from '@earendil-works/pi-ai'
-import type { CompactionThresholds, ContextUsage, HistoryItem, TokenUsage } from '../../shared/types'
+import type {
+  CompactionThresholds,
+  ContextUsage,
+  HistoryItem,
+  SessionStats,
+  ThinkingLevel,
+  TokenUsage,
+  ToolInfo
+} from '../../shared/types'
 import { getAdditionalSkillPaths } from './skills'
 import { PROMPT_CONTEXT_DELIMITER } from './promptBuilder'
 
@@ -20,6 +28,20 @@ export interface RepoSession {
   getAutoCompactionEnabled(): boolean
   setAutoCompactionEnabled(enabled: boolean): void
   getCompactionThresholds(): CompactionThresholds
+  /** Aggregates over the whole session, including compacted-away history --
+   * distinct from getContextUsage()'s live snapshot of the current window. */
+  getSessionStats(): SessionStats
+  getAllToolInfo(): ToolInfo[]
+  getActiveToolNames(): string[]
+  /** Unknown names are silently ignored by the SDK; rebuilds the system
+   * prompt so the model is never told a disabled tool exists at all
+   * (stricter than requiring approval for it). */
+  setActiveToolsByName(toolNames: string[]): void
+  supportsThinking(): boolean
+  /** Empty when !supportsThinking(). */
+  getAvailableThinkingLevels(): ThinkingLevel[]
+  getThinkingLevel(): ThinkingLevel
+  setThinkingLevel(level: ThinkingLevel): void
 }
 
 export interface CreateRepoSessionOptions {
@@ -94,7 +116,15 @@ export async function createRepoSession(
       getCompactionThresholds: () => ({
         reserveTokens: session.settingsManager.getCompactionReserveTokens(),
         keepRecentTokens: session.settingsManager.getCompactionKeepRecentTokens()
-      })
+      }),
+      getSessionStats: () => session.getSessionStats(),
+      getAllToolInfo: () => session.getAllTools().map((t) => ({ name: t.name, description: t.description })),
+      getActiveToolNames: () => session.getActiveToolNames(),
+      setActiveToolsByName: (toolNames: string[]) => session.setActiveToolsByName(toolNames),
+      supportsThinking: () => session.supportsThinking(),
+      getAvailableThinkingLevels: () => session.getAvailableThinkingLevels(),
+      getThinkingLevel: () => session.thinkingLevel,
+      setThinkingLevel: (level: ThinkingLevel) => session.setThinkingLevel(level)
     }
   }
 }

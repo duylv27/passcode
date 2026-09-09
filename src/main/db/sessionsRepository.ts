@@ -24,11 +24,20 @@ export interface SessionsRepository {
   getSessionFile(id: string): string | undefined
   setSessionFile(id: string, sessionFile: string): void
   touchOpened(id: string): void
+  setBookmarked(id: string, bookmarked: boolean): void
   delete(id: string): void
 }
 
 const SELECT_COLUMNS =
-  'id, repo_id as repoId, project_id as projectId, pi_session_id as piSessionId, title, created_at as createdAt, last_opened_at as lastOpenedAt'
+  'id, repo_id as repoId, project_id as projectId, pi_session_id as piSessionId, title, created_at as createdAt, last_opened_at as lastOpenedAt, bookmarked'
+
+// SQLite has no native boolean -- bookmarked comes back as 0/1 from every
+// query using SELECT_COLUMNS, so each read path coerces it here rather than
+// leaking the raw integer into SessionRecord's boolean field.
+function mapRow(row: unknown): SessionRecord {
+  const r = row as Omit<SessionRecord, 'bookmarked'> & { bookmarked: unknown }
+  return { ...r, bookmarked: r.bookmarked === 1 || r.bookmarked === true }
+}
 
 export function createSessionsRepository(db: DatabaseSync): SessionsRepository {
   return {
@@ -40,7 +49,8 @@ export function createSessionsRepository(db: DatabaseSync): SessionsRepository {
         piSessionId,
         title,
         createdAt: new Date().toISOString(),
-        lastOpenedAt: null
+        lastOpenedAt: null,
+        bookmarked: false
       }
       db.prepare(
         'INSERT INTO sessions (id, repo_id, project_id, pi_session_id, title, created_at) VALUES (?, ?, ?, ?, ?, ?)'
@@ -48,35 +58,41 @@ export function createSessionsRepository(db: DatabaseSync): SessionsRepository {
       return record
     },
     listByRepo(repoId: string): SessionRecord[] {
-      return db
-        .prepare(
-          `SELECT ${SELECT_COLUMNS} FROM sessions WHERE repo_id = ? AND project_id IS NULL ORDER BY created_at, rowid`
-        )
-        .all(repoId) as unknown as SessionRecord[]
+      return (
+        db
+          .prepare(
+            `SELECT ${SELECT_COLUMNS} FROM sessions WHERE repo_id = ? AND project_id IS NULL ORDER BY created_at, rowid`
+          )
+          .all(repoId) as unknown[]
+      ).map(mapRow)
     },
     listByProject(projectId: string): SessionRecord[] {
-      return db
-        .prepare(`SELECT ${SELECT_COLUMNS} FROM sessions WHERE project_id = ? ORDER BY created_at, rowid`)
-        .all(projectId) as unknown as SessionRecord[]
+      return (
+        db
+          .prepare(`SELECT ${SELECT_COLUMNS} FROM sessions WHERE project_id = ? ORDER BY created_at, rowid`)
+          .all(projectId) as unknown[]
+      ).map(mapRow)
     },
     getById(id: string): SessionRecord | undefined {
-      return db.prepare(`SELECT ${SELECT_COLUMNS} FROM sessions WHERE id = ?`).get(id) as
-        | SessionRecord
-        | undefined
+      const row = db.prepare(`SELECT ${SELECT_COLUMNS} FROM sessions WHERE id = ?`).get(id)
+      return row ? mapRow(row) : undefined
     },
     getMostRecent(): SessionRecord | undefined {
-      return db
+      const row = db
         .prepare(
           `SELECT ${SELECT_COLUMNS} FROM sessions ORDER BY COALESCE(last_opened_at, created_at) DESC, rowid DESC LIMIT 1`
         )
-        .get() as SessionRecord | undefined
+        .get()
+      return row ? mapRow(row) : undefined
     },
     listAll(): SessionRecord[] {
-      return db
-        .prepare(
-          `SELECT ${SELECT_COLUMNS} FROM sessions ORDER BY COALESCE(last_opened_at, created_at) DESC, rowid DESC`
-        )
-        .all() as unknown as SessionRecord[]
+      return (
+        db
+          .prepare(
+            `SELECT ${SELECT_COLUMNS} FROM sessions ORDER BY COALESCE(last_opened_at, created_at) DESC, rowid DESC`
+          )
+          .all() as unknown[]
+      ).map(mapRow)
     },
     rename(id: string, title: string): void {
       db.prepare('UPDATE sessions SET title = ? WHERE id = ?').run(title, id)
@@ -95,6 +111,9 @@ export function createSessionsRepository(db: DatabaseSync): SessionsRepository {
     },
     touchOpened(id: string): void {
       db.prepare('UPDATE sessions SET last_opened_at = ? WHERE id = ?').run(new Date().toISOString(), id)
+    },
+    setBookmarked(id: string, bookmarked: boolean): void {
+      db.prepare('UPDATE sessions SET bookmarked = ? WHERE id = ?').run(bookmarked ? 1 : 0, id)
     },
     delete(id: string): void {
       db.prepare('DELETE FROM sessions WHERE id = ?').run(id)

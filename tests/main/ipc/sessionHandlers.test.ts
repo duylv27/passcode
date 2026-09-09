@@ -93,6 +93,7 @@ describe('sessionHandlers', () => {
     )
 
     handlers = createSessionHandlers({
+      ensureGeneralRepo: async () => ({ projectId: 'general-project', repoId: 'general-repo' }),
       reposRepo,
       sessionsRepo,
       openRepoSession: openRepoSessionMock,
@@ -134,9 +135,24 @@ describe('sessionHandlers', () => {
     expect(sessionsRepo.getById(session.id)?.piSessionId).toBe('pi-session-1')
   })
 
+  it('does not touch lastOpenedAt merely from opening a session', async () => {
+    const session = handlers.createSession(repoId)
+    expect(sessionsRepo.getById(session.id)?.lastOpenedAt).toBeNull()
+    await handlers.openSession(session.id)
+    expect(sessionsRepo.getById(session.id)?.lastOpenedAt).toBeNull()
+  })
+
+  it('touches lastOpenedAt once a prompt is actually sent', async () => {
+    const session = handlers.createSession(repoId)
+    await handlers.openSession(session.id)
+    await handlers.sendPrompt(session.id, 'hello')
+    expect(sessionsRepo.getById(session.id)?.lastOpenedAt).not.toBeNull()
+  })
+
   it('builds the prompt text via buildPromptText, passing options through, and sends the built text', async () => {
     const buildPromptText = vi.fn(async (text: string) => `built:${text}`)
     const localHandlers = createSessionHandlers({
+      ensureGeneralRepo: async () => ({ projectId: 'general-project', repoId: 'general-repo' }),
       reposRepo: { getById: () => ({ id: repoId, projectId: 'p1', path: '/repo/path', name: 'demo-repo' }) } as never,
       sessionsRepo,
       openRepoSession: openRepoSessionMock,
@@ -305,6 +321,7 @@ describe('sessionHandlers', () => {
     // here -- follow the same fake-inline-repo workaround the existing
     // "builds the prompt text..." test above already uses.
     const localHandlers = createSessionHandlers({
+      ensureGeneralRepo: async () => ({ projectId: 'general-project', repoId: 'general-repo' }),
       reposRepo: { getById: () => ({ id: repoId, projectId: 'p1', path: '/repo/path', name: 'demo-repo' }) } as never,
       sessionsRepo,
       openRepoSession: openRepoSessionMock,
@@ -435,6 +452,7 @@ describe('sessionHandlers', () => {
   it("passes a per-session requestApproval wrapper to openRepoSession", async () => {
     const requestApproval = vi.fn(async () => true)
     const localHandlers = createSessionHandlers({
+      ensureGeneralRepo: async () => ({ projectId: 'general-project', repoId: 'general-repo' }),
       reposRepo: { getById: () => ({ id: repoId, projectId: 'p1', path: '/repo/path', name: 'demo-repo' }) } as never,
       sessionsRepo,
       openRepoSession: openRepoSessionMock,
@@ -561,6 +579,7 @@ describe('sessionHandlers', () => {
     const localRepoId = reposRepo.create(projectId, '/repo/path', 'demo-repo').id
 
     const localHandlers = createSessionHandlers({
+      ensureGeneralRepo: async () => ({ projectId: 'general-project', repoId: 'general-repo' }),
       reposRepo,
       projectsRepo,
       sessionsRepo: localSessionsRepo,
@@ -586,6 +605,78 @@ describe('sessionHandlers', () => {
     expect(projectEntry?.project?.id).toBe(projectId)
   })
 
+  it('createGeneralSession creates a session anchored to the ensureGeneralRepo repo, with no project', async () => {
+    const db = new Database(':memory:')
+    initSchema(db)
+    const projectsRepo = createProjectsRepository(db)
+    const reposRepo = createReposRepository(db)
+    const localSessionsRepo = createSessionsRepository(db)
+    const generalProjectId = projectsRepo.create('General').id
+    const generalRepoId = reposRepo.create(generalProjectId, '/scratch/dir', 'General').id
+
+    const localHandlers = createSessionHandlers({
+      ensureGeneralRepo: async () => ({ projectId: generalProjectId, repoId: generalRepoId }),
+      reposRepo,
+      projectsRepo,
+      sessionsRepo: localSessionsRepo,
+      openRepoSession: openRepoSessionMock,
+      onEvent: () => {},
+      requestApproval: async () => true,
+      findModel: findModelMock,
+      buildPromptText: async (text) => text
+    })
+
+    const result = await localHandlers.createGeneralSession('Scratch chat')
+    if (!result.ok) throw new Error('unexpected failure: ' + result.error)
+    expect(result.session.title).toBe('Scratch chat')
+    expect(result.session.repoId).toBe(generalRepoId)
+    expect(result.session.projectId).toBeNull()
+  })
+
+  it('createGeneralSession defaults the title to "New session"', async () => {
+    const db = new Database(':memory:')
+    initSchema(db)
+    const projectsRepo = createProjectsRepository(db)
+    const reposRepo = createReposRepository(db)
+    const localSessionsRepo = createSessionsRepository(db)
+    const generalProjectId = projectsRepo.create('General').id
+    const generalRepoId = reposRepo.create(generalProjectId, '/scratch/dir', 'General').id
+
+    const localHandlers = createSessionHandlers({
+      ensureGeneralRepo: async () => ({ projectId: generalProjectId, repoId: generalRepoId }),
+      reposRepo,
+      projectsRepo,
+      sessionsRepo: localSessionsRepo,
+      openRepoSession: openRepoSessionMock,
+      onEvent: () => {},
+      requestApproval: async () => true,
+      findModel: findModelMock,
+      buildPromptText: async (text) => text
+    })
+
+    const result = await localHandlers.createGeneralSession()
+    if (!result.ok) throw new Error('unexpected failure: ' + result.error)
+    expect(result.session.title).toBe('New session')
+  })
+
+  it('createGeneralSession surfaces an ensureGeneralRepo failure as an error result', async () => {
+    const localHandlers = createSessionHandlers({
+      ensureGeneralRepo: async () => {
+        throw new Error('could not create scratch directory')
+      },
+      reposRepo,
+      sessionsRepo,
+      openRepoSession: openRepoSessionMock,
+      onEvent: () => {},
+      requestApproval: async () => true,
+      findModel: findModelMock,
+      buildPromptText: async (text) => text
+    })
+
+    const result = await localHandlers.createGeneralSession()
+    expect(result).toEqual({ ok: false, error: 'could not create scratch directory' })
+  })
+
   it('listAllSessions skips a session whose repo no longer exists', () => {
     const db = new Database(':memory:')
     initSchema(db)
@@ -596,6 +687,7 @@ describe('sessionHandlers', () => {
     const localRepoId = reposRepo.create(projectId, '/repo/path', 'demo-repo').id
 
     const localHandlers = createSessionHandlers({
+      ensureGeneralRepo: async () => ({ projectId: 'general-project', repoId: 'general-repo' }),
       reposRepo,
       projectsRepo,
       sessionsRepo: localSessionsRepo,

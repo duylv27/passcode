@@ -8,14 +8,23 @@ export interface ProjectsHandlers {
   deleteProject(id: string): void
 }
 
-export function createProjectsHandlers(repo: ProjectsRepository): ProjectsHandlers {
+export function createProjectsHandlers(
+  repo: ProjectsRepository,
+  /** Id of the hidden project backing project-less "general" sessions (see
+   * sessionHandlers.ts's createGeneralSession) -- excluded from the list so
+   * it never shows up as a real project the user could open or delete.
+   * Optional since not every caller (e.g. tests) needs one. */
+  getGeneralProjectId?: () => string | undefined
+): ProjectsHandlers {
   return {
     createProject(name: string): Project {
       if (!name.trim()) throw new Error('Project name must not be empty')
       return repo.create(name.trim())
     },
     listProjects(): Project[] {
-      return repo.list()
+      const generalId = getGeneralProjectId?.()
+      const all = repo.list()
+      return generalId ? all.filter((p) => p.id !== generalId) : all
     },
     renameProject(id: string, name: string): void {
       if (!name.trim()) throw new Error('Project name must not be empty')

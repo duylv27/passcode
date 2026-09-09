@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import type { GitStatus, Project, Repo, SessionRecord } from '../../../shared/types'
 import { KebabMenu } from './KebabMenu'
+import { StarIcon } from './icons'
 
 interface Props {
   session: SessionRecord
@@ -14,6 +15,7 @@ interface Props {
   onOpenSession: (session: SessionRecord, repo: Repo, project: Project | null) => void
   onSessionDeleted: (session: SessionRecord) => void
   onSessionRenamed: (session: SessionRecord) => void
+  onSessionBookmarkChanged: (session: SessionRecord) => void
 }
 
 export function SessionTimelineRow({
@@ -26,7 +28,8 @@ export function SessionTimelineRow({
   preview,
   onOpenSession,
   onSessionDeleted,
-  onSessionRenamed
+  onSessionRenamed,
+  onSessionBookmarkChanged
 }: Props): JSX.Element {
   const [editing, setEditing] = useState(false)
   const [editValue, setEditValue] = useState(session.title)
@@ -47,6 +50,12 @@ export function SessionTimelineRow({
   async function handleDelete(): Promise<void> {
     await window.api.session.delete(session.id)
     onSessionDeleted(session)
+  }
+
+  async function handleToggleBookmark(): Promise<void> {
+    const bookmarked = !session.bookmarked
+    await window.api.session.setBookmarked(session.id, bookmarked)
+    onSessionBookmarkChanged({ ...session, bookmarked })
   }
 
   if (editing) {
@@ -73,6 +82,7 @@ export function SessionTimelineRow({
         <div className="session-timeline-row-title-line">
           <span className={`session-row-status-dot${isBusy ? ' is-busy' : ''}`} />
           <span className="session-timeline-row-title">{session.title}</span>
+          {session.bookmarked && <StarIcon className="session-timeline-row-star" filled />}
         </div>
         <div className="session-timeline-row-meta-line">
           {repo.name}
@@ -91,6 +101,7 @@ export function SessionTimelineRow({
         title="Session options"
         items={[
           { label: 'Rename', onClick: startRename },
+          { label: session.bookmarked ? 'Remove bookmark' : 'Bookmark', onClick: handleToggleBookmark },
           { label: 'Delete', onClick: handleDelete, danger: true }
         ]}
       />

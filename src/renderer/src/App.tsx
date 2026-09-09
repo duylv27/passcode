@@ -29,6 +29,11 @@ export default function App(): JSX.Element {
   // Bumped to force ProjectExplorer to refetch after a session is created
   // from outside its own tree (the hamburger menu's "New Session" action).
   const [sessionListRefreshKey, setSessionListRefreshKey] = useState(0)
+  // Bumped when Settings closes, so ChatPanel refetches window.api.models.list()
+  // -- it otherwise only fetches once on mount, so a provider key saved while
+  // Settings was open (making new models available) would go unnoticed until
+  // the next full reload.
+  const [modelsRefreshKey, setModelsRefreshKey] = useState(0)
 
   function handleExplorerClick(): void {
     setSidebarCollapsed((collapsed) => !collapsed)
@@ -126,9 +131,31 @@ export default function App(): JSX.Element {
     })
   }
 
+  // Distinct from Pin above -- bookmarked is persisted (survives a restart,
+  // works from the sidebar too) rather than an in-memory "keep this tab
+  // open" marker. Updates the open tab locally for instant feedback, and
+  // bumps the sidebar refresh key so SessionTimeline/SessionList (which
+  // don't otherwise know this session's bookmarked flag changed) pick it up.
+  async function handleToggleBookmark(session: SessionRecord): Promise<void> {
+    const next = !session.bookmarked
+    await window.api.session.setBookmarked(session.id, next)
+    setOpenSessions((prev) =>
+      prev.map((s) => (s.session.id === session.id ? { ...s, session: { ...s.session, bookmarked: next } } : s))
+    )
+    setSelectedSession((prev) =>
+      prev?.session.id === session.id ? { ...prev, session: { ...prev.session, bookmarked: next } } : prev
+    )
+    setSessionListRefreshKey((k) => k + 1)
+  }
+
   function handleSessionDeleted(session: SessionRecord): void {
     setOpenSessions((prev) => prev.filter((s) => s.session.id !== session.id))
     setSelectedSession((prev) => (prev?.session.id === session.id ? null : prev))
+    // Neither sidebar list (SessionTimeline's recents view, SessionList's
+    // per-project tree) removes a deleted row on its own -- both only
+    // refetch when this key changes, so a delete triggered from either one
+    // otherwise leaves the row visible until some unrelated refresh happens.
+    setSessionListRefreshKey((k) => k + 1)
   }
 
   function handleSessionRenamed(session: SessionRecord): void {
@@ -143,8 +170,15 @@ export default function App(): JSX.Element {
 
   async function handleCreateSessionFromMenu(): Promise<void> {
     if (!selectedSession) return
-    const created = await window.api.session.create(selectedSession.repo.id)
-    handleOpenSession(created, selectedSession.repo, null)
+    const result = await window.api.session.createProjectSession(selectedSession.repo.projectId)
+    if (!result.ok) return
+    const repo =
+      result.session.repoId === selectedSession.repo.id
+        ? selectedSession.repo
+        : (await window.api.repos.list(selectedSession.repo.projectId)).find(
+            (r) => r.id === result.session.repoId
+          )
+    if (repo) handleOpenSession(result.session, repo, selectedSession.project)
     setSessionListRefreshKey((k) => k + 1)
   }
 
@@ -249,10 +283,15 @@ export default function App(): JSX.Element {
                   const item = openSessions.find((s) => s.session.id === session.id)
                   if (item) handleTogglePin(item)
                 }}
+                onToggleBookmark={handleToggleBookmark}
               />
               <div style={{ flex: 1, minHeight: 0 }}>
                 {selectedSession ? (
-                  <ChatPanel session={selectedSession.session} repoName={scopeName!} />
+                  <ChatPanel
+                    session={selectedSession.session}
+                    repoName={scopeName!}
+                    modelsRefreshKey={modelsRefreshKey}
+                  />
                 ) : (
                   <div className="editor-empty">Pick or create a session in the sidebar</div>
                 )}
@@ -273,7 +312,14 @@ export default function App(): JSX.Element {
       </div>
 
       <ApprovalDialog />
-      {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
+      {settingsOpen && (
+        <SettingsPanel
+          onClose={() => {
+            setSettingsOpen(false)
+            setModelsRefreshKey((k) => k + 1)
+          }}
+        />
+      )}
       {aboutOpen && <AboutDialog onClose={() => setAboutOpen(false)} />}
     </div>
   )

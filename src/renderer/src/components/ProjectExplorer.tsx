@@ -45,9 +45,13 @@ export function ProjectExplorer({
   const [projects, setProjects] = useState<Project[]>([])
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() => readCollapsed())
   const [newProjectOpen, setNewProjectOpen] = useState(false)
+  // See SessionTimeline.tsx's identical field -- avoids flashing "No
+  // projects yet." before the first fetch has actually resolved.
+  const [loading, setLoading] = useState(true)
 
   async function refresh(): Promise<void> {
     setProjects(await window.api.projects.list())
+    setLoading(false)
   }
 
   useEffect(() => {
@@ -69,7 +73,12 @@ export function ProjectExplorer({
 
   return (
     <div className="explorer-root">
-      {view === 'sessions' ? (
+      {/* Both branches stay mounted and are toggled via `hidden` rather than
+          conditionally rendered -- unmounting whichever view isn't active
+          used to drop its already-fetched data (and its own loading guard)
+          every time you switched, so switching back re-triggered the exact
+          empty-state flash the loading guards were added to prevent. */}
+      <div hidden={view !== 'sessions'}>
         <SessionTimeline
           activeSessionId={activeSessionId}
           onOpenSession={onOpenSession}
@@ -77,39 +86,40 @@ export function ProjectExplorer({
           onSessionRenamed={onSessionRenamed}
           refreshKey={refreshKey}
         />
-      ) : (
-        <div className="tree-sessions">
-          {projects.map((project) => (
-            <ProjectBox
-              key={project.id}
-              project={project}
-              collapsed={collapsed[project.id] ?? true}
-              onToggleCollapse={toggleCollapse}
-              activeSessionId={activeSessionId}
-              onOpenSession={onOpenSession}
-              onSessionDeleted={onSessionDeleted}
-              onSessionRenamed={onSessionRenamed}
-              onProjectChanged={refresh}
-              onProjectDeleted={onProjectDeleted}
-              externalRefreshKey={refreshKey}
-            />
-          ))}
-          <button className="picker-add-row is-project" onClick={() => setNewProjectOpen(true)}>
-            <PlusIcon className="row-icon" />
-            <span>New project</span>
-          </button>
-          {projects.length === 0 && <div className="sidebar-empty">No projects yet. Add one above.</div>}
-          {newProjectOpen && (
-            <NewProjectDialog
-              onClose={() => setNewProjectOpen(false)}
-              onCreated={() => {
-                setNewProjectOpen(false)
-                refresh()
-              }}
-            />
-          )}
-        </div>
-      )}
+      </div>
+      <div className="tree-sessions" hidden={view !== 'projects'}>
+        {projects.map((project) => (
+          <ProjectBox
+            key={project.id}
+            project={project}
+            collapsed={collapsed[project.id] ?? true}
+            onToggleCollapse={toggleCollapse}
+            activeSessionId={activeSessionId}
+            onOpenSession={onOpenSession}
+            onSessionDeleted={onSessionDeleted}
+            onSessionRenamed={onSessionRenamed}
+            onProjectChanged={refresh}
+            onProjectDeleted={onProjectDeleted}
+            externalRefreshKey={refreshKey}
+          />
+        ))}
+        <button className="picker-add-row is-project" onClick={() => setNewProjectOpen(true)}>
+          <PlusIcon className="row-icon" />
+          <span>New project</span>
+        </button>
+        {!loading && projects.length === 0 && (
+          <div className="sidebar-empty">No projects yet. Add one above.</div>
+        )}
+        {newProjectOpen && (
+          <NewProjectDialog
+            onClose={() => setNewProjectOpen(false)}
+            onCreated={() => {
+              setNewProjectOpen(false)
+              refresh()
+            }}
+          />
+        )}
+      </div>
     </div>
   )
 }

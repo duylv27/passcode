@@ -39,4 +39,21 @@ describe('projectsHandlers', () => {
     handlers.deleteProject(project.id)
     expect(handlers.listProjects()).toHaveLength(0)
   })
+
+  it('excludes the general-session project from listProjects when getGeneralProjectId names one', () => {
+    const db = new Database(':memory:')
+    initSchema(db)
+    const repo = createProjectsRepository(db)
+    const visible = repo.create('Demo')
+    const hidden = repo.create('General')
+    const localHandlers = createProjectsHandlers(repo, () => hidden.id)
+
+    const listed = localHandlers.listProjects()
+    expect(listed.map((p) => p.id)).toEqual([visible.id])
+  })
+
+  it('includes every project when getGeneralProjectId is omitted', () => {
+    const project = handlers.createProject('Demo')
+    expect(handlers.listProjects().map((p) => p.id)).toEqual([project.id])
+  })
 })

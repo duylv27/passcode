@@ -56,15 +56,17 @@ export function ProjectBox({
     window.api.repos.list(project.id).then(setRepos)
   }, [project.id, refreshKey, externalRefreshKey])
 
-  const singleRepo = repos.length === 1 ? repos[0] : null
-
-  // Project-wide session creation no longer exists -- every session is
-  // repo-scoped, so this header action only makes sense (and only shows,
-  // see the JSX below) when there's exactly one unambiguous repo to create
-  // it in.
-  async function handleCreateSession(repo: Repo): Promise<void> {
-    const created = await window.api.session.create(repo.id)
-    onOpenSession(created, repo, null)
+  // A repo is only a code reference attached to the project (see
+  // ProjectInfoDialog) -- every session is project-scoped, so this action
+  // shows whenever there's at least one repo to anchor the session's cwd.
+  async function handleCreateSession(): Promise<void> {
+    const result = await window.api.session.createProjectSession(project.id)
+    if (!result.ok) {
+      setRepoError(result.error)
+      return
+    }
+    const repo = repos.find((r) => r.id === result.session.repoId)
+    if (repo) onOpenSession(result.session, repo, project)
     setRefreshKey((k) => k + 1)
   }
 
@@ -134,8 +136,8 @@ export function ProjectBox({
             { label: 'Delete', onClick: handleDeleteProject, danger: true }
           ]}
         />
-        {singleRepo && (
-          <button className="project-box-add" onClick={() => handleCreateSession(singleRepo)} title="New session">
+        {repos.length > 0 && (
+          <button className="project-box-add" onClick={handleCreateSession} title="New session">
             <PlusIcon />
           </button>
         )}

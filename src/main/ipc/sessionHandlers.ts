@@ -14,8 +14,12 @@ import type {
   PromptOptions,
   Repo,
   SessionRecord,
+  SessionStats,
   SessionWithScope,
+  ThinkingInfo,
+  ThinkingLevel,
   TokenUsage,
+  ToolInfo,
   UsageTelemetryConfig
 } from '../../shared/types'
 
@@ -34,6 +38,10 @@ export interface CreateSessionHandlersDeps {
   requestApproval: (sessionId: string, toolName: string, input: unknown) => Promise<boolean>
   findModel: (provider: string, modelId: string) => Model<any> | undefined
   buildPromptText: (text: string, options?: BuildPromptTextOptions) => Promise<string>
+  /** Idempotently returns the hidden project+repo backing project-less
+   * "general" sessions, creating them (and the repo's scratch directory on
+   * disk) on first use. See appSettingsRepository.ts's GeneralRepoInfo. */
+  ensureGeneralRepo: () => Promise<{ projectId: string; repoId: string }>
   /** Read fresh on every emitted usage record (not cached at session-open
    * time) so toggling the setting in a running app takes effect on the
    * very next inference call. Omitted entirely (rather than a default
@@ -46,6 +54,8 @@ export interface SessionHandlers {
   createSession(repoId: string, title?: string): SessionRecord
   listProjectSessions(projectId: string): SessionRecord[]
   createProjectSession(projectId: string, title?: string): CreateProjectSessionResult | CreateProjectSessionError
+  createGeneralSession(title?: string): Promise<CreateProjectSessionResult | CreateProjectSessionError>
+  setBookmarked(sessionId: string, bookmarked: boolean): void
   getMostRecentSession(): { session: SessionRecord; repo: Repo; project: Project | null } | null
   listAllSessions(): SessionWithScope[]
   renameSession(sessionId: string, title: string): void
@@ -59,6 +69,11 @@ export interface SessionHandlers {
   setAutoCompactionEnabled(sessionId: string, enabled: boolean): Promise<void>
   getCompactionThresholds(sessionId: string): Promise<CompactionThresholds>
   setContextWindowOverride(sessionId: string, contextWindow: number | null): Promise<void>
+  getSessionStats(sessionId: string): Promise<SessionStats>
+  getToolsInfo(sessionId: string): Promise<{ all: ToolInfo[]; active: string[] }>
+  setActiveTools(sessionId: string, toolNames: string[]): Promise<void>
+  getThinkingInfo(sessionId: string): Promise<ThinkingInfo>
+  setThinkingLevel(sessionId: string, level: ThinkingLevel): Promise<void>
 }
 
 export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionHandlers {
@@ -184,6 +199,18 @@ export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionH
       )
       return { ok: true, session }
     },
+    async createGeneralSession(title?: string): Promise<CreateProjectSessionResult | CreateProjectSessionError> {
+      try {
+        const { repoId } = await deps.ensureGeneralRepo()
+        // projectId left null -- a general session isn't scoped to any
+        // project, exactly like a pre-project-scoping repo session; the
+        // scratch repo is just its cwd anchor, not a "project" the user sees.
+        const session = deps.sessionsRepo.create(repoId, '', title?.trim() || 'New session')
+        return { ok: true, session }
+      } catch (err) {
+        return { ok: false, error: (err as Error).message }
+      }
+    },
     getMostRecentSession(): { session: SessionRecord; repo: Repo; project: Project | null } | null {
       const session = deps.sessionsRepo.getMostRecent()
       if (!session) return null
@@ -206,6 +233,9 @@ export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionH
     renameSession(sessionId: string, title: string): void {
       deps.sessionsRepo.rename(sessionId, title)
     },
+    setBookmarked(sessionId: string, bookmarked: boolean): void {
+      deps.sessionsRepo.setBookmarked(sessionId, bookmarked)
+    },
     async deleteSession(sessionId: string): Promise<void> {
       const open = openSessions.get(sessionId)
       if (open) {
@@ -217,7 +247,6 @@ export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionH
     },
     async openSession(sessionId: string): Promise<void> {
       try {
-        deps.sessionsRepo.touchOpened(sessionId)
         const session = await ensureSession(sessionId)
         emitCurrentState(sessionId, session)
       } catch (err) {
@@ -225,6 +254,11 @@ export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionH
       }
     },
     async sendPrompt(sessionId: string, text: string, options?: PromptOptions): Promise<void> {
+      // "Last opened" reflects real activity, not merely being viewed --
+      // touching it here (rather than in openSession, which fires on every
+      // click into a session regardless of whether anything happens) is
+      // what keeps the recents list's sort order meaningful.
+      deps.sessionsRepo.touchOpened(sessionId)
       // A prompt sent while the session is already busy steers the live
       // turn instead of starting a new one (RepoSession.prompt always
       // passes streamingBehavior: 'steer', which the SDK only consults
@@ -332,6 +366,35 @@ export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionH
         // than waiting for the next turn_end/compaction to refresh it.
         const usage = session.getContextUsage()
         if (usage) deps.onEvent(sessionId, { type: 'context_usage', usage })
+      } catch (err) {
+        deps.onEvent(sessionId, { type: 'error', message: (err as Error).message })
+      }
+    },
+    async getSessionStats(sessionId: string): Promise<SessionStats> {
+      const session = await ensureSession(sessionId)
+      return session.getSessionStats()
+    },
+    async getToolsInfo(sessionId: string): Promise<{ all: ToolInfo[]; active: string[] }> {
+      const session = await ensureSession(sessionId)
+      return { all: session.getAllToolInfo(), active: session.getActiveToolNames() }
+    },
+    async setActiveTools(sessionId: string, toolNames: string[]): Promise<void> {
+      const session = await ensureSession(sessionId)
+      session.setActiveToolsByName(toolNames)
+    },
+    async getThinkingInfo(sessionId: string): Promise<ThinkingInfo> {
+      const session = await ensureSession(sessionId)
+      return {
+        supported: session.supportsThinking(),
+        level: session.getThinkingLevel(),
+        available: session.getAvailableThinkingLevels()
+      }
+    },
+    async setThinkingLevel(sessionId: string, level: ThinkingLevel): Promise<void> {
+      try {
+        const session = await ensureSession(sessionId)
+        session.setThinkingLevel(level)
+        deps.onEvent(sessionId, { type: 'thinking_level', level })
       } catch (err) {
         deps.onEvent(sessionId, { type: 'error', message: (err as Error).message })
       }

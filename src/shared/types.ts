@@ -26,6 +26,9 @@ export interface SessionRecord {
    * since creation -- used to sort/bucket "recent activity" views by the
    * same timestamp the backend already sorts listAll() by. */
   lastOpenedAt: string | null
+  /** A persistent favorite marker, distinct from a tab's "Pin" (which is
+   * only in-memory and only means something while the tab stays open). */
+  bookmarked: boolean
 }
 
 export interface CreateProjectSessionResult {
@@ -41,6 +44,7 @@ export interface CreateProjectSessionError {
 export interface AuthStatus {
   anthropic: boolean
   copilot: boolean
+  gemini: boolean
 }
 
 export interface CopilotQuotaCategory {
@@ -101,6 +105,42 @@ export interface CompactionThresholds {
   keepRecentTokens: number
 }
 
+/** Aggregated over ALL session entries, including history that was
+ * compacted away -- unlike ContextUsage (a live snapshot of the current
+ * window), this reflects what actually got billed across the whole
+ * conversation. */
+export interface SessionStats {
+  userMessages: number
+  assistantMessages: number
+  toolCalls: number
+  toolResults: number
+  totalMessages: number
+  tokens: {
+    input: number
+    output: number
+    cacheRead: number
+    cacheWrite: number
+    total: number
+  }
+  cost: number
+}
+
+export interface ToolInfo {
+  name: string
+  description: string
+}
+
+export type ThinkingLevel = 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+
+/** `available` is empty and `level` meaningless when !supported -- callers
+ * should hide/disable the reasoning control entirely in that case rather
+ * than showing a control with nothing to pick from. */
+export interface ThinkingInfo {
+  supported: boolean
+  level: ThinkingLevel
+  available: ThinkingLevel[]
+}
+
 export type HistoryItem =
   | { kind: 'user'; text: string; images?: { data: string; mimeType: string }[] }
   | { kind: 'text'; text: string }
@@ -137,17 +177,28 @@ export type ChatEvent =
   /** Sent once per session open/switch, reflecting the session's current
    * (in-memory, not persisted) auto-compaction setting. */
   | { type: 'auto_compaction'; enabled: boolean }
+  /** Sent after setThinkingLevel() changes the effective reasoning level. */
+  | { type: 'thinking_level'; level: ThinkingLevel }
 
 export interface ModelInfo {
   provider: string
+  /** Friendly display name for `provider` (e.g. "Anthropic", "Google"),
+   * from the SDK's own ModelRegistry.getProviderDisplayName(). */
+  providerName: string
   id: string
   name: string
 }
+
+/** Which of the scanned directories a skill was found in -- see
+ * getAdditionalSkillPaths() and listSkillsForRepo() in main/agent/skills.ts
+ * for the exact paths each of these corresponds to. */
+export type SkillSource = 'pi' | 'project' | 'claude' | 'copilot' | 'other'
 
 export interface SkillInfo {
   name: string
   description: string
   filePath: string
+  source: SkillSource
 }
 
 export interface PromptOptions {
@@ -213,6 +264,10 @@ export interface Api {
       projectId: string,
       title?: string
     ): Promise<CreateProjectSessionResult | CreateProjectSessionError>
+    /** Creates a session not scoped to any project -- its repoId anchors to
+     * a hidden, app-managed scratch directory, created on first use. */
+    createGeneralSession(title?: string): Promise<CreateProjectSessionResult | CreateProjectSessionError>
+    setBookmarked(sessionId: string, bookmarked: boolean): Promise<void>
     getMostRecent(): Promise<{ session: SessionRecord; repo: Repo; project: Project | null } | null>
     listAll(): Promise<SessionWithScope[]>
     rename(sessionId: string, title: string): Promise<void>
@@ -227,6 +282,11 @@ export interface Api {
     getCompactionThresholds(sessionId: string): Promise<CompactionThresholds>
     /** `null` resets to the model's own default context window. */
     setContextWindowOverride(sessionId: string, contextWindow: number | null): Promise<void>
+    getSessionStats(sessionId: string): Promise<SessionStats>
+    getToolsInfo(sessionId: string): Promise<{ all: ToolInfo[]; active: string[] }>
+    setActiveTools(sessionId: string, toolNames: string[]): Promise<void>
+    getThinkingInfo(sessionId: string): Promise<ThinkingInfo>
+    setThinkingLevel(sessionId: string, level: ThinkingLevel): Promise<void>
     onEvent(listener: (sessionId: string, event: ChatEvent) => void): () => void
   }
   models: {
@@ -241,6 +301,7 @@ export interface Api {
   }
   settings: {
     setAnthropicApiKey(apiKey: string): Promise<{ ok: true } | { ok: false; error: string }>
+    setGeminiApiKey(apiKey: string): Promise<{ ok: true } | { ok: false; error: string }>
     getAuthStatus(): Promise<AuthStatus>
     loginCopilot(): Promise<{ ok: true } | { ok: false; error: string }>
     onCopilotChallenge(listener: (challenge: DeviceCodeChallenge) => void): () => void

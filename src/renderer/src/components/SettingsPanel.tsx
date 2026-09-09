@@ -70,6 +70,8 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
   const [apiKey, setApiKey] = useState('')
   const [status, setStatus] = useState<AuthStatus | null>(null)
   const [anthropicError, setAnthropicError] = useState<string | null>(null)
+  const [geminiApiKey, setGeminiApiKey] = useState('')
+  const [geminiError, setGeminiError] = useState<string | null>(null)
   const [copilotError, setCopilotError] = useState<string | null>(null)
   const [challenge, setChallenge] = useState<DeviceCodeChallenge | null>(null)
   const [loggingIn, setLoggingIn] = useState(false)
@@ -167,6 +169,17 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
       return
     }
     setApiKey('')
+    await refresh()
+  }
+
+  async function handleSaveGeminiKey(): Promise<void> {
+    setGeminiError(null)
+    const result = await window.api.settings.setGeminiApiKey(geminiApiKey)
+    if (!result.ok) {
+      setGeminiError(result.error)
+      return
+    }
+    setGeminiApiKey('')
     await refresh()
   }
 
@@ -292,6 +305,32 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
                     placeholder="sk-ant-..."
                   />
                   <button className="settings-btn" onClick={handleSaveKey}>
+                    Save
+                  </button>
+                </div>
+              </div>
+
+              <div className="settings-row">
+                <div className="settings-row-text">
+                  <span className="settings-row-title">
+                    Gemini API Key
+                    <StatusDot connected={!!status?.gemini} />
+                  </span>
+                  <span className="settings-row-desc">Used for direct Google Gemini model access</span>
+                  {geminiError && <span className="settings-row-error">{geminiError}</span>}
+                </div>
+                <div className="settings-row-control settings-key-control">
+                  <input
+                    className="settings-input"
+                    type="password"
+                    value={geminiApiKey}
+                    onChange={(e) => setGeminiApiKey(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSaveGeminiKey()
+                    }}
+                    placeholder="AIza..."
+                  />
+                  <button className="settings-btn" onClick={handleSaveGeminiKey}>
                     Save
                   </button>
                 </div>

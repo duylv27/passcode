@@ -9,7 +9,7 @@ import type { SkillsHandlers } from './skillsHandlers'
 import type { FilesHandlers } from './filesHandlers'
 import type { WindowHandlers } from './windowHandlers'
 import type { SessionPreviewHandlers } from './sessionPreviewHandlers'
-import type { PromptOptions, ToolApprovalPolicy, UsageTelemetryConfig } from '../../shared/types'
+import type { PromptOptions, ThinkingLevel, ToolApprovalPolicy, UsageTelemetryConfig } from '../../shared/types'
 
 export interface IpcHandlers {
   projects: ProjectsHandlers
@@ -49,8 +49,14 @@ export function registerIpcHandlers(handlers: IpcHandlers): void {
   ipcMain.handle('session:createProjectSession', (_e, projectId: string, title?: string) =>
     handlers.session.createProjectSession(projectId, title)
   )
+  ipcMain.handle('session:createGeneralSession', (_e, title?: string) =>
+    handlers.session.createGeneralSession(title)
+  )
   ipcMain.handle('session:rename', (_e, sessionId: string, title: string) =>
     handlers.session.renameSession(sessionId, title)
+  )
+  ipcMain.handle('session:setBookmarked', (_e, sessionId: string, bookmarked: boolean) =>
+    handlers.session.setBookmarked(sessionId, bookmarked)
   )
   ipcMain.handle('session:delete', (_e, sessionId: string) => handlers.session.deleteSession(sessionId))
   ipcMain.handle('session:open', (_e, sessionId: string) => handlers.session.openSession(sessionId))
@@ -74,6 +80,15 @@ export function registerIpcHandlers(handlers: IpcHandlers): void {
   ipcMain.handle('session:setContextWindowOverride', (_e, sessionId: string, contextWindow: number | null) =>
     handlers.session.setContextWindowOverride(sessionId, contextWindow)
   )
+  ipcMain.handle('session:getSessionStats', (_e, sessionId: string) => handlers.session.getSessionStats(sessionId))
+  ipcMain.handle('session:getToolsInfo', (_e, sessionId: string) => handlers.session.getToolsInfo(sessionId))
+  ipcMain.handle('session:setActiveTools', (_e, sessionId: string, toolNames: string[]) =>
+    handlers.session.setActiveTools(sessionId, toolNames)
+  )
+  ipcMain.handle('session:getThinkingInfo', (_e, sessionId: string) => handlers.session.getThinkingInfo(sessionId))
+  ipcMain.handle('session:setThinkingLevel', (_e, sessionId: string, level: ThinkingLevel) =>
+    handlers.session.setThinkingLevel(sessionId, level)
+  )
 
   ipcMain.handle('models:list', () => handlers.models.listModels())
 
@@ -85,6 +100,7 @@ export function registerIpcHandlers(handlers: IpcHandlers): void {
   ipcMain.handle('settings:setAnthropicApiKey', (_e, apiKey: string) =>
     handlers.settings.setAnthropicApiKey(apiKey)
   )
+  ipcMain.handle('settings:setGeminiApiKey', (_e, apiKey: string) => handlers.settings.setGeminiApiKey(apiKey))
   ipcMain.handle('settings:getAuthStatus', () => handlers.settings.getAuthStatus())
   ipcMain.handle('settings:loginCopilot', (event) =>
     handlers.settings.loginCopilot((challenge) => event.sender.send('settings:copilotChallenge', challenge))

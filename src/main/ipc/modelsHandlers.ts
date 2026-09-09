@@ -3,6 +3,7 @@ import type { ModelInfo } from '../../shared/types'
 
 export interface ModelRegistryLike {
   getAvailable(): Model<any>[]
+  getProviderDisplayName(provider: string): string
 }
 
 export interface ModelsHandlers {
@@ -14,6 +15,7 @@ export function createModelsHandlers(registry: ModelRegistryLike): ModelsHandler
     listModels() {
       return registry.getAvailable().map((model) => ({
         provider: model.provider,
+        providerName: registry.getProviderDisplayName(model.provider),
         id: model.id,
         name: model.name
       }))

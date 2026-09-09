@@ -217,6 +217,34 @@ input {
   color: inherit;
 }
 
+/* Chromium falls back to the OS's classic scrollbar (thick track, clickable
+   arrow buttons) wherever no ::-webkit-scrollbar rule exists -- applied
+   globally so every scrollable area (sidebar, chat transcript, popovers,
+   Settings) gets the same slim, theme-colored thumb instead. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--border);
+  background-clip: padding-box;
+  border: 2px solid transparent;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--fg-dim);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 button {
   cursor: pointer;
 }
@@ -506,90 +534,6 @@ button {
   font-size: 11px;
 }
 
-.session-group {
-  margin: 0 var(--space-1);
-  border: 1px solid var(--border-subtle);
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-.session-group + .session-group {
-  margin-top: 6px;
-}
-
-.session-group-header {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  background: var(--list-hover);
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.session-group-header:last-child {
-  border-bottom: none;
-}
-
-.session-group-toggle {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex: 1;
-  min-width: 0;
-  text-align: left;
-  padding: 4px var(--space-2);
-  background: none;
-  border: none;
-  color: var(--fg-dim);
-  font-size: 10px;
-  font-weight: 500;
-}
-
-.session-group-toggle:hover {
-  background: var(--list-active);
-  color: var(--fg-bright);
-}
-
-.session-group-toggle .row-icon.is-repo {
-  color: #6a9955;
-}
-
-.session-group-add {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 18px;
-  height: 18px;
-  margin-right: 4px;
-  background: none;
-  border: none;
-  border-radius: 3px;
-  color: var(--fg-dim);
-}
-
-.session-group-add:hover {
-  background: var(--list-active);
-  color: var(--fg-bright);
-}
-
-.session-group-label {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.session-group-chevron {
-  flex-shrink: 0;
-  color: var(--fg-dim);
-  transition: transform 100ms ease;
-}
-
-.session-group-chevron.is-open {
-  transform: rotate(90deg);
-}
-
 .session-row {
   display: flex;
   align-items: center;
@@ -640,18 +584,6 @@ button {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.session-group .session-row-select {
-  padding-left: 16px;
-}
-
-.session-group .session-row.is-editing {
-  padding-left: 16px;
-}
-
-.session-group .session-row + .session-row {
-  border-top: 1px solid var(--border-subtle);
 }
 
 .session-row-status-dot {
@@ -753,6 +685,9 @@ button {
    --------------------------------------------------------------------- */
 .tabs {
   display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 4px 4px 0;
   background: var(--sidebar-bg);
   border-bottom: 1px solid var(--border-subtle);
   flex-shrink: 0;
@@ -761,23 +696,29 @@ button {
 .tab {
   display: flex;
   align-items: center;
-  background: var(--sidebar-bg);
-  border-right: 1px solid var(--border-subtle);
+  background: transparent;
+  border-radius: 7px 7px 0 0;
   font-size: 11px;
   color: var(--fg-dim);
+  transition: background-color 140ms ease, color 140ms ease;
+}
+
+.tab:hover {
+  background: var(--list-hover);
+  color: var(--fg-bright);
 }
 
 .tab.is-active {
   background: var(--editor-bg);
   color: var(--fg-bright);
-  box-shadow: inset 0 -1.5px 0 var(--accent);
+  box-shadow: inset 0 -2px 0 var(--accent);
 }
 
 .tab-select {
   display: flex;
   align-items: center;
-  gap: 5px;
-  padding: 4px 4px 4px 8px;
+  gap: 6px;
+  padding: 6px 4px 6px 10px;
   background: none;
   border: none;
   color: inherit;
@@ -802,22 +743,46 @@ button {
   white-space: nowrap;
 }
 
+.tab-bookmark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  background: none;
+  border: none;
+  border-radius: 5px;
+  color: var(--fg-faint);
+  flex-shrink: 0;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.tab-bookmark:hover {
+  background: var(--list-active);
+  color: var(--fg-dim);
+}
+
+.tab-bookmark.is-bookmarked {
+  color: #e0a72a;
+}
+
 .tab-close {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
-  margin-right: 4px;
+  width: 18px;
+  height: 18px;
+  margin-right: 5px;
   background: none;
   border: none;
-  border-radius: 3px;
+  border-radius: 5px;
   color: var(--fg-dim);
   flex-shrink: 0;
+  transition: background-color 120ms ease, color 120ms ease;
 }
 
 .tab-close:hover:not(:disabled) {
-  background: var(--list-hover);
+  background: var(--list-active);
   color: var(--fg-bright);
 }
 
@@ -1640,6 +1605,12 @@ button {
   background: var(--list-hover);
 }
 
+.skill-picker-option-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .skill-picker-option-name {
   font-size: 13px;
   font-weight: 600;
@@ -1652,6 +1623,42 @@ button {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.skill-source-badge {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  color: var(--fg-dim);
+}
+
+/* Distinct hues per source so a name collision (e.g. the same skill name
+   defined for both Claude Code and Copilot) is visually obvious at a
+   glance, not just readable in small text. */
+.skill-source-badge.is-pi {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+.skill-source-badge.is-project {
+  color: var(--success);
+  border-color: color-mix(in srgb, var(--success) 40%, transparent);
+}
+
+.skill-source-badge.is-claude {
+  color: #d97757;
+  border-color: color-mix(in srgb, #d97757 40%, transparent);
+}
+
+.skill-source-badge.is-copilot {
+  color: #58a6ff;
+  border-color: color-mix(in srgb, #58a6ff 40%, transparent);
 }
 
 .composer-field {
@@ -1667,6 +1674,11 @@ button {
   line-height: 1.4;
   max-height: 200px;
   overflow-y: auto;
+  scrollbar-width: none; /* Firefox */
+}
+
+.composer-field::-webkit-scrollbar {
+  display: none;
 }
 
 .composer-field::placeholder {
@@ -1743,20 +1755,71 @@ button {
   position: absolute;
   bottom: calc(100% + 4px);
   left: 0;
-  min-width: 180px;
-  max-height: 240px;
+  width: 260px;
+  max-height: 320px;
   overflow-y: auto;
   background: var(--sidebar-bg);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 6px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
   padding: 4px;
   z-index: 20;
 }
 
+.model-picker-group + .model-picker-group {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.model-picker-group-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px 2px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--fg-dim);
+}
+
+.model-provider-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  font-family: var(--font-ui);
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #fff;
+  background: var(--fg-faint);
+}
+
+/* Distinct hues so providers are recognizable by shape+color at a glance,
+   not just by reading the label -- same intent as the skill-source badges. */
+.model-provider-icon.is-anthropic {
+  background: #d97757;
+}
+
+.model-provider-icon.is-github-copilot {
+  background: #58a6ff;
+}
+
+.model-provider-icon.is-google {
+  background: #4285f4;
+}
+
 .model-picker-option {
   display: block;
   width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   text-align: left;
   background: transparent;
   border: none;
@@ -1800,6 +1863,148 @@ button {
 .context-usage-badge b {
   color: var(--fg);
   font-weight: 500;
+}
+
+.composer-icon-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--fg-dim);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.composer-icon-badge:hover {
+  background: var(--list-hover);
+  color: var(--fg-bright);
+}
+
+.thinking-slider {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  flex-shrink: 0;
+}
+
+.thinking-slider-track-wrap {
+  position: relative;
+  height: 20px;
+  display: flex;
+  align-items: stretch;
+}
+
+/* Sits over the whole segmented track so both a drag and a direct click on
+   any segment's label move the thumb there -- native range inputs already
+   jump to the clicked position, so no extra click handling is needed on
+   the segments themselves. */
+.thinking-slider-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  z-index: 1;
+}
+
+.thinking-slider-segments {
+  display: flex;
+  width: 100%;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--border-subtle);
+  pointer-events: none;
+}
+
+/* Only the current step shows its name and gets real width -- the other
+   steps collapse to thin ticks so the whole control stays compact instead
+   of reserving full-label width for every level at once. No dividers
+   between ticks (a plain shared background instead) so the collapsed
+   steps read as one soft strip rather than a row of hard-edged boxes. */
+.thinking-slider-segment {
+  flex: 0 0 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 20px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: capitalize;
+  white-space: nowrap;
+  color: var(--fg-dim);
+  transition:
+    flex-basis 200ms cubic-bezier(0.4, 0, 0.2, 1),
+    background-color 200ms ease,
+    color 150ms ease;
+}
+
+.thinking-slider-segment.is-current {
+  flex: 1 1 auto;
+  padding: 0 9px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 500;
+}
+
+/* The flex-basis/color transition looks nice for a discrete commit, but
+   re-triggers on every single drag tick (onChange fires continuously while
+   dragging) -- stacking dozens of overlapping 200ms transitions is what
+   caused visible jank. Suppressed for the duration of a live drag; keyboard
+   stepping is one discrete change per keypress, so it keeps the animation. */
+.thinking-slider-segments.is-dragging .thinking-slider-segment {
+  transition: none;
+}
+
+.session-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1px;
+  background: var(--border-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.session-stats-cell {
+  background: var(--sheet-bg);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.session-stats-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--fg-faint);
+}
+
+.session-stats-value {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fg-bright);
+}
+
+.session-stats-value.is-accent {
+  color: var(--accent);
 }
 
 .context-usage-ring {
@@ -3154,6 +3359,28 @@ button {
   color: var(--fg-bright);
 }
 
+.session-timeline-filter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  text-align: left;
+  padding: var(--space-1) var(--space-3);
+  margin-bottom: 2px;
+  background: none;
+  border: none;
+  font-size: 11px;
+  color: var(--fg-dim);
+}
+
+.session-timeline-filter:hover {
+  color: var(--fg-bright);
+}
+
+.session-timeline-filter.is-active {
+  color: #e0a72a;
+}
+
 .session-timeline-older-chevron {
   transition: transform 100ms ease;
 }
@@ -3194,6 +3421,11 @@ button {
   align-items: center;
   gap: 7px;
   min-width: 0;
+}
+
+.session-timeline-row-star {
+  flex-shrink: 0;
+  color: #e0a72a;
 }
 
 .session-timeline-row-title {

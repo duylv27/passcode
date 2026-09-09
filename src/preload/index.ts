@@ -22,7 +22,9 @@ const api: Api = {
     listByProject: (projectId) => ipcRenderer.invoke('session:listByProject', projectId),
     createProjectSession: (projectId, title) =>
       ipcRenderer.invoke('session:createProjectSession', projectId, title),
+    createGeneralSession: (title) => ipcRenderer.invoke('session:createGeneralSession', title),
     rename: (sessionId, title) => ipcRenderer.invoke('session:rename', sessionId, title),
+    setBookmarked: (sessionId, bookmarked) => ipcRenderer.invoke('session:setBookmarked', sessionId, bookmarked),
     delete: (sessionId) => ipcRenderer.invoke('session:delete', sessionId),
     open: (sessionId) => ipcRenderer.invoke('session:open', sessionId),
     prompt: (sessionId, text, options) => ipcRenderer.invoke('session:prompt', sessionId, text, options),
@@ -36,6 +38,11 @@ const api: Api = {
     getCompactionThresholds: (sessionId) => ipcRenderer.invoke('session:getCompactionThresholds', sessionId),
     setContextWindowOverride: (sessionId, contextWindow) =>
       ipcRenderer.invoke('session:setContextWindowOverride', sessionId, contextWindow),
+    getSessionStats: (sessionId) => ipcRenderer.invoke('session:getSessionStats', sessionId),
+    getToolsInfo: (sessionId) => ipcRenderer.invoke('session:getToolsInfo', sessionId),
+    setActiveTools: (sessionId, toolNames) => ipcRenderer.invoke('session:setActiveTools', sessionId, toolNames),
+    getThinkingInfo: (sessionId) => ipcRenderer.invoke('session:getThinkingInfo', sessionId),
+    setThinkingLevel: (sessionId, level) => ipcRenderer.invoke('session:setThinkingLevel', sessionId, level),
     onEvent: (listener) => {
       const wrapped = (_e: unknown, sessionId: string, event: ChatEvent): void => listener(sessionId, event)
       ipcRenderer.on('session:event', wrapped)
@@ -54,6 +61,7 @@ const api: Api = {
   },
   settings: {
     setAnthropicApiKey: (apiKey) => ipcRenderer.invoke('settings:setAnthropicApiKey', apiKey),
+    setGeminiApiKey: (apiKey) => ipcRenderer.invoke('settings:setGeminiApiKey', apiKey),
     getAuthStatus: () => ipcRenderer.invoke('settings:getAuthStatus'),
     loginCopilot: () => ipcRenderer.invoke('settings:loginCopilot'),
     onCopilotChallenge: (listener) => {
