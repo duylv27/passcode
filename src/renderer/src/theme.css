@@ -45,6 +45,14 @@
   --radius: 9px;
   --radius-sm: 6px;
 
+  /* Fixed dark titlebar strip -- same in every theme (light, dark, and
+     the others), per explicit request rather than following --titlebar-bg. */
+  --titlebar-fixed-bg: #1e1f22;
+  --titlebar-fixed-border: #393b40;
+  --titlebar-fixed-fg: #9da0a8;
+  --titlebar-fixed-fg-hover: #dfe1e5;
+  --titlebar-fixed-hover-bg: #2b2d30;
+
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -2853,8 +2861,8 @@ button {
   align-items: center;
   height: 36px;
   flex-shrink: 0;
-  background: var(--titlebar-bg);
-  border-bottom: 1px solid var(--border);
+  background: var(--titlebar-fixed-bg);
+  border-bottom: 1px solid var(--titlebar-fixed-border);
   padding: 0 4px;
   -webkit-app-region: drag;
 }
@@ -2869,12 +2877,12 @@ button {
   background: none;
   border: none;
   border-radius: var(--radius-sm);
-  color: var(--fg-dim);
+  color: var(--titlebar-fixed-fg);
 }
 
 .titlebar-btn:hover {
-  background: var(--list-hover);
-  color: var(--fg);
+  background: var(--titlebar-fixed-hover-bg);
+  color: var(--titlebar-fixed-fg-hover);
 }
 
 .titlebar-drag {
@@ -2896,12 +2904,12 @@ button {
   justify-content: center;
   background: none;
   border: none;
-  color: var(--fg-dim);
+  color: var(--titlebar-fixed-fg);
 }
 
 .titlebar-winbtn:hover {
-  background: var(--list-hover);
-  color: var(--fg);
+  background: var(--titlebar-fixed-hover-bg);
+  color: var(--titlebar-fixed-fg-hover);
 }
 
 .titlebar-winbtn.is-close:hover {
