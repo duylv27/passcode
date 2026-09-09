@@ -751,7 +751,7 @@ button {
   height: 18px;
   background: none;
   border: none;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   color: var(--fg-faint);
   flex-shrink: 0;
   transition: background-color 120ms ease, color 120ms ease;
@@ -775,7 +775,7 @@ button {
   margin-right: 5px;
   background: none;
   border: none;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   color: var(--fg-dim);
   flex-shrink: 0;
   transition: background-color 120ms ease, color 120ms ease;
