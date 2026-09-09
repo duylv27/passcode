@@ -1,46 +1,48 @@
 /* ---------------------------------------------------------------------
-   Tokens — a warm, editorial palette instead of an IDE's dark chrome:
-   cream paper background, off-white "sheet" cards on hairline borders,
-   a single violet accent, and a type mix of IBM Plex Sans (UI), Mono
-   (data/labels), and Serif italic (the occasional accent word) rather
-   than VS Code's native-OS-font convention.
+   Tokens — "Ledger": a cool-neutral paper palette instead of an IDE's
+   dark chrome or a warm editorial cream. Hairline borders, a single
+   Moonstone silver-blue accent, and a type mix of Courier Prime (all UI
+   chrome/labels/data) and Newsreader (prose) rather than IBM Plex.
    --------------------------------------------------------------------- */
 :root {
   color-scheme: light;
 
-  --bg: #ffffff;
-  --sheet-bg: #fbfbf9;
+  --bg: #f4f5f3;
+  --sheet-bg: #eceeea;
 
-  --activitybar-bg: #fbfbf9;
-  --activitybar-fg: #9b9c99;
-  --activitybar-fg-active: #6c38e8;
-  --sidebar-bg: #fbfbf9;
-  --sidebar-header-fg: #9b9c99;
-  --editor-bg: #ffffff;
-  --titlebar-bg: #ffffff;
-  --statusbar-bg: #fbfbf9;
-  --statusbar-fg: #5f6066;
-  --border: #d9dad5;
-  --border-subtle: #e6e6e1;
-  --fg: #17181c;
-  --fg-dim: #5f6066;
-  --fg-faint: #9b9c99;
-  --fg-bright: #000000;
-  --accent: #6c38e8;
-  --accent-wash: rgba(108, 56, 232, 0.08);
-  --list-hover: #eeeeec;
-  --list-active: rgba(108, 56, 232, 0.09);
-  --input-bg: #ffffff;
-  --button-bg: #6c38e8;
-  --button-hover: #5b2ad1;
+  --activitybar-bg: #eceeea;
+  --activitybar-fg: #8b9094;
+  --activitybar-fg-active: #55677a;
+  --sidebar-bg: #eceeea;
+  --sidebar-header-fg: #8b9094;
+  --editor-bg: #f4f5f3;
+  --titlebar-bg: #eceeea;
+  --statusbar-bg: #eceeea;
+  --statusbar-fg: #5c6268;
+  --border: #c7ccc7;
+  --border-subtle: #dadedb;
+  --fg: #20242a;
+  --fg-dim: #5c6268;
+  --fg-faint: #8b9094;
+  --fg-bright: #0b0d0f;
+  --accent: #55677a;
+  --accent-wash: rgba(85, 103, 122, 0.09);
+  --list-hover: #e3e6e2;
+  --list-active: rgba(85, 103, 122, 0.07);
+  --input-bg: #fbfcfb;
+  --button-bg: #55677a;
+  --button-hover: #44525f;
 
   --success: #2e7d32;
   --danger: #c0392b;
   --warning: #a3690f;
 
-  --font-ui: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-mono: 'IBM Plex Mono', Consolas, 'Cascadia Code', ui-monospace, monospace;
-  --font-serif: 'IBM Plex Serif', Georgia, 'Times New Roman', serif;
+  --font-ui: 'Newsreader', Georgia, 'Times New Roman', serif;
+  --font-mono: 'Courier Prime', Consolas, 'Cascadia Code', ui-monospace, monospace;
+  --font-serif: 'Newsreader', Georgia, 'Times New Roman', serif;
+
+  --radius: 9px;
+  --radius-sm: 6px;
 
   --space-1: 4px;
   --space-2: 8px;
@@ -48,37 +50,35 @@
   --space-4: 16px;
 }
 
-/* GitHub Dark High Contrast-inspired palette — deliberately near-black
-   rather than the softer GitHub Dark default, per an explicit request
-   for an "extremely dark" mode. */
+/* Ledger dark — same shape/type as light, Moonstone accent goes light-on-dark. */
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  --bg: #010409;
-  --sheet-bg: #0d1117;
+  --bg: #0d0f10;
+  --sheet-bg: #141718;
 
-  --activitybar-bg: #0d1117;
-  --activitybar-fg: #6e7681;
-  --activitybar-fg-active: #58a6ff;
-  --sidebar-bg: #0d1117;
-  --sidebar-header-fg: #6e7681;
-  --editor-bg: #010409;
-  --titlebar-bg: #010409;
-  --statusbar-bg: #0d1117;
-  --statusbar-fg: #8b949e;
-  --border: #3d444d;
-  --border-subtle: #21262d;
-  --fg: #f0f6fc;
-  --fg-dim: #9198a1;
-  --fg-faint: #6e7681;
+  --activitybar-bg: #141718;
+  --activitybar-fg: #6b7072;
+  --activitybar-fg-active: #9fb3c4;
+  --sidebar-bg: #141718;
+  --sidebar-header-fg: #6b7072;
+  --editor-bg: #0d0f10;
+  --titlebar-bg: #141718;
+  --statusbar-bg: #141718;
+  --statusbar-fg: #a9adaf;
+  --border: #383d40;
+  --border-subtle: #2a2e30;
+  --fg: #eef0f1;
+  --fg-dim: #a9adaf;
+  --fg-faint: #6b7072;
   --fg-bright: #ffffff;
-  --accent: #58a6ff;
-  --accent-wash: rgba(88, 166, 255, 0.12);
-  --list-hover: #161b22;
-  --list-active: rgba(88, 166, 255, 0.15);
-  --input-bg: #0d1117;
-  --button-bg: #1f6feb;
-  --button-hover: #388bfd;
+  --accent: #9fb3c4;
+  --accent-wash: rgba(159, 179, 196, 0.14);
+  --list-hover: #1a1e1f;
+  --list-active: rgba(159, 179, 196, 0.1);
+  --input-bg: #191c1e;
+  --button-bg: #9fb3c4;
+  --button-hover: #b5c6d3;
 
   --success: #3fb950;
   --danger: #f85149;
