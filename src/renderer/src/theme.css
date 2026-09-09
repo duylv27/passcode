@@ -3026,6 +3026,33 @@ button {
   color: var(--titlebar-fixed-fg-hover);
 }
 
+.titlebar-home {
+  -webkit-app-region: no-drag;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 28px;
+  padding: 0 10px;
+  margin-left: 2px;
+  border-radius: var(--radius-sm);
+  background: none;
+  border: none;
+  color: var(--titlebar-fixed-fg);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 500;
+  /* LogoIcon's inner "hole" fills with --statusbar-bg, which normally
+     matches the theme's chrome background -- but this titlebar is a
+     fixed dark strip regardless of theme, so the hole needs to match
+     that fixed background here rather than the theme's own value. */
+  --statusbar-bg: var(--titlebar-fixed-bg);
+}
+
+.titlebar-home:hover {
+  background: var(--titlebar-fixed-hover-bg);
+  color: var(--titlebar-fixed-fg-hover);
+}
+
 .titlebar-drag {
   flex: 1;
   height: 100%;

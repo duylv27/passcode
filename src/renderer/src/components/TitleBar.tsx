@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { CloseIcon, MaximizeIcon, MenuIcon, MinimizeIcon, RestoreIcon } from './icons'
+import { CloseIcon, LogoIcon, MaximizeIcon, MenuIcon, MinimizeIcon, RestoreIcon } from './icons'
 
 export interface TitleBarMenuActions {
   newSession?: () => void
@@ -63,9 +63,10 @@ function buildMenu(actions: TitleBarMenuActions): { category: string; items: Men
 
 interface Props {
   menuActions: TitleBarMenuActions
+  onGoHome: () => void
 }
 
-export function TitleBar({ menuActions }: Props): JSX.Element {
+export function TitleBar({ menuActions, onGoHome }: Props): JSX.Element {
   const [maximized, setMaximized] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -116,6 +117,10 @@ export function TitleBar({ menuActions }: Props): JSX.Element {
           </div>
         )}
       </div>
+      <button className="titlebar-home" onClick={onGoHome} title="Back to home">
+        <LogoIcon />
+        <span>PassCode</span>
+      </button>
       <div className="titlebar-drag" />
       <div className="titlebar-winctrls">
         <button className="titlebar-winbtn" onClick={() => window.api.window.minimize()} title="Minimize">

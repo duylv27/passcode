@@ -1,4 +1,4 @@
-import { useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { useEffect, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import type { Project, Repo, SessionRecord, SessionWithScope } from '../../shared/types'
 import { ProjectExplorer } from './components/ProjectExplorer'
 import { SessionTabs } from './components/SessionTabs'
@@ -85,6 +85,24 @@ export default function App(): JSX.Element {
     setOpenSessions((prev) => (prev.some((s) => s.session.id === session.id) ? prev : [...prev, item]))
     setSelectedSession(item)
   }
+
+  // Unlike Close All (which keeps pinned tabs open, a tab-management
+  // action), the titlebar's logo/name button is an explicit "take me to
+  // the welcome screen" navigation and always closes everything.
+  function handleGoHome(): void {
+    setOpenSessions([])
+    setSelectedSession(null)
+    setSidebarCollapsed(true)
+  }
+
+  // Collapses the sidebar the moment the welcome screen appears (fresh
+  // launch, or the last tab closing) without fighting a deliberate expand
+  // afterwards -- e.g. clicking the welcome screen's "Browse projects"
+  // action -- since this only re-runs when the open-tab count itself
+  // changes, not on every render while it stays at zero.
+  useEffect(() => {
+    if (openSessions.length === 0) setSidebarCollapsed(true)
+  }, [openSessions.length])
 
   function handleCloseTab(item: SessionWithScope): void {
     const remaining = openSessions.filter((s) => s.session.id !== item.session.id)
@@ -205,6 +223,7 @@ export default function App(): JSX.Element {
           previousTab: openSessions.length > 0 ? () => cycleTab(-1) : undefined,
           showAbout: () => setAboutOpen(true)
         }}
+        onGoHome={handleGoHome}
       />
       <div className="workbench">
         <div className="activitybar">
