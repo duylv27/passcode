@@ -41,7 +41,6 @@ export function registerIpcHandlers(handlers: IpcHandlers): void {
   ipcMain.handle('session:create', (_e, repoId: string, title?: string) =>
     handlers.session.createSession(repoId, title)
   )
-  ipcMain.handle('session:getMostRecent', () => handlers.session.getMostRecentSession())
   ipcMain.handle('session:listAll', () => handlers.session.listAllSessions())
   ipcMain.handle('session:listByProject', (_e, projectId: string) =>
     handlers.session.listProjectSessions(projectId)

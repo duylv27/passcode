@@ -11,10 +11,6 @@ export interface SessionsRepository {
   listByRepo(repoId: string): SessionRecord[]
   listByProject(projectId: string): SessionRecord[]
   getById(id: string): SessionRecord | undefined
-  /** The most recently opened session across every repo, falling back to
-   * most recently created for a session that's never been opened -- used
-   * to land on the last thing you were working on instead of an empty state. */
-  getMostRecent(): SessionRecord | undefined
   /** Every session across every repo/project, most-recently-opened first
    * (falling back to creation time for a session that's never been opened). */
   listAll(): SessionRecord[]
@@ -75,14 +71,6 @@ export function createSessionsRepository(db: DatabaseSync): SessionsRepository {
     },
     getById(id: string): SessionRecord | undefined {
       const row = db.prepare(`SELECT ${SELECT_COLUMNS} FROM sessions WHERE id = ?`).get(id)
-      return row ? mapRow(row) : undefined
-    },
-    getMostRecent(): SessionRecord | undefined {
-      const row = db
-        .prepare(
-          `SELECT ${SELECT_COLUMNS} FROM sessions ORDER BY COALESCE(last_opened_at, created_at) DESC, rowid DESC LIMIT 1`
-        )
-        .get()
       return row ? mapRow(row) : undefined
     },
     listAll(): SessionRecord[] {

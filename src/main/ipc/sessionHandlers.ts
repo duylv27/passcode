@@ -56,7 +56,6 @@ export interface SessionHandlers {
   createProjectSession(projectId: string, title?: string): CreateProjectSessionResult | CreateProjectSessionError
   createGeneralSession(title?: string): Promise<CreateProjectSessionResult | CreateProjectSessionError>
   setBookmarked(sessionId: string, bookmarked: boolean): void
-  getMostRecentSession(): { session: SessionRecord; repo: Repo; project: Project | null } | null
   listAllSessions(): SessionWithScope[]
   renameSession(sessionId: string, title: string): void
   deleteSession(sessionId: string): Promise<void>
@@ -210,14 +209,6 @@ export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionH
       } catch (err) {
         return { ok: false, error: (err as Error).message }
       }
-    },
-    getMostRecentSession(): { session: SessionRecord; repo: Repo; project: Project | null } | null {
-      const session = deps.sessionsRepo.getMostRecent()
-      if (!session) return null
-      const repo = deps.reposRepo.getById(session.repoId)
-      if (!repo) return null
-      const project = session.projectId ? (deps.projectsRepo.getById(session.projectId) ?? null) : null
-      return { session, repo, project }
     },
     listAllSessions(): SessionWithScope[] {
       const sessions = deps.sessionsRepo.listAll()

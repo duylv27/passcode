@@ -400,7 +400,148 @@ button {
   font-size: 15px;
 }
 
+/* ---------------------------------------------------------------------
+   Welcome screen -- shown on every launch instead of auto-jumping into
+   the most recent session, and whenever every tab is closed.
+   --------------------------------------------------------------------- */
+.welcome-screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: var(--space-4);
+  overflow: auto;
+}
 
+.welcome-screen-mark {
+  width: 40px;
+  height: 40px;
+  margin-bottom: var(--space-3);
+}
+
+.welcome-screen-wordmark {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-bottom: 6px;
+}
+
+.welcome-screen-tagline {
+  font-size: 12.5px;
+  color: var(--fg-dim);
+  margin-bottom: var(--space-4);
+  max-width: 360px;
+  line-height: 1.5;
+}
+
+.welcome-screen-actions {
+  display: flex;
+  gap: var(--space-2);
+  width: 100%;
+  max-width: 420px;
+  margin-bottom: var(--space-4);
+}
+
+.welcome-screen-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  font-weight: 500;
+  border: 1px solid transparent;
+}
+
+.welcome-screen-btn.is-primary {
+  background: var(--accent);
+  color: var(--button-fg);
+}
+
+.welcome-screen-btn.is-secondary {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--fg);
+}
+
+.welcome-screen-btn.is-secondary:hover {
+  background: var(--list-hover);
+}
+
+.welcome-screen-recent {
+  width: 100%;
+  max-width: 420px;
+  text-align: left;
+}
+
+.welcome-screen-recent-head {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--fg-faint);
+  margin-bottom: var(--space-2);
+}
+
+.welcome-screen-recent-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 8px var(--space-2);
+  border-radius: var(--radius-sm);
+  background: none;
+  border: none;
+  color: var(--fg);
+  text-align: left;
+}
+
+.welcome-screen-recent-row:hover {
+  background: var(--list-hover);
+}
+
+.welcome-screen-recent-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+
+.welcome-screen-recent-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+
+.welcome-screen-recent-title {
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.welcome-screen-recent-scope {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--fg-faint);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.welcome-screen-recent-when {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--fg-faint);
+  flex-shrink: 0;
+}
 
 .repo-status-dot {
   display: inline-block;

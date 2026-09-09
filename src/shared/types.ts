@@ -270,7 +270,6 @@ export interface Api {
      * a hidden, app-managed scratch directory, created on first use. */
     createGeneralSession(title?: string): Promise<CreateProjectSessionResult | CreateProjectSessionError>
     setBookmarked(sessionId: string, bookmarked: boolean): Promise<void>
-    getMostRecent(): Promise<{ session: SessionRecord; repo: Repo; project: Project | null } | null>
     listAll(): Promise<SessionWithScope[]>
     rename(sessionId: string, title: string): Promise<void>
     delete(sessionId: string): Promise<void>

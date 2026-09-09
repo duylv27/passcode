@@ -1,8 +1,9 @@
-import { useEffect, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { useState, type PointerEvent as ReactPointerEvent } from 'react'
 import type { Project, Repo, SessionRecord, SessionWithScope } from '../../shared/types'
 import { ProjectExplorer } from './components/ProjectExplorer'
 import { SessionTabs } from './components/SessionTabs'
 import { ChatPanel } from './components/ChatPanel'
+import { WelcomeScreen } from './components/WelcomeScreen'
 import { SettingsPanel } from './components/SettingsPanel'
 import { ApprovalDialog } from './components/ApprovalDialog'
 import { TitleBar } from './components/TitleBar'
@@ -78,15 +79,6 @@ export default function App(): JSX.Element {
     window.addEventListener('pointermove', handleMove)
     window.addEventListener('pointerup', handleUp)
   }
-
-  // Land on whatever was last worked in, instead of an empty state, every
-  // time the app starts.
-  useEffect(() => {
-    window.api.session.getMostRecent().then((result) => {
-      if (result) handleOpenSession(result.session, result.repo, result.project)
-    })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   function handleOpenSession(session: SessionRecord, repo: Repo, project: Project | null): void {
     const item: SessionWithScope = { session, repo, project }
@@ -298,7 +290,7 @@ export default function App(): JSX.Element {
               </div>
             </>
           ) : (
-            <div className="editor-empty">Select or create a session in the sidebar</div>
+            <WelcomeScreen onOpenSession={handleOpenSession} onBrowseProjects={handleGoProjectsView} />
           )}
         </div>
       </div>
