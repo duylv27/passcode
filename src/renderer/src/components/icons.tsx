@@ -179,6 +179,58 @@ export function EditIcon({ className }: IconProps): JSX.Element {
   )
 }
 
+export function ReadIcon({ className }: IconProps): JSX.Element {
+  return (
+    <svg className={className} width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <path d="M3.5 1.5h6l3 3v10h-9Z" strokeLinejoin="round" />
+      <path d="M6 8h4M6 10.5h4" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+export function WriteIcon({ className }: IconProps): JSX.Element {
+  return (
+    <svg className={className} width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <path d="M3.5 1.5h6l3 3v10h-9Z" strokeLinejoin="round" />
+      <path d="M8 7.5v4M6 9.5h4" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+export function SearchIcon({ className }: IconProps): JSX.Element {
+  return (
+    <svg className={className} width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <circle cx="6.5" cy="6.5" r="4" />
+      <path d="M9.5 9.5 13 13" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+export function FolderIcon({ className }: IconProps): JSX.Element {
+  return (
+    <svg className={className} width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <path d="M1.5 3.5h4l1.5 2h7v7.5h-12.5Z" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+export function ListIcon({ className }: IconProps): JSX.Element {
+  return (
+    <svg className={className} width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <path d="M3 4.5h10M3 8h10M3 11.5h10" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+export function TerminalIcon({ className }: IconProps): JSX.Element {
+  return (
+    <svg className={className} width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <rect x="1.5" y="2.5" width="13" height="11" rx="1.5" strokeLinejoin="round" />
+      <path d="M4.5 6.5 7 8.5 4.5 10.5M8.5 10.5h3" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 export function TrashIcon({ className }: IconProps): JSX.Element {
   return (
     <svg className={className} width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">

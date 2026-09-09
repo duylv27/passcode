@@ -3,6 +3,7 @@ import type { Project, Repo, SessionRecord, SessionWithScope } from '../../share
 import { ProjectExplorer } from './components/ProjectExplorer'
 import { SessionTabs } from './components/SessionTabs'
 import { ChatPanel } from './components/ChatPanel'
+import { WelcomeScreen } from './components/WelcomeScreen'
 import { SettingsPanel } from './components/SettingsPanel'
 import { ApprovalDialog } from './components/ApprovalDialog'
 import { TitleBar } from './components/TitleBar'
@@ -79,20 +80,29 @@ export default function App(): JSX.Element {
     window.addEventListener('pointerup', handleUp)
   }
 
-  // Land on whatever was last worked in, instead of an empty state, every
-  // time the app starts.
-  useEffect(() => {
-    window.api.session.getMostRecent().then((result) => {
-      if (result) handleOpenSession(result.session, result.repo, result.project)
-    })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
   function handleOpenSession(session: SessionRecord, repo: Repo, project: Project | null): void {
     const item: SessionWithScope = { session, repo, project }
     setOpenSessions((prev) => (prev.some((s) => s.session.id === session.id) ? prev : [...prev, item]))
     setSelectedSession(item)
   }
+
+  // Unlike Close All (which keeps pinned tabs open, a tab-management
+  // action), the titlebar's logo/name button is an explicit "take me to
+  // the welcome screen" navigation and always closes everything.
+  function handleGoHome(): void {
+    setOpenSessions([])
+    setSelectedSession(null)
+    setSidebarCollapsed(true)
+  }
+
+  // Collapses the sidebar the moment the welcome screen appears (fresh
+  // launch, or the last tab closing) without fighting a deliberate expand
+  // afterwards -- e.g. clicking the welcome screen's "Browse projects"
+  // action -- since this only re-runs when the open-tab count itself
+  // changes, not on every render while it stays at zero.
+  useEffect(() => {
+    if (openSessions.length === 0) setSidebarCollapsed(true)
+  }, [openSessions.length])
 
   function handleCloseTab(item: SessionWithScope): void {
     const remaining = openSessions.filter((s) => s.session.id !== item.session.id)
@@ -213,6 +223,7 @@ export default function App(): JSX.Element {
           previousTab: openSessions.length > 0 ? () => cycleTab(-1) : undefined,
           showAbout: () => setAboutOpen(true)
         }}
+        onGoHome={handleGoHome}
       />
       <div className="workbench">
         <div className="activitybar">
@@ -298,7 +309,7 @@ export default function App(): JSX.Element {
               </div>
             </>
           ) : (
-            <div className="editor-empty">Select or create a session in the sidebar</div>
+            <WelcomeScreen onOpenSession={handleOpenSession} onBrowseProjects={handleGoProjectsView} />
           )}
         </div>
       </div>

@@ -34,7 +34,14 @@ import {
   SlashIcon,
   AnthropicIcon,
   GitHubIcon,
-  GeminiIcon
+  GeminiIcon,
+  ReadIcon,
+  WriteIcon,
+  EditIcon,
+  SearchIcon,
+  FolderIcon,
+  ListIcon,
+  TerminalIcon
 } from './icons'
 import { Markdown } from './Markdown'
 import { DiffView, diffStats } from './DiffView'
@@ -120,6 +127,12 @@ class RowErrorBoundary extends Component<{ children: ReactNode }, { hasError: bo
 
 export function ChatPanel({ session, repoName, modelsRefreshKey }: Props): JSX.Element {
   const [items, setItems] = useState<TranscriptItem[]>([])
+  // True from the moment a session is opened until its 'history' event
+  // arrives -- without this, switching sessions resets `items` to []
+  // synchronously, flashing the empty-state placeholder for a beat before
+  // the real transcript populates (same class of bug fixed earlier for
+  // the sidebar's session/project lists).
+  const [loadingHistory, setLoadingHistory] = useState(true)
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
   const [thinking, setThinking] = useState(false)
@@ -278,6 +291,7 @@ export function ChatPanel({ session, repoName, modelsRefreshKey }: Props): JSX.E
 
   useEffect(() => {
     setItems([])
+    setLoadingHistory(true)
     setBusy(false)
     setThinking(false)
     setCurrentModel(null)
@@ -446,6 +460,7 @@ export function ChatPanel({ session, repoName, modelsRefreshKey }: Props): JSX.E
       } else if (event.type === 'history') {
         hasPriorTurns = event.items.length > 0
         setItems(mapHistory(event.items))
+        setLoadingHistory(false)
       } else if (event.type === 'model') {
         // The 'model' event itself doesn't carry providerName (sessionHandlers.ts
         // only knows provider/id/name at that point) -- look it up from the
@@ -704,7 +719,7 @@ export function ChatPanel({ session, repoName, modelsRefreshKey }: Props): JSX.E
     <ZoomViewerProvider>
       <div className="chat">
       <div className="chat-scroll" ref={chatScrollRef}>
-        {visibleItems.length === 0 && !thinking ? (
+        {loadingHistory ? null : visibleItems.length === 0 && !thinking ? (
           <div className="chat-empty">Ask it to explore the code, run something, or make a change.</div>
         ) : (
           groupForRender(visibleItems).map((group) =>
@@ -1277,10 +1292,17 @@ const TimelineRow = memo(function TimelineRow({
   const runOutput = isShell && typeof item.result === 'string' ? truncateOutput(item.result) : null
   const stat =
     item.status !== 'running' ? computeToolDiffStats(item.toolName, item.args) : null
+  const ToolIcon = TOOL_ICONS[item.toolName]
 
   return (
     <div className="timeline-row">
-      <span className={`timeline-dot is-${item.status}`} />
+      {ToolIcon ? (
+        <span className={`timeline-tool-icon is-${item.status}`}>
+          <ToolIcon />
+        </span>
+      ) : (
+        <span className={`timeline-dot is-${item.status}`} />
+      )}
       <button className="timeline-row-header" onClick={handleToggle}>
         <span className="timeline-row-title">{toolActionLabel(item.toolName)}</span>
         {summary && <span className="timeline-row-summary">{summary}</span>}
@@ -1340,6 +1362,21 @@ const TOOL_ACTION_LABELS: Record<string, string> = {
   powershell: 'Run command'
 }
 
+/** Per-tool-type marker shown in place of a plain status dot, so the
+ * timeline reads as "what kind of action happened" at a glance rather
+ * than a row of identical dots. A tool name with no entry here falls
+ * back to the plain dot (see TimelineRow) rather than rendering nothing. */
+const TOOL_ICONS: Record<string, (props: { className?: string }) => JSX.Element> = {
+  read: ReadIcon,
+  write: WriteIcon,
+  edit: EditIcon,
+  grep: SearchIcon,
+  find: FolderIcon,
+  ls: ListIcon,
+  bash: TerminalIcon,
+  powershell: TerminalIcon
+}
+
 /** A plain-English name for the action, shown in place of the raw tool
  * identifier so the card reads as "what happened" at a glance. */
 function toolActionLabel(toolName: string): string {
@@ -1361,7 +1398,9 @@ function describeToolAction(toolName: string, args: unknown): string {
 function formatUsage(usage: TokenUsage | undefined, scope: 'model response' | 'turn total' | undefined): string {
   if (!usage) return 'usage unavailable'
   const suffix = scope === 'turn total' ? ' turn' : ''
-  return `${formatTokenCount(usage.input)} in / ${formatTokenCount(usage.output)} out${suffix}`
+  const cached = usage.cacheRead + usage.cacheWrite
+  const cachedSuffix = cached > 0 ? ` (+${formatTokenCount(cached)} cached)` : ''
+  return `${formatTokenCount(usage.input)} in / ${formatTokenCount(usage.output)} out${cachedSuffix}${suffix}`
 }
 
 function formatActionMetrics(
