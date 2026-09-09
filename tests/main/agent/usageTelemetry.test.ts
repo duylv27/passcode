@@ -32,7 +32,7 @@ describe('appendUsageTelemetryRecord', () => {
   it('does not write anything when disabled', async () => {
     appendUsageTelemetryRecord(
       { enabled: false, outputPath },
-      { model: { provider: 'anthropic', id: 'claude-opus-4-5', name: 'Claude Opus 4.5' }, usage: { input: 100, output: 20 }, sessionId: 's1' }
+      { model: { provider: 'anthropic', id: 'claude-opus-4-5', name: 'Claude Opus 4.5' }, usage: { input: 100, output: 20, cacheRead: 0, cacheWrite: 0 }, sessionId: 's1' }
     )
     await flush()
     expect(() => readFileSync(outputPath, 'utf-8')).toThrow()
@@ -41,7 +41,7 @@ describe('appendUsageTelemetryRecord', () => {
   it('does not write anything when enabled but no output path is set', async () => {
     appendUsageTelemetryRecord(
       { enabled: true, outputPath: '' },
-      { model: { provider: 'anthropic', id: 'claude-opus-4-5', name: 'Claude Opus 4.5' }, usage: { input: 100, output: 20 }, sessionId: 's1' }
+      { model: { provider: 'anthropic', id: 'claude-opus-4-5', name: 'Claude Opus 4.5' }, usage: { input: 100, output: 20, cacheRead: 0, cacheWrite: 0 }, sessionId: 's1' }
     )
     await flush()
     expect(() => readFileSync(outputPath, 'utf-8')).toThrow()
@@ -50,7 +50,7 @@ describe('appendUsageTelemetryRecord', () => {
   it('appends one correctly-shaped JSON line when enabled with a valid path', async () => {
     appendUsageTelemetryRecord(
       { enabled: true, outputPath },
-      { model: { provider: 'anthropic', id: 'claude-opus-4-5', name: 'Claude Opus 4.5' }, usage: { input: 12345, output: 678 }, sessionId: 'session-abc' }
+      { model: { provider: 'anthropic', id: 'claude-opus-4-5', name: 'Claude Opus 4.5' }, usage: { input: 12345, output: 678, cacheRead: 0, cacheWrite: 0 }, sessionId: 'session-abc' }
     )
     await flush()
 
@@ -79,11 +79,11 @@ describe('appendUsageTelemetryRecord', () => {
   it('appends multiple records across multiple calls (one line each)', async () => {
     appendUsageTelemetryRecord(
       { enabled: true, outputPath },
-      { model: { provider: 'anthropic', id: 'claude-opus-4-5', name: 'Claude Opus 4.5' }, usage: { input: 1, output: 1 }, sessionId: 's1' }
+      { model: { provider: 'anthropic', id: 'claude-opus-4-5', name: 'Claude Opus 4.5' }, usage: { input: 1, output: 1, cacheRead: 0, cacheWrite: 0 }, sessionId: 's1' }
     )
     appendUsageTelemetryRecord(
       { enabled: true, outputPath },
-      { model: { provider: 'anthropic', id: 'claude-opus-4-5', name: 'Claude Opus 4.5' }, usage: { input: 2, output: 2 }, sessionId: 's1' }
+      { model: { provider: 'anthropic', id: 'claude-opus-4-5', name: 'Claude Opus 4.5' }, usage: { input: 2, output: 2, cacheRead: 0, cacheWrite: 0 }, sessionId: 's1' }
     )
     await flush()
 
@@ -95,7 +95,7 @@ describe('appendUsageTelemetryRecord', () => {
     process.env.OTEL_RESOURCE_ATTRIBUTES = 'user.name=duylv-epam,team.id=skii-epam'
     appendUsageTelemetryRecord(
       { enabled: true, outputPath },
-      { model: { provider: 'anthropic', id: 'claude-opus-4-5', name: 'Claude Opus 4.5' }, usage: { input: 1, output: 1 }, sessionId: 's1' }
+      { model: { provider: 'anthropic', id: 'claude-opus-4-5', name: 'Claude Opus 4.5' }, usage: { input: 1, output: 1, cacheRead: 0, cacheWrite: 0 }, sessionId: 's1' }
     )
     await flush()
 
@@ -108,7 +108,7 @@ describe('appendUsageTelemetryRecord', () => {
   it('falls back to the OS username and omits team.id when OTEL_RESOURCE_ATTRIBUTES is unset', async () => {
     appendUsageTelemetryRecord(
       { enabled: true, outputPath },
-      { model: { provider: 'anthropic', id: 'claude-opus-4-5', name: 'Claude Opus 4.5' }, usage: { input: 1, output: 1 }, sessionId: 's1' }
+      { model: { provider: 'anthropic', id: 'claude-opus-4-5', name: 'Claude Opus 4.5' }, usage: { input: 1, output: 1, cacheRead: 0, cacheWrite: 0 }, sessionId: 's1' }
     )
     await flush()
 
@@ -122,7 +122,7 @@ describe('appendUsageTelemetryRecord', () => {
     process.env.OTEL_RESOURCE_ATTRIBUTES = 'not-a-valid-format;;;'
     appendUsageTelemetryRecord(
       { enabled: true, outputPath },
-      { model: { provider: 'anthropic', id: 'claude-opus-4-5', name: 'Claude Opus 4.5' }, usage: { input: 1, output: 1 }, sessionId: 's1' }
+      { model: { provider: 'anthropic', id: 'claude-opus-4-5', name: 'Claude Opus 4.5' }, usage: { input: 1, output: 1, cacheRead: 0, cacheWrite: 0 }, sessionId: 's1' }
     )
     await flush()
 
@@ -138,7 +138,7 @@ describe('appendUsageTelemetryRecord', () => {
     expect(() =>
       appendUsageTelemetryRecord(
         { enabled: true, outputPath: join(dir, 'does', 'not', 'exist', 'usage.jsonl') },
-        { model: { provider: 'anthropic', id: 'claude-opus-4-5', name: 'Claude Opus 4.5' }, usage: { input: 1, output: 1 }, sessionId: 's1' }
+        { model: { provider: 'anthropic', id: 'claude-opus-4-5', name: 'Claude Opus 4.5' }, usage: { input: 1, output: 1, cacheRead: 0, cacheWrite: 0 }, sessionId: 's1' }
       )
     ).not.toThrow()
     await flush()

@@ -97,7 +97,9 @@ export function appendUsageTelemetryRecord(
         'gen_ai.response.model': params.model.id,
         'gen_ai.response.id': randomUUID(),
         'gen_ai.usage.input_tokens': params.usage.input,
-        'gen_ai.usage.output_tokens': params.usage.output
+        'gen_ai.usage.output_tokens': params.usage.output,
+        'gen_ai.usage.cache_read_input_tokens': params.usage.cacheRead,
+        'gen_ai.usage.cache_creation_input_tokens': params.usage.cacheWrite
       },
       _body: `GenAI inference: ${params.model.id}`
     }

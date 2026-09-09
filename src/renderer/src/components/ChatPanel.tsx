@@ -1390,7 +1390,9 @@ function describeToolAction(toolName: string, args: unknown): string {
 function formatUsage(usage: TokenUsage | undefined, scope: 'model response' | 'turn total' | undefined): string {
   if (!usage) return 'usage unavailable'
   const suffix = scope === 'turn total' ? ' turn' : ''
-  return `${formatTokenCount(usage.input)} in / ${formatTokenCount(usage.output)} out${suffix}`
+  const cached = usage.cacheRead + usage.cacheWrite
+  const cachedSuffix = cached > 0 ? ` (+${formatTokenCount(cached)} cached)` : ''
+  return `${formatTokenCount(usage.input)} in / ${formatTokenCount(usage.output)} out${cachedSuffix}${suffix}`
 }
 
 function formatActionMetrics(

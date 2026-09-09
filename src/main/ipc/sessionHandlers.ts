@@ -411,7 +411,10 @@ function mapAgentEvent(event: unknown): ChatEvent | ChatEvent[] | null {
     args?: unknown
     result?: unknown
     isError?: boolean
-    message?: { role?: string; usage?: { input: number; output: number } }
+    message?: {
+      role?: string
+      usage?: { input: number; output: number; cacheRead: number; cacheWrite: number }
+    }
     errorMessage?: string
     reason?: 'manual' | 'threshold' | 'overflow'
   }
@@ -448,7 +451,12 @@ function mapAgentEvent(event: unknown): ChatEvent | ChatEvent[] | null {
   if (e.type === 'message_end' && e.message?.role === 'assistant' && e.message.usage) {
     return {
       type: 'model_usage',
-      usage: { input: e.message.usage.input, output: e.message.usage.output }
+      usage: {
+        input: e.message.usage.input,
+        output: e.message.usage.output,
+        cacheRead: e.message.usage.cacheRead,
+        cacheWrite: e.message.usage.cacheWrite
+      }
     }
   }
   if (e.type === 'tool_execution_start') {
@@ -477,7 +485,12 @@ function mapAgentEvent(event: unknown): ChatEvent | ChatEvent[] | null {
     // LLM), so this is reported per-turn, not per-action.
     const usage =
       e.message?.role === 'assistant' && e.message.usage
-        ? { input: e.message.usage.input, output: e.message.usage.output }
+        ? {
+            input: e.message.usage.input,
+            output: e.message.usage.output,
+            cacheRead: e.message.usage.cacheRead,
+            cacheWrite: e.message.usage.cacheWrite
+          }
         : undefined
     return { type: 'turn_end', usage }
   }
