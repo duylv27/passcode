@@ -20,6 +20,7 @@ export interface ModelRuntimeLike {
 
 export interface SettingsHandlers {
   setAnthropicApiKey(apiKey: string): Promise<{ ok: true } | { ok: false; error: string }>
+  removeAnthropicApiKey(): Promise<void>
   setGeminiApiKey(apiKey: string): Promise<{ ok: true } | { ok: false; error: string }>
   getAuthStatus(): Promise<AuthStatus>
   loginCopilot(
@@ -68,6 +69,10 @@ export function createSettingsHandlers(
       } catch (err) {
         return { ok: false, error: (err as Error).message }
       }
+    },
+    async removeAnthropicApiKey() {
+      await modelRuntime.removeRuntimeApiKey('anthropic')
+      appSettingsRepo.removeProviderApiKey('anthropic')
     },
     async setGeminiApiKey(apiKey: string) {
       const trimmed = apiKey.trim()

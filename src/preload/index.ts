@@ -67,6 +67,7 @@ const api: Api = {
   },
   settings: {
     setAnthropicApiKey: (apiKey) => ipcRenderer.invoke('settings:setAnthropicApiKey', apiKey),
+    removeAnthropicApiKey: () => ipcRenderer.invoke('settings:removeAnthropicApiKey'),
     setGeminiApiKey: (apiKey) => ipcRenderer.invoke('settings:setGeminiApiKey', apiKey),
     getAuthStatus: () => ipcRenderer.invoke('settings:getAuthStatus'),
     loginCopilot: () => ipcRenderer.invoke('settings:loginCopilot'),

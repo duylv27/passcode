@@ -185,6 +185,13 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
     await refresh()
   }
 
+  async function handleRemoveAnthropicApiKey(): Promise<void> {
+    setAnthropicError(null)
+    await window.api.settings.removeAnthropicApiKey()
+    setApiKey('')
+    await refresh()
+  }
+
   async function handleSaveGeminiKey(): Promise<void> {
     setGeminiError(null)
     const result = await window.api.settings.setGeminiApiKey(geminiApiKey)
@@ -346,6 +353,11 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
                   <button className="settings-btn" onClick={handleSaveKey}>
                     Save
                   </button>
+                  {status?.anthropicAuthType === 'api_key' && (
+                    <button className="settings-btn" onClick={handleRemoveAnthropicApiKey}>
+                      Remove
+                    </button>
+                  )}
                 </div>
               </div>
 

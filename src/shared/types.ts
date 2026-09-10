@@ -317,6 +317,7 @@ export interface Api {
   }
   settings: {
     setAnthropicApiKey(apiKey: string): Promise<{ ok: true } | { ok: false; error: string }>
+    removeAnthropicApiKey(): Promise<void>
     setGeminiApiKey(apiKey: string): Promise<{ ok: true } | { ok: false; error: string }>
     getAuthStatus(): Promise<AuthStatus>
     loginCopilot(): Promise<{ ok: true } | { ok: false; error: string }>

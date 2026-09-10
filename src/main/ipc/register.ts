@@ -99,6 +99,7 @@ export function registerIpcHandlers(handlers: IpcHandlers): void {
   ipcMain.handle('settings:setAnthropicApiKey', (_e, apiKey: string) =>
     handlers.settings.setAnthropicApiKey(apiKey)
   )
+  ipcMain.handle('settings:removeAnthropicApiKey', () => handlers.settings.removeAnthropicApiKey())
   ipcMain.handle('settings:setGeminiApiKey', (_e, apiKey: string) => handlers.settings.setGeminiApiKey(apiKey))
   ipcMain.handle('settings:getAuthStatus', () => handlers.settings.getAuthStatus())
   ipcMain.handle('settings:loginCopilot', (event) =>
