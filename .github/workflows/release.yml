@@ -40,3 +40,27 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run release:win
+
+      # CHANGELOG.md is the single source of truth for user-facing release
+      # notes (see docs/superpowers/specs/2026-09-09-release-process-design.md)
+      # -- electron-builder's own publish step above writes no release body,
+      # so this replaces it with this version's changelog section. A tag with
+      # no matching CHANGELOG.md entry (e.g. any release before this section
+      # was added) leaves the release body untouched rather than failing.
+      - name: Set release notes from CHANGELOG.md
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          VERSION="${TAG#v}"
+          awk -v ver="## [$VERSION]" '
+            index($0, ver) == 1 { found=1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md > release-notes.md
+          if [ -s release-notes.md ]; then
+            gh release edit "$TAG" --notes-file release-notes.md
+          else
+            echo "No CHANGELOG.md section for $VERSION -- leaving the auto-generated release body as-is."
+          fi
