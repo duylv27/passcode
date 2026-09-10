@@ -468,7 +468,9 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
                   if (totalInput + totalOutput === 0) return null
                   return (
                     <div className="passport-overview">
-                      <div className="passport-overview-label">Overall usage · {totalRequests.toLocaleString()} requests</div>
+                      <div className="passport-overview-label">
+                        Overall usage · {totalRequests.toLocaleString()} {totalRequests === 1 ? 'request' : 'requests'}
+                      </div>
                       <UsageBar input={totalInput} output={totalOutput} cost={totalCost} showLegend />
                     </div>
                   )
