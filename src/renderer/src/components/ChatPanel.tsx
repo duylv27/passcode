@@ -38,7 +38,8 @@ import {
   SlashIcon,
   AnthropicIcon,
   GitHubIcon,
-  GeminiIcon
+  GeminiIcon,
+  OpenAIIcon
 } from './icons'
 import { Markdown } from './Markdown'
 import { DiffView, diffStats } from './DiffView'
@@ -883,33 +884,69 @@ export function ChatPanel({
                   className="model-config-tooltip"
                   style={{ position: 'fixed', top: modelTooltip.top, left: modelTooltip.left }}
                 >
-                  <div className="model-config-tooltip-title">{modelTooltip.model.name}</div>
+                  <div className="model-config-tooltip-header">
+                    <span
+                      className={`model-provider-icon model-config-tooltip-icon is-${modelTooltip.model.provider}`}
+                    >
+                      <ProviderMark
+                        provider={modelTooltip.model.provider}
+                        providerName={modelTooltip.model.providerName}
+                      />
+                    </span>
+                    <div>
+                      <div className="model-config-tooltip-title">{modelTooltip.model.name}</div>
+                      <div className="model-config-tooltip-subtitle">{modelTooltip.model.providerName}</div>
+                    </div>
+                  </div>
+
+                  <div className="model-config-tooltip-prices">
+                    <div className="model-config-tooltip-price-card">
+                      <span>Input</span>
+                      <b>${modelTooltip.model.cost.input.toFixed(2)}</b>
+                      <i>/ M tokens</i>
+                    </div>
+                    <div className="model-config-tooltip-price-card">
+                      <span>Output</span>
+                      <b>${modelTooltip.model.cost.output.toFixed(2)}</b>
+                      <i>/ M tokens</i>
+                    </div>
+                  </div>
+                  {modelTooltip.model.cost.cacheRead > 0 && (
+                    <div className="model-config-tooltip-row is-muted">
+                      <span>Cache read</span>
+                      <b>${modelTooltip.model.cost.cacheRead.toFixed(2)} / M</b>
+                    </div>
+                  )}
+
+                  <div className="model-config-tooltip-divider" />
+
                   <div className="model-config-tooltip-row">
                     <span>Context window</span>
-                    <b>{modelTooltip.model.contextWindow.toLocaleString()} tokens</b>
+                    <b>{modelTooltip.model.contextWindow.toLocaleString()}</b>
                   </div>
                   <div className="model-config-tooltip-row">
                     <span>Max output</span>
-                    <b>{modelTooltip.model.maxTokens.toLocaleString()} tokens</b>
+                    <b>{modelTooltip.model.maxTokens.toLocaleString()}</b>
                   </div>
-                  <div className="model-config-tooltip-row">
+                  <div
+                    className="model-config-tooltip-context-bar"
+                    title={`Max output is ${Math.round(
+                      (modelTooltip.model.maxTokens / Math.max(modelTooltip.model.contextWindow, 1)) * 100
+                    )}% of the context window`}
+                  >
+                    <span
+                      style={{
+                        width: `${Math.min(100, (modelTooltip.model.maxTokens / Math.max(modelTooltip.model.contextWindow, 1)) * 100)}%`
+                      }}
+                    />
+                  </div>
+
+                  <div className="model-config-tooltip-row" style={{ marginTop: '8px' }}>
                     <span>Reasoning</span>
-                    <b>{modelTooltip.model.reasoning ? 'Supported' : 'Not supported'}</b>
+                    <span className={`model-config-tooltip-badge${modelTooltip.model.reasoning ? ' is-on' : ''}`}>
+                      {modelTooltip.model.reasoning ? 'Supported' : 'Not supported'}
+                    </span>
                   </div>
-                  <div className="model-config-tooltip-row">
-                    <span>Input price</span>
-                    <b>${modelTooltip.model.cost.input.toFixed(2)} / M tokens</b>
-                  </div>
-                  <div className="model-config-tooltip-row">
-                    <span>Output price</span>
-                    <b>${modelTooltip.model.cost.output.toFixed(2)} / M tokens</b>
-                  </div>
-                  {modelTooltip.model.cost.cacheRead > 0 && (
-                    <div className="model-config-tooltip-row">
-                      <span>Cache read price</span>
-                      <b>${modelTooltip.model.cost.cacheRead.toFixed(2)} / M tokens</b>
-                    </div>
-                  )}
                 </div>
               )}
             </div>
@@ -1645,6 +1682,7 @@ function ProviderMark({ provider, providerName }: { provider: string; providerNa
   if (provider === 'anthropic') return <AnthropicIcon />
   if (provider === 'github-copilot') return <GitHubIcon />
   if (provider === 'google') return <GeminiIcon />
+  if (provider === 'openai-codex') return <OpenAIIcon />
   return <>{providerName.charAt(0)}</>
 }
 
