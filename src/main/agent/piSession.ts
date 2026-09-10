@@ -1,4 +1,4 @@
-import type { AgentSessionEvent, ModelRuntime } from '@earendil-works/pi-coding-agent'
+import type { AgentSessionEvent, ExtensionUIContext, ModelRuntime, Theme } from '@earendil-works/pi-coding-agent'
 import type { ImageContent, Model } from '@earendil-works/pi-ai'
 import type {
   CompactionThresholds,
@@ -6,8 +6,7 @@ import type {
   HistoryItem,
   SessionStats,
   ThinkingLevel,
-  TokenUsage,
-  ToolInfo
+  TokenUsage
 } from '../../shared/types'
 import { getAdditionalSkillPaths } from './skills'
 import { PROMPT_CONTEXT_DELIMITER } from './promptBuilder'
@@ -31,12 +30,6 @@ export interface RepoSession {
   /** Aggregates over the whole session, including compacted-away history --
    * distinct from getContextUsage()'s live snapshot of the current window. */
   getSessionStats(): SessionStats
-  getAllToolInfo(): ToolInfo[]
-  getActiveToolNames(): string[]
-  /** Unknown names are silently ignored by the SDK; rebuilds the system
-   * prompt so the model is never told a disabled tool exists at all
-   * (stricter than requiring approval for it). */
-  setActiveToolsByName(toolNames: string[]): void
   supportsThinking(): boolean
   /** Empty when !supportsThinking(). */
   getAvailableThinkingLevels(): ThinkingLevel[]
@@ -53,8 +46,66 @@ export interface CreateRepoSessionOptions {
    * and can block -- this is what lets the app pause and ask the user.
    */
   requestApproval: (toolName: string, input: unknown) => Promise<boolean>
+  /** Backs ctx.ui.select() for any extension that asks the user to pick
+   * from a list -- e.g. @juicesharp/rpiv-ask-user-question. Resolves
+   * `undefined` if the user cancels/times out. Optional: falls back to a
+   * safe no-op (matching the SDK's own noOpUIContext) when not supplied. */
+  requestSelect?: (title: string, options: string[], timeoutMs?: number, signal?: AbortSignal) => Promise<string | undefined>
+  /** Backs ctx.ui.confirm(). Resolves `false` if the user cancels/times out. */
+  requestConfirm?: (title: string, message: string, timeoutMs?: number, signal?: AbortSignal) => Promise<boolean>
+  /** Backs ctx.ui.input(). Resolves `undefined` if the user cancels/times out. */
+  requestInput?: (
+    title: string,
+    placeholder: string | undefined,
+    timeoutMs?: number,
+    signal?: AbortSignal
+  ) => Promise<string | undefined>
+  /** Backs ctx.ui.notify(). */
+  notify?: (message: string, level: 'info' | 'warning' | 'error') => void
   /** Path to a previously saved session file to resume, if continuing past work. */
   resumeSessionFile?: string
+}
+
+/** Matches the SDK's own `noOpUIContext` (see runner.js) property for
+ * property -- every method here is a pure-terminal concept (raw component
+ * rendering, footer/header/widget swapping, editor-component swapping,
+ * theme get/set) with no sensible Electron/React equivalent for several
+ * of them. An extension that needs one of these degrades exactly as it
+ * already does in any other non-interactive host, rather than crashing --
+ * only select/confirm/input/notify (see createRepoSession below) get a
+ * real implementation. */
+const noOpUiContext: Omit<ExtensionUIContext, 'select' | 'confirm' | 'input' | 'notify'> = {
+  onTerminalInput: () => () => {},
+  setStatus: () => {},
+  setWorkingMessage: () => {},
+  setWorkingVisible: () => {},
+  setWorkingIndicator: () => {},
+  setHiddenThinkingLabel: () => {},
+  setWidget: () => {},
+  setFooter: () => {},
+  setHeader: () => {},
+  setTitle: () => {},
+  // Cast needed: `custom<T>()` is generic and genuinely returns `Promise<T>`
+  // (not `Promise<T | undefined>`), so a real no-op can't satisfy it
+  // honestly for every T -- this matches the SDK's own noOpUIContext in
+  // runner.js, which has the same shape (untyped there since it's already
+  // compiled JS).
+  custom: (async () => undefined) as unknown as ExtensionUIContext['custom'],
+  pasteToEditor: () => {},
+  setEditorText: () => {},
+  getEditorText: () => '',
+  editor: async () => undefined,
+  addAutocompleteProvider: () => {},
+  setEditorComponent: () => {},
+  getEditorComponent: () => undefined,
+  get theme(): Theme {
+    return {} as Theme
+  },
+  getAllThemes: () => [],
+  getTheme: () => undefined,
+  setTheme: () => ({ success: false, error: 'UI not available' }),
+  getToolsExpanded: () => false,
+  setToolsExpanded: () => {}
 }
 
 const AGENT_TOOLS = ['read', 'bash', 'edit', 'write', 'grep', 'find', 'ls'] as const
@@ -74,11 +125,25 @@ export async function createRepoSession(
       (pi) => {
         pi.on('tool_call', async (event) => {
           const approved = await options.requestApproval(event.toolName, event.input)
-          return approved ? { block: false } : { block: true, reason: 'Denied by user' }
+          // `terminate: true` tells the agent to stop after this tool batch
+          // instead of continuing the turn and trying to route around the
+          // denial with a different tool/approach -- a denial is a deliberate
+          // stop signal from the user, not a retryable error.
+          return approved ? { block: false } : { block: true, reason: 'Denied by user', terminate: true }
         })
       }
     ]
   })
+
+  // createAgentSession() only calls resourceLoader.reload() itself when it
+  // builds its own default loader -- passing a custom loader (needed here so
+  // the inline tool_call/approval extension above is registered at all)
+  // means WE'RE responsible for reloading it first, per the SDK's own
+  // createAgentSession() usage example. Skipping this silently no-ops the
+  // loader: extensions (including our approval gate), skills, and prompts
+  // never actually populate, so every tool call runs completely unchecked
+  // regardless of the configured approval policy.
+  await resourceLoader.reload()
 
   const sessionManager = options.resumeSessionFile
     ? SessionManager.open(options.resumeSessionFile)
@@ -91,6 +156,40 @@ export async function createRepoSession(
     resourceLoader,
     ...(sessionManager ? { sessionManager } : {})
   })
+
+  // 'rpc' is the same mode non-terminal hosts (VS Code pendant, Zed) bind
+  // with -- it's what makes a well-behaved extension prefer these simple
+  // generic primitives over trying to build its own terminal-only overlay
+  // via ctx.ui.custom(). Only select/confirm/input/notify get a real
+  // implementation; everything else falls back to noOpUiContext above.
+  const uiContext: ExtensionUIContext = {
+    ...noOpUiContext,
+    select: (title, choices, opts) =>
+      choices.length === 0 || !options.requestSelect
+        ? Promise.resolve(undefined)
+        : options.requestSelect(title, choices, opts?.timeout, opts?.signal),
+    confirm: (title, message, opts) =>
+      options.requestConfirm ? options.requestConfirm(title, message, opts?.timeout, opts?.signal) : Promise.resolve(false),
+    input: (title, placeholder, opts) =>
+      options.requestInput ? options.requestInput(title, placeholder, opts?.timeout, opts?.signal) : Promise.resolve(undefined),
+    notify: (message, level) => options.notify?.(message, level ?? 'info')
+  }
+  await session.bindExtensions({ uiContext, mode: 'rpc' })
+
+  // createAgentSession()'s `tools: [...AGENT_TOOLS]` above restricts the
+  // active set to exactly those built-ins -- silently excluding any tool an
+  // extension registers via pi.registerTool() (e.g. a real
+  // ask-user-question package's own tool), no matter how many extensions
+  // load. Re-activate the fixed built-ins plus whatever extension tools
+  // actually got registered, so installed extensions' tools are genuinely
+  // callable instead of just existing in the registry unused.
+  const extensionToolNames = session
+    .getAllTools()
+    .map((tool) => tool.name)
+    .filter((name) => !(AGENT_TOOLS as readonly string[]).includes(name))
+  if (extensionToolNames.length > 0) {
+    session.setActiveToolsByName([...AGENT_TOOLS, ...extensionToolNames])
+  }
 
   return {
     sessionId: session.sessionId,
@@ -118,9 +217,6 @@ export async function createRepoSession(
         keepRecentTokens: session.settingsManager.getCompactionKeepRecentTokens()
       }),
       getSessionStats: () => session.getSessionStats(),
-      getAllToolInfo: () => session.getAllTools().map((t) => ({ name: t.name, description: t.description })),
-      getActiveToolNames: () => session.getActiveToolNames(),
-      setActiveToolsByName: (toolNames: string[]) => session.setActiveToolsByName(toolNames),
       supportsThinking: () => session.supportsThinking(),
       getAvailableThinkingLevels: () => session.getAvailableThinkingLevels(),
       getThinkingLevel: () => session.thinkingLevel,

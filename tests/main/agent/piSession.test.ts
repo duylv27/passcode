@@ -9,6 +9,17 @@ let mockMessages: unknown[] = []
 let mockModel: unknown = { provider: 'anthropic', id: 'claude-opus-4-5', name: 'Claude Opus 4.5' }
 const getContextUsageMock = vi.fn(() => ({ tokens: 12345, contextWindow: 200000, percent: 6.17 }))
 const compactMock = vi.fn(async () => ({}))
+const bindExtensionsMock = vi.fn(async () => {})
+const getAllToolsMock = vi.fn(() => [
+  { name: 'read', description: '' },
+  { name: 'bash', description: '' },
+  { name: 'edit', description: '' },
+  { name: 'write', description: '' },
+  { name: 'grep', description: '' },
+  { name: 'find', description: '' },
+  { name: 'ls', description: '' }
+])
+const setActiveToolsByNameMock = vi.fn()
 const setAutoCompactionEnabledMock = vi.fn()
 let mockAutoCompactionEnabled = true
 const getCompactionReserveTokensMock = vi.fn(() => 16384)
@@ -25,6 +36,9 @@ const createAgentSessionMock = vi.fn(async () => ({
     setModel: setModelMock,
     getContextUsage: getContextUsageMock,
     compact: compactMock,
+    bindExtensions: bindExtensionsMock,
+    getAllTools: getAllToolsMock,
+    setActiveToolsByName: setActiveToolsByNameMock,
     get autoCompactionEnabled() { return mockAutoCompactionEnabled },
     setAutoCompactionEnabled: setAutoCompactionEnabledMock,
     settingsManager: {
@@ -40,11 +54,13 @@ let capturedResourceLoaderOptions: {
   agentDir: string
   extensionFactories: Array<(pi: { on: (name: string, handler: (event: unknown) => unknown) => void }) => void>
 }
+const resourceLoaderReloadMock = vi.fn(async () => {})
 const DefaultResourceLoaderMock = vi.fn(function (
-  this: unknown,
+  this: { reload: typeof resourceLoaderReloadMock },
   opts: typeof capturedResourceLoaderOptions
 ) {
   capturedResourceLoaderOptions = opts
+  this.reload = resourceLoaderReloadMock
 })
 
 vi.mock('@earendil-works/pi-coding-agent', () => ({
@@ -65,6 +81,9 @@ describe('createRepoSession', () => {
     mockMessages = []
     mockModel = { provider: 'anthropic', id: 'claude-opus-4-5', name: 'Claude Opus 4.5' }
     mockAutoCompactionEnabled = true
+    bindExtensionsMock.mockClear()
+    getAllToolsMock.mockClear()
+    setActiveToolsByNameMock.mockClear()
   })
 
   it('creates a session scoped to the repo cwd with the expected tools', async () => {
@@ -124,6 +143,16 @@ describe('createRepoSession', () => {
     )
   })
 
+  it('reloads the resource loader before creating the session, so the inline tool_call/approval extension actually loads', async () => {
+    // createAgentSession() only auto-reloads a resource loader it builds
+    // itself -- a caller-supplied one (required here to register the
+    // approval extension) is silently never loaded otherwise, which used to
+    // mean every tool call ran completely unchecked regardless of policy.
+    await createRepoSession({ cwd: '/repo/path', modelRuntime: {} as never, requestApproval: noApproval })
+
+    expect(resourceLoaderReloadMock).toHaveBeenCalled()
+  })
+
   it("registers a tool_call handler that approves when requestApproval resolves true", async () => {
     const requestApproval = vi.fn(async () => true)
     await createRepoSession({ cwd: '/repo/path', modelRuntime: {} as never, requestApproval })
@@ -154,7 +183,101 @@ describe('createRepoSession', () => {
 
     const result = await onHandlers['tool_call']({ toolName: 'write', input: { path: 'x.txt' } })
 
-    expect(result).toEqual({ block: true, reason: 'Denied by user' })
+    expect(result).toEqual({ block: true, reason: 'Denied by user', terminate: true })
+  })
+
+  it("binds a UI context in 'rpc' mode -- the mode non-terminal hosts (VS Code pendant, Zed) use, which is what makes a well-behaved extension prefer these simple primitives over its own terminal-only overlay", async () => {
+    await createRepoSession({ cwd: '/repo/path', modelRuntime: {} as never, requestApproval: noApproval })
+
+    expect(bindExtensionsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ mode: 'rpc', uiContext: expect.anything() })
+    )
+  })
+
+  it('delegates ctx.ui.select() to requestSelect, and resolves undefined without calling it for an empty options list', async () => {
+    const requestSelect = vi.fn(async () => 'chosen')
+    await createRepoSession({ cwd: '/repo/path', modelRuntime: {} as never, requestApproval: noApproval, requestSelect })
+
+    const { uiContext } = bindExtensionsMock.mock.calls[0][0]
+    const result = await uiContext.select('Pick one', ['a', 'b'], { timeout: 5000 })
+    expect(requestSelect).toHaveBeenCalledWith('Pick one', ['a', 'b'], 5000, undefined)
+    expect(result).toBe('chosen')
+
+    requestSelect.mockClear()
+    const emptyResult = await uiContext.select('Pick one', [])
+    expect(emptyResult).toBeUndefined()
+    expect(requestSelect).not.toHaveBeenCalled()
+  })
+
+  it('delegates ctx.ui.confirm() to requestConfirm', async () => {
+    const requestConfirm = vi.fn(async () => true)
+    await createRepoSession({ cwd: '/repo/path', modelRuntime: {} as never, requestApproval: noApproval, requestConfirm })
+
+    const { uiContext } = bindExtensionsMock.mock.calls[0][0]
+    const result = await uiContext.confirm('Proceed?', 'This will delete files', { timeout: 3000 })
+    expect(requestConfirm).toHaveBeenCalledWith('Proceed?', 'This will delete files', 3000, undefined)
+    expect(result).toBe(true)
+  })
+
+  it('delegates ctx.ui.input() to requestInput', async () => {
+    const requestInput = vi.fn(async () => 'Bob')
+    await createRepoSession({ cwd: '/repo/path', modelRuntime: {} as never, requestApproval: noApproval, requestInput })
+
+    const { uiContext } = bindExtensionsMock.mock.calls[0][0]
+    const result = await uiContext.input('Name?', 'e.g. Alice')
+    expect(requestInput).toHaveBeenCalledWith('Name?', 'e.g. Alice', undefined, undefined)
+    expect(result).toBe('Bob')
+  })
+
+  it('delegates ctx.ui.notify() to notify, defaulting the level to info when the extension omits it', async () => {
+    const notify = vi.fn()
+    await createRepoSession({ cwd: '/repo/path', modelRuntime: {} as never, requestApproval: noApproval, notify })
+
+    const { uiContext } = bindExtensionsMock.mock.calls[0][0]
+    uiContext.notify('Done!')
+    expect(notify).toHaveBeenCalledWith('Done!', 'info')
+  })
+
+  it('select/confirm/input resolve to a safe fallback instead of throwing when the caller omits the corresponding option', async () => {
+    await createRepoSession({ cwd: '/repo/path', modelRuntime: {} as never, requestApproval: noApproval })
+
+    const { uiContext } = bindExtensionsMock.mock.calls[0][0]
+    expect(await uiContext.select('t', ['a'])).toBeUndefined()
+    expect(await uiContext.confirm('t', 'm')).toBe(false)
+    expect(await uiContext.input('t')).toBeUndefined()
+    expect(() => uiContext.notify('msg')).not.toThrow()
+  })
+
+  it('re-activates extension-registered tools alongside the fixed built-ins, since createAgentSession\'s tools: [...AGENT_TOOLS] would otherwise silently exclude them', async () => {
+    getAllToolsMock.mockReturnValueOnce([
+      { name: 'read', description: '' },
+      { name: 'bash', description: '' },
+      { name: 'edit', description: '' },
+      { name: 'write', description: '' },
+      { name: 'grep', description: '' },
+      { name: 'find', description: '' },
+      { name: 'ls', description: '' },
+      { name: 'ask_test_question', description: 'test' }
+    ])
+
+    await createRepoSession({ cwd: '/repo/path', modelRuntime: {} as never, requestApproval: noApproval })
+
+    expect(setActiveToolsByNameMock).toHaveBeenCalledWith([
+      'read',
+      'bash',
+      'edit',
+      'write',
+      'grep',
+      'find',
+      'ls',
+      'ask_test_question'
+    ])
+  })
+
+  it('does not touch the active tool list when no extension registered any tools beyond the fixed built-ins', async () => {
+    await createRepoSession({ cwd: '/repo/path', modelRuntime: {} as never, requestApproval: noApproval })
+
+    expect(setActiveToolsByNameMock).not.toHaveBeenCalled()
   })
 
   it('returns the underlying session file so the caller can persist it for later resume', async () => {

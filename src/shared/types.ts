@@ -127,11 +127,6 @@ export interface SessionStats {
   cost: number
 }
 
-export interface ToolInfo {
-  name: string
-  description: string
-}
-
 export type ThinkingLevel = 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max'
 
 /** `available` is empty and `level` meaningless when !supported -- callers
@@ -166,6 +161,14 @@ export type ChatEvent =
   | { type: 'tool_end'; toolCallId: string; toolName: string; isError: boolean; result: unknown }
   | { type: 'turn_end'; usage?: TokenUsage }
   | { type: 'error'; message: string }
+  /** A tool call the user explicitly skipped (see approvalHandlers.ts) --
+   * distinct from 'error' so the UI can render it as a quiet, neutral
+   * "skipped" notice instead of an alarming red error paragraph; the user
+   * made a deliberate choice, nothing actually broke. */
+  | { type: 'tool_denied'; toolName: string; input: unknown }
+  /** Raised by an extension's ctx.ui.notify() call -- shown as a toast,
+   * scoped to the session it came from (see App.tsx). */
+  | { type: 'ui_notify'; message: string; level: 'info' | 'warning' | 'error' }
   | { type: 'history'; items: HistoryItem[] }
   | { type: 'model'; provider: string; id: string; name: string }
   /** Sent when a session is (re)opened so the UI can restore the stop
@@ -245,6 +248,14 @@ export interface ApprovalRequest {
   input: unknown
 }
 
+/** A prompt raised by an extension via the SDK's ExtensionUIContext
+ * (select/confirm/input), routed through PassCode's per-session UI hooks
+ * -- see piSession.ts's bindExtensions() call. */
+export type UiPromptRequest =
+  | { requestId: string; sessionId: string; kind: 'select'; title: string; options: string[] }
+  | { requestId: string; sessionId: string; kind: 'confirm'; title: string; message: string }
+  | { requestId: string; sessionId: string; kind: 'input'; title: string; placeholder?: string }
+
 export interface Api {
   projects: {
     create(name: string): Promise<Project>
@@ -284,8 +295,6 @@ export interface Api {
     /** `null` resets to the model's own default context window. */
     setContextWindowOverride(sessionId: string, contextWindow: number | null): Promise<void>
     getSessionStats(sessionId: string): Promise<SessionStats>
-    getToolsInfo(sessionId: string): Promise<{ all: ToolInfo[]; active: string[] }>
-    setActiveTools(sessionId: string, toolNames: string[]): Promise<void>
     getThinkingInfo(sessionId: string): Promise<ThinkingInfo>
     setThinkingLevel(sessionId: string, level: ThinkingLevel): Promise<void>
     onEvent(listener: (sessionId: string, event: ChatEvent) => void): () => void
@@ -315,6 +324,14 @@ export interface Api {
     setPolicy(policy: ToolApprovalPolicy): Promise<void>
     respond(requestId: string, approved: boolean): Promise<void>
     onRequest(listener: (request: ApprovalRequest) => void): () => void
+  }
+  uiPrompts: {
+    respond(requestId: string, value: string | boolean | undefined): Promise<void>
+    onRequest(listener: (request: UiPromptRequest) => void): () => void
+    /** Fired when a pending request is no longer relevant (timeout or the
+     * underlying signal aborted) -- the renderer should drop it from its
+     * queue without treating it as a user response. */
+    onCancel(listener: (requestId: string) => void): () => void
   }
   window: {
     minimize(): Promise<void>
