@@ -46,7 +46,13 @@ async function validateApiKey(
 export function createPassportHandlers(
   passportsRepo: PassportsRepository,
   modelRuntime: PassportModelRuntimeLike,
-  openExternal: (url: string) => void
+  openExternal: (url: string) => void,
+  // ModelRegistry.getAvailable() is a snapshot computed once by refresh(),
+  // not a live query -- without re-running it here, a credential change
+  // made mid-session (a new Passport activated, the active one switched or
+  // removed) would leave the model picker showing stale availability until
+  // the next full app restart.
+  refreshModels: () => Promise<void>
 ): PassportHandlers {
   // Set only while a manual_code prompt from an OAuth flow (Anthropic's
   // browser fallback) is pending -- resolved by submitOAuthCode() once the
@@ -61,6 +67,7 @@ export function createPassportHandlers(
     }
     await getAuthMethodHandler(passport.authMethod).activate(passport, modelRuntime)
     passportsRepo.setActive(passport.id)
+    await refreshModels()
   }
 
   return {
@@ -148,6 +155,9 @@ export function createPassportHandlers(
       if (!passport) return
       if (passport.isActive) {
         await getAuthMethodHandler(passport.authMethod).deactivate(passport, modelRuntime)
+        passportsRepo.remove(id)
+        await refreshModels()
+        return
       }
       passportsRepo.remove(id)
     }

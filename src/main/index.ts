@@ -184,7 +184,9 @@ app.whenReady().then(async () => {
       ensureGeneralRepo
     }),
     settings: createSettingsHandlers(appSettingsRepo),
-    passports: createPassportHandlers(passportsRepo, modelRuntime, (url) => shell.openExternal(url)),
+    passports: createPassportHandlers(passportsRepo, modelRuntime, (url) => shell.openExternal(url), async () => {
+      await modelRegistry.refresh()
+    }),
     models: createModelsHandlers(modelRegistry),
     skills: createSkillsHandlers(reposRepo),
     files: createFilesHandlers({

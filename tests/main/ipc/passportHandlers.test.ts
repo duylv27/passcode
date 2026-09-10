@@ -64,6 +64,7 @@ describe('passportHandlers', () => {
   let passportsRepo: ReturnType<typeof makeFakeRepo>
   let modelRuntime: ModelRuntimeLike & { login: ReturnType<typeof vi.fn> }
   let openExternal: ReturnType<typeof vi.fn>
+  let refreshModels: ReturnType<typeof vi.fn>
   let handlers: PassportHandlers
 
   beforeEach(() => {
@@ -77,7 +78,8 @@ describe('passportHandlers', () => {
       login: vi.fn(async () => ({ type: 'oauth', refresh: '', access: '', expires: 0 }) as never)
     }
     openExternal = vi.fn()
-    handlers = createPassportHandlers(passportsRepo, modelRuntime, openExternal)
+    refreshModels = vi.fn(async () => {})
+    handlers = createPassportHandlers(passportsRepo, modelRuntime, openExternal, refreshModels)
   })
 
   it('lists passports from the repository', () => {
@@ -91,6 +93,7 @@ describe('passportHandlers', () => {
     expect(validateAnthropicApiKeyMock).toHaveBeenCalledWith('sk-ant-123')
     expect(modelRuntime.setRuntimeApiKey).toHaveBeenCalledWith('anthropic', 'sk-ant-123')
     if (result.ok) expect(result.passport.displayName).toBe('My Key')
+    expect(refreshModels).toHaveBeenCalled()
   })
 
   it('rejects an API key that fails live validation, without creating a passport', async () => {
@@ -134,6 +137,7 @@ describe('passportHandlers', () => {
     expect(openExternal).toHaveBeenCalledWith('https://claude.ai/oauth/authorize?x=1')
     expect(prompts).toEqual([{ kind: 'browser', url: 'https://claude.ai/oauth/authorize?x=1', instructions: 'go' }])
     if (result.ok) expect(result.passport.apiKey).toBeNull()
+    expect(refreshModels).toHaveBeenCalled()
   })
 
   it('removes the passport row if activation fails after an oauth login succeeds', async () => {
@@ -149,6 +153,7 @@ describe('passportHandlers', () => {
     const result = await handlers.createOAuthPassport('anthropic', 'Claude Pro/Max', () => {})
     expect(result).toEqual({ ok: false, error: 'activation failed' })
     expect(passportsRepo.rows).toHaveLength(0)
+    expect(refreshModels).not.toHaveBeenCalled()
   })
 
   it('creates an oauth passport via the device-code flow without opening a browser itself', async () => {
@@ -220,6 +225,7 @@ describe('passportHandlers', () => {
     expect(modelRuntime.removeRuntimeApiKey).toHaveBeenCalledWith('anthropic')
     expect(passportsRepo.getById(oldKey.id)?.isActive).toBe(false)
     expect(passportsRepo.getById(oauth.id)?.isActive).toBe(true)
+    expect(refreshModels).toHaveBeenCalled()
   })
 
   it('renamePassport delegates to the repository', () => {
@@ -233,6 +239,7 @@ describe('passportHandlers', () => {
     await handlers.removePassport(passport.id)
     expect(modelRuntime.removeRuntimeApiKey).toHaveBeenCalledWith('anthropic')
     expect(passportsRepo.getById(passport.id)).toBeUndefined()
+    expect(refreshModels).toHaveBeenCalled()
   })
 
   it('removePassport does not touch the runtime for an inactive passport', async () => {
@@ -241,5 +248,6 @@ describe('passportHandlers', () => {
     await handlers.removePassport(inactive.id)
     expect(modelRuntime.removeRuntimeApiKey).not.toHaveBeenCalled()
     expect(passportsRepo.getById(inactive.id)).toBeUndefined()
+    expect(refreshModels).not.toHaveBeenCalled()
   })
 })
