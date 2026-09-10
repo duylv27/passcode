@@ -156,7 +156,14 @@ export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionH
   // its transcript -- the frontend clears its own state on every switch.
   function emitCurrentState(sessionId: string, repoSession: RepoSession): void {
     const history = repoSession.getHistory()
-    if (history.length > 0) deps.onEvent(sessionId, { type: 'history', items: history })
+    // Always sent, even empty -- the renderer's loadingHistory flag (added
+    // to stop the transcript's empty-state placeholder from flashing
+    // before real history loads) waits specifically for this event to
+    // know the initial sync is done. Skipping it for a brand-new session
+    // (0 items) meant that flag never cleared, silently hiding the whole
+    // transcript area -- including the user's own first message -- until
+    // the session was reopened with actual history to report.
+    deps.onEvent(sessionId, { type: 'history', items: history })
 
     const model = repoSession.getModel()
     if (model) deps.onEvent(sessionId, { type: 'model', provider: model.provider, id: model.id, name: model.name })
