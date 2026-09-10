@@ -879,7 +879,7 @@ export function ChatPanel({
                   ))}
                 </div>
               )}
-              {modelTooltip && (
+              {modelMenuOpen && modelTooltip && (
                 <div
                   className="model-config-tooltip"
                   style={{ position: 'fixed', top: modelTooltip.top, left: modelTooltip.left }}
