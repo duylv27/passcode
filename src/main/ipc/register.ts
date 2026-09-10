@@ -105,6 +105,13 @@ export function registerIpcHandlers(handlers: IpcHandlers): void {
     handlers.settings.loginCopilot((challenge) => event.sender.send('settings:copilotChallenge', challenge))
   )
   ipcMain.handle('settings:getCopilotQuota', () => handlers.settings.getCopilotQuota())
+  ipcMain.handle('settings:loginAnthropicOAuth', (event) =>
+    handlers.settings.loginAnthropicOAuth((prompt) => event.sender.send('settings:anthropicOAuthPrompt', prompt))
+  )
+  ipcMain.handle('settings:submitAnthropicOAuthCode', (_e, code: string) =>
+    handlers.settings.submitAnthropicOAuthCode(code)
+  )
+  ipcMain.handle('settings:cancelAnthropicOAuth', () => handlers.settings.cancelAnthropicOAuth())
   ipcMain.handle('settings:getUsageTelemetryConfig', () => handlers.settings.getUsageTelemetryConfig())
   ipcMain.handle('settings:setUsageTelemetryConfig', (_e, config: UsageTelemetryConfig) =>
     handlers.settings.setUsageTelemetryConfig(config)

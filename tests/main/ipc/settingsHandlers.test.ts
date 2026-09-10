@@ -60,7 +60,7 @@ describe('settingsHandlers', () => {
         storedProviderApiKeys = { ...storedProviderApiKeys, [providerId]: apiKey }
       }
     }
-    handlers = createSettingsHandlers(modelRuntime, appSettingsRepo)
+    handlers = createSettingsHandlers(modelRuntime, appSettingsRepo, () => {})
   })
 
   it('sets a valid Anthropic API key', async () => {

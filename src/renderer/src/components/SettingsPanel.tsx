@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type {
+  AnthropicOAuthPrompt,
   AuthStatus,
   CopilotQuota,
   DeviceCodeChallenge,
@@ -79,6 +80,10 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
   const [copilotError, setCopilotError] = useState<string | null>(null)
   const [challenge, setChallenge] = useState<DeviceCodeChallenge | null>(null)
   const [loggingIn, setLoggingIn] = useState(false)
+  const [anthropicOAuthPrompt, setAnthropicOAuthPrompt] = useState<AnthropicOAuthPrompt | null>(null)
+  const [anthropicOAuthCode, setAnthropicOAuthCode] = useState('')
+  const [anthropicOAuthLoading, setAnthropicOAuthLoading] = useState(false)
+  const [anthropicOAuthError, setAnthropicOAuthError] = useState<string | null>(null)
   const [policy, setPolicy] = useState<ToolApprovalPolicy | null>(null)
   const [theme, setTheme] = useTheme()
   const [quota, setQuota] = useState<CopilotQuota | null>(null)
@@ -107,7 +112,11 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
       setTelemetryPathDraft(config.outputPath)
     })
     const unsubscribe = window.api.settings.onCopilotChallenge(setChallenge)
-    return unsubscribe
+    const unsubscribeAnthropicOAuth = window.api.settings.onAnthropicOAuthPrompt(setAnthropicOAuthPrompt)
+    return () => {
+      unsubscribe()
+      unsubscribeAnthropicOAuth()
+    }
   }, [])
 
   useEffect(() => {
@@ -199,6 +208,32 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
       return
     }
     await refresh()
+  }
+
+  async function handleAnthropicOAuthLogin(): Promise<void> {
+    setAnthropicOAuthError(null)
+    setAnthropicOAuthLoading(true)
+    setAnthropicOAuthPrompt(null)
+    setAnthropicOAuthCode('')
+    const result = await window.api.settings.loginAnthropicOAuth()
+    setAnthropicOAuthLoading(false)
+    setAnthropicOAuthPrompt(null)
+    setAnthropicOAuthCode('')
+    if (!result.ok) {
+      setAnthropicOAuthError(result.error)
+      return
+    }
+    await refresh()
+  }
+
+  async function handleSubmitAnthropicOAuthCode(): Promise<void> {
+    const trimmed = anthropicOAuthCode.trim()
+    if (!trimmed) return
+    await window.api.settings.submitAnthropicOAuthCode(trimmed)
+  }
+
+  async function handleCancelAnthropicOAuth(): Promise<void> {
+    await window.api.settings.cancelAnthropicOAuth()
   }
 
   return (
@@ -312,6 +347,47 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
                     Save
                   </button>
                 </div>
+              </div>
+
+              <div className="settings-row">
+                <div className="settings-row-text">
+                  <span className="settings-row-title">Claude Pro/Max Subscription</span>
+                  <span className="settings-row-desc">
+                    Sign in with your Anthropic account instead of an API key — usage is covered by your
+                    subscription's included quota, not metered billing.
+                  </span>
+                  {anthropicOAuthError && <span className="settings-row-error">{anthropicOAuthError}</span>}
+                  {anthropicOAuthPrompt && (
+                    <span className="settings-row-hint">
+                      A browser tab opened to sign in. If it didn't redirect automatically, paste the
+                      authorization code or redirect URL here:
+                      <div className="settings-row-control settings-key-control" style={{ marginTop: 6 }}>
+                        <input
+                          className="settings-input"
+                          value={anthropicOAuthCode}
+                          onChange={(e) => setAnthropicOAuthCode(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSubmitAnthropicOAuthCode()
+                          }}
+                          placeholder="Paste code or URL"
+                        />
+                        <button className="settings-btn" onClick={handleSubmitAnthropicOAuthCode}>
+                          Submit
+                        </button>
+                        <button className="settings-btn" onClick={handleCancelAnthropicOAuth}>
+                          Cancel
+                        </button>
+                      </div>
+                    </span>
+                  )}
+                </div>
+                {!anthropicOAuthPrompt && (
+                  <div className="settings-row-control">
+                    <button className="settings-btn" onClick={handleAnthropicOAuthLogin} disabled={anthropicOAuthLoading}>
+                      {anthropicOAuthLoading ? 'Signing in…' : 'Sign in with Claude Pro/Max'}
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div className="settings-row">

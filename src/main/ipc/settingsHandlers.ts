@@ -3,7 +3,13 @@ import { fetchCopilotQuota } from '../agent/copilotQuota'
 import { validateAnthropicApiKey, validateGeminiApiKey } from '../agent/providerValidation'
 import { probeUsageTelemetryPath } from '../agent/usageTelemetry'
 import type { AppSettingsRepository } from '../db/appSettingsRepository'
-import type { AuthStatus, CopilotQuota, DeviceCodeChallenge, UsageTelemetryConfig } from '../../shared/types'
+import type {
+  AnthropicOAuthPrompt,
+  AuthStatus,
+  CopilotQuota,
+  DeviceCodeChallenge,
+  UsageTelemetryConfig
+} from '../../shared/types'
 
 export interface ModelRuntimeLike {
   setRuntimeApiKey(providerId: string, apiKey: string): Promise<void>
@@ -19,14 +25,29 @@ export interface SettingsHandlers {
     onChallenge: (challenge: DeviceCodeChallenge) => void
   ): Promise<{ ok: true } | { ok: false; error: string }>
   getCopilotQuota(): Promise<CopilotQuota | null>
+  /** Signs in with a Claude Pro/Max subscription (OAuth) instead of a
+   * pasted API key. */
+  loginAnthropicOAuth(
+    onPrompt: (prompt: AnthropicOAuthPrompt) => void
+  ): Promise<{ ok: true } | { ok: false; error: string }>
+  submitAnthropicOAuthCode(code: string): void
+  cancelAnthropicOAuth(): void
   getUsageTelemetryConfig(): Promise<UsageTelemetryConfig>
   setUsageTelemetryConfig(config: UsageTelemetryConfig): Promise<{ ok: true } | { ok: false; error: string }>
 }
 
 export function createSettingsHandlers(
   modelRuntime: ModelRuntimeLike,
-  appSettingsRepo: AppSettingsRepository
+  appSettingsRepo: AppSettingsRepository,
+  openExternal: (url: string) => void
 ): SettingsHandlers {
+  // Set only while a manual_code prompt from the Anthropic OAuth flow is
+  // pending -- resolved by submitAnthropicOAuthCode() once the user pastes
+  // something back, or rejected by cancelAnthropicOAuth()/the flow's own
+  // abort signal firing first (e.g. the browser redirect won the race, so
+  // the manual fallback is no longer needed).
+  let pendingAnthropicCode: { resolve: (code: string) => void; reject: (err: Error) => void } | null = null
+
   return {
     async setAnthropicApiKey(apiKey: string) {
       const trimmed = apiKey.trim()
@@ -93,6 +114,53 @@ export function createSettingsHandlers(
     },
     async getCopilotQuota() {
       return fetchCopilotQuota()
+    },
+    async loginAnthropicOAuth(onPrompt) {
+      try {
+        await modelRuntime.login('anthropic', 'oauth', {
+          notify: (event) => {
+            if (event.type === 'auth_url') {
+              openExternal(event.url)
+              onPrompt({ url: event.url, instructions: event.instructions })
+            }
+          },
+          prompt: (prompt) => {
+            if (prompt.type !== 'manual_code') {
+              return Promise.reject(new Error(`Interactive login prompt of type "${prompt.type}" is not supported yet`))
+            }
+            return new Promise<string>((resolve, reject) => {
+              pendingAnthropicCode = { resolve, reject }
+              // Fires once the flow's own callback server already won the
+              // race (the browser redirected successfully) -- this manual
+              // fallback is no longer needed, so reject quietly rather than
+              // leave it dangling.
+              prompt.signal?.addEventListener(
+                'abort',
+                () => {
+                  pendingAnthropicCode = null
+                  reject(new Error('Sign-in completed another way'))
+                },
+                { once: true }
+              )
+            })
+          }
+        })
+        return { ok: true }
+      } catch (err) {
+        return { ok: false, error: (err as Error).message }
+      } finally {
+        pendingAnthropicCode = null
+      }
+    },
+    submitAnthropicOAuthCode(code) {
+      if (!pendingAnthropicCode) return
+      pendingAnthropicCode.resolve(code)
+      pendingAnthropicCode = null
+    },
+    cancelAnthropicOAuth() {
+      if (!pendingAnthropicCode) return
+      pendingAnthropicCode.reject(new Error('Sign-in cancelled'))
+      pendingAnthropicCode = null
     },
     async getUsageTelemetryConfig() {
       return appSettingsRepo.getUsageTelemetryConfig()

@@ -68,6 +68,16 @@ export interface DeviceCodeChallenge {
   verificationUri: string
 }
 
+/** Sent once the Anthropic OAuth flow (Claude Pro/Max subscription login)
+ * has a URL to open -- a browser tab is launched automatically, but the
+ * flow also accepts pasting the code/redirect URL back manually (the SDK's
+ * own fallback for a browser on a different machine, or one that didn't
+ * redirect). */
+export interface AnthropicOAuthPrompt {
+  url: string
+  instructions?: string
+}
+
 export interface AddRepoResult {
   ok: true
   repo: Repo
@@ -307,6 +317,15 @@ export interface Api {
     loginCopilot(): Promise<{ ok: true } | { ok: false; error: string }>
     onCopilotChallenge(listener: (challenge: DeviceCodeChallenge) => void): () => void
     getCopilotQuota(): Promise<CopilotQuota | null>
+    /** Signs in with a Claude Pro/Max subscription (OAuth) instead of a
+     * pasted API key -- usage is then covered by the subscription's
+     * included quota rather than metered API billing. */
+    loginAnthropicOAuth(): Promise<{ ok: true } | { ok: false; error: string }>
+    onAnthropicOAuthPrompt(listener: (prompt: AnthropicOAuthPrompt) => void): () => void
+    /** Manual fallback for when the browser didn't redirect automatically --
+     * pastes the authorization code or full redirect URL back in. */
+    submitAnthropicOAuthCode(code: string): Promise<void>
+    cancelAnthropicOAuth(): Promise<void>
     getUsageTelemetryConfig(): Promise<UsageTelemetryConfig>
     setUsageTelemetryConfig(config: UsageTelemetryConfig): Promise<{ ok: true } | { ok: false; error: string }>
   }

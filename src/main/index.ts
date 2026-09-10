@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, Menu } from 'electron'
+import { app, BrowserWindow, dialog, Menu, shell } from 'electron'
 import { join } from 'node:path'
 import { existsSync } from 'node:fs'
 import { mkdir } from 'node:fs/promises'
@@ -145,7 +145,7 @@ app.whenReady().then(async () => {
       getUsageTelemetryConfig: () => appSettingsRepo.getUsageTelemetryConfig(),
       ensureGeneralRepo
     }),
-    settings: createSettingsHandlers(modelRuntime, appSettingsRepo),
+    settings: createSettingsHandlers(modelRuntime, appSettingsRepo, (url) => shell.openExternal(url)),
     models: createModelsHandlers(modelRegistry),
     skills: createSkillsHandlers(reposRepo),
     files: createFilesHandlers({

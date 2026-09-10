@@ -1,5 +1,12 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { Api, ApprovalRequest, ChatEvent, DeviceCodeChallenge, ToolApprovalPolicy } from '../shared/types'
+import type {
+  AnthropicOAuthPrompt,
+  Api,
+  ApprovalRequest,
+  ChatEvent,
+  DeviceCodeChallenge,
+  ToolApprovalPolicy
+} from '../shared/types'
 
 const api: Api = {
   projects: {
@@ -69,6 +76,14 @@ const api: Api = {
       return () => ipcRenderer.removeListener('settings:copilotChallenge', wrapped)
     },
     getCopilotQuota: () => ipcRenderer.invoke('settings:getCopilotQuota'),
+    loginAnthropicOAuth: () => ipcRenderer.invoke('settings:loginAnthropicOAuth'),
+    onAnthropicOAuthPrompt: (listener) => {
+      const wrapped = (_e: unknown, prompt: AnthropicOAuthPrompt): void => listener(prompt)
+      ipcRenderer.on('settings:anthropicOAuthPrompt', wrapped)
+      return () => ipcRenderer.removeListener('settings:anthropicOAuthPrompt', wrapped)
+    },
+    submitAnthropicOAuthCode: (code) => ipcRenderer.invoke('settings:submitAnthropicOAuthCode', code),
+    cancelAnthropicOAuth: () => ipcRenderer.invoke('settings:cancelAnthropicOAuth'),
     getUsageTelemetryConfig: () => ipcRenderer.invoke('settings:getUsageTelemetryConfig'),
     setUsageTelemetryConfig: (config) => ipcRenderer.invoke('settings:setUsageTelemetryConfig', config)
   },
