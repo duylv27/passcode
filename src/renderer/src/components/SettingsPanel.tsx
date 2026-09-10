@@ -79,7 +79,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
   const [menuAnchor, setMenuAnchor] = useState<{ id: string; top: number; left: number; openUpward: boolean } | null>(
     null
   )
-  const ESTIMATED_MENU_HEIGHT = 80
+  const ESTIMATED_MENU_HEIGHT = 110
   const [detailPassportId, setDetailPassportId] = useState<string | null>(null)
   const [addStep, setAddStep] = useState<'provider' | 'method' | 'connect'>('provider')
   const [addProviderId, setAddProviderId] = useState<string | null>(null)
@@ -92,6 +92,8 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
   const [oauthPrompt, setOauthPrompt] = useState<PassportOAuthPrompt | null>(null)
   const [oauthCodeDraft, setOauthCodeDraft] = useState('')
   const [quota, setQuota] = useState<CopilotQuota | null>(null)
+  const [renamingPassportId, setRenamingPassportId] = useState<string | null>(null)
+  const [renameValue, setRenameValue] = useState('')
 
   function pushToast(text: string, variant: ToastMessage['variant']): void {
     setToasts((prev) => [...prev, { id: crypto.randomUUID(), text, variant }])
@@ -262,6 +264,20 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
     await refreshPassports()
   }
 
+  function startRenamePassport(passport: Passport): void {
+    setMenuAnchor(null)
+    setRenameValue(passport.displayName)
+    setRenamingPassportId(passport.id)
+  }
+
+  async function commitRenamePassport(passport: Passport): Promise<void> {
+    const trimmed = renameValue.trim()
+    setRenamingPassportId(null)
+    if (!trimmed || trimmed === passport.displayName) return
+    await window.api.passports.rename(passport.id, trimmed)
+    await refreshPassports()
+  }
+
   async function handleRemove(id: string): Promise<void> {
     setMenuAnchor(null)
     setDetailPassportId(null)
@@ -375,7 +391,21 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
                       <div className="passport-main">
                         <div className="passport-name">
                           <span className={`passport-dot ${passport.isActive ? 'is-on' : 'is-off'}`} />
-                          {passport.displayName}
+                          {renamingPassportId === passport.id ? (
+                            <input
+                              className="settings-input passport-rename-input"
+                              autoFocus
+                              value={renameValue}
+                              onChange={(e) => setRenameValue(e.target.value)}
+                              onBlur={() => commitRenamePassport(passport)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') e.currentTarget.blur()
+                                if (e.key === 'Escape') setRenamingPassportId(null)
+                              }}
+                            />
+                          ) : (
+                            passport.displayName
+                          )}
                           {passport.isActive && <span className="passport-tag-active">Active</span>}
                         </div>
                         <div className="passport-meta">
@@ -500,6 +530,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
                   }}
                 >
                   {!passport.isActive && <button onClick={() => handleSetActive(passport.id)}>Set Active</button>}
+                  <button onClick={() => startRenamePassport(passport)}>Rename</button>
                   <button onClick={() => handleRemove(passport.id)}>Remove</button>
                 </div>
               </>
@@ -584,7 +615,16 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
                 {addStep === 'connect' && addMethod === 'oauth' && (
                   <div>
                     {!oauthPrompt && !addBusy && (
-                      <p className="settings-row-desc">Click Continue to start signing in.</p>
+                      <>
+                        <label className="passport-field-label">Display name</label>
+                        <input
+                          className="settings-input"
+                          style={{ width: '100%', marginBottom: '10px' }}
+                          value={addDisplayName}
+                          onChange={(e) => setAddDisplayName(e.target.value)}
+                        />
+                        <p className="settings-row-desc">Click Continue to start signing in.</p>
+                      </>
                     )}
                     {oauthPrompt?.kind === 'browser' && (
                       <p className="settings-row-desc">
