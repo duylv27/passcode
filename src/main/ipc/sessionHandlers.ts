@@ -78,6 +78,11 @@ export interface CreateSessionHandlersDeps {
    * very next inference call. Omitted entirely (rather than a default
    * config object) when the caller doesn't wire telemetry at all. */
   getUsageTelemetryConfig?: () => UsageTelemetryConfig
+  /** Called once per real model call (same granularity as the usage
+   * telemetry record above) so a Passport's totals reflect what's actually
+   * been billed against it. Omitted entirely when the caller doesn't wire
+   * Passport usage tracking at all. */
+  recordPassportUsage?: (providerId: string, usage: { inputTokens: number; outputTokens: number }) => void
 }
 
 export interface SessionHandlers {
@@ -177,6 +182,15 @@ export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionH
                 model: { provider: model.provider, id: model.id, name: model.name },
                 usage: item.usage,
                 sessionId: piSessionId
+              })
+            }
+          }
+          if (deps.recordPassportUsage) {
+            const model = repoSession.getModel()
+            if (model) {
+              deps.recordPassportUsage(model.provider, {
+                inputTokens: item.usage.input,
+                outputTokens: item.usage.output
               })
             }
           }

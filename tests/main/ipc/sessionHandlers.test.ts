@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { DatabaseSync as Database } from 'node:sqlite'
 import { initSchema } from '../../../src/main/db/schema'
-import { createProjectsRepository } from '../../../src/main/db/projectsRepository'
-import { createReposRepository } from '../../../src/main/db/reposRepository'
+import { createProjectsRepository, type ProjectsRepository } from '../../../src/main/db/projectsRepository'
+import { createReposRepository, type ReposRepository } from '../../../src/main/db/reposRepository'
 import {
   createSessionsRepository,
   type SessionsRepository
@@ -33,6 +33,8 @@ describe('sessionHandlers', () => {
   let subscribeListener: ((event: unknown) => void) | undefined
   let handlers: SessionHandlers
   let sessionsRepo: SessionsRepository
+  let reposRepo: ReposRepository
+  let projectsRepo: ProjectsRepository
   let openRepoSessionMock: ReturnType<typeof vi.fn>
   let findModelMock: ReturnType<typeof vi.fn>
   let compactMock: ReturnType<typeof vi.fn>
@@ -44,8 +46,8 @@ describe('sessionHandlers', () => {
   beforeEach(() => {
     const db = new Database(':memory:')
     initSchema(db)
-    const projectsRepo = createProjectsRepository(db)
-    const reposRepo = createReposRepository(db)
+    projectsRepo = createProjectsRepository(db)
+    reposRepo = createReposRepository(db)
     sessionsRepo = createSessionsRepository(db)
     const projectId = projectsRepo.create('Demo').id
     repoId = reposRepo.create(projectId, '/repo/path', 'demo-repo').id
@@ -345,6 +347,46 @@ describe('sessionHandlers', () => {
       usage: { input: 500, output: 42 },
       sessionId: 'pi-session-1'
     })
+  })
+
+  it('records usage against the active passport for the model\'s provider when a model_usage event arrives', async () => {
+    const recordedUsage: Array<{ providerId: string; usage: { inputTokens: number; outputTokens: number } }> = []
+    const localHandlers = createSessionHandlers({
+      reposRepo,
+      projectsRepo,
+      sessionsRepo,
+      openRepoSession: openRepoSessionMock,
+      onEvent: () => {},
+      requestApproval: async () => true,
+      findModel: findModelMock,
+      buildPromptText: async (text) => text,
+      recordPassportUsage: (providerId, usage) => recordedUsage.push({ providerId, usage })
+    })
+    const session = localHandlers.createSession(repoId)
+    await localHandlers.openSession(session.id)
+    currentModel = { provider: 'anthropic', id: 'claude-opus-4-5', name: 'Claude Opus 4.5' } as never
+    await localHandlers.sendPrompt(session.id, 'hi')
+    subscribeListener?.({
+      type: 'message_end',
+      message: { role: 'assistant', usage: { input: 100, output: 50, cacheRead: 0, cacheWrite: 0 } }
+    })
+    expect(recordedUsage).toEqual([{ providerId: 'anthropic', usage: { inputTokens: 100, outputTokens: 50 } }])
+  })
+
+  it('does not record passport usage when recordPassportUsage is not provided', async () => {
+    // No assertion needed beyond "doesn't throw" -- recordPassportUsage is
+    // optional exactly like getUsageTelemetryConfig, for callers (tests,
+    // or a future embedding) that don't care about Passport bookkeeping.
+    const session = handlers.createSession(repoId)
+    await handlers.openSession(session.id)
+    currentModel = { provider: 'anthropic', id: 'claude-opus-4-5', name: 'Claude Opus 4.5' } as never
+    await handlers.sendPrompt(session.id, 'hi')
+    expect(() =>
+      subscribeListener?.({
+        type: 'message_end',
+        message: { role: 'assistant', usage: { input: 10, output: 5, cacheRead: 0, cacheWrite: 0 } }
+      })
+    ).not.toThrow()
   })
 
   it('does not emit a usage telemetry record when getUsageTelemetryConfig is not provided', async () => {
