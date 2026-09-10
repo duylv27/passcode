@@ -1,11 +1,5 @@
 import { useEffect, useState } from 'react'
-import type {
-  AuthStatus,
-  CopilotQuota,
-  DeviceCodeChallenge,
-  ToolApprovalPolicy,
-  UsageTelemetryConfig
-} from '../../../shared/types'
+import type { ToolApprovalPolicy, UsageTelemetryConfig } from '../../../shared/types'
 import { KNOWN_TOOL_NAMES } from '../../../shared/types'
 import { useTheme, type ThemePreference } from '../hooks/useTheme'
 import { ToastStack, type ToastMessage } from './Toast'
@@ -30,23 +24,16 @@ const TOOL_LABELS: Record<(typeof KNOWN_TOOL_NAMES)[number], string> = {
   write: 'Write'
 }
 
-const COPILOT_QUOTA_LABELS: Record<string, string> = {
-  chat: 'Chat',
-  completions: 'Code completions',
-  premium_interactions: 'Premium requests'
-}
-
-function formatQuotaResetDate(resetDate: string): string {
-  const date = new Date(resetDate)
-  if (Number.isNaN(date.getTime())) return 'unknown date'
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
-}
-
-type Section = 'general' | 'providers' | 'permissions'
+// The 'providers' section (Anthropic/Gemini API key fields, Copilot device
+// sign-in, quota) was retired here -- Passports now owns provider
+// credential management via the passports:* IPC surface (see
+// src/main/ipc/passportHandlers.ts). Its replacement panel lands in a
+// later task; this file only keeps the sections that don't depend on the
+// four retired settings:* auth channels.
+type Section = 'general' | 'permissions'
 
 const SECTIONS: { value: Section; label: string }[] = [
   { value: 'general', label: 'General' },
-  { value: 'providers', label: 'Providers' },
   { value: 'permissions', label: 'Permissions' }
 ]
 
@@ -61,27 +48,10 @@ function Switch({ checked, onChange }: { checked: boolean; onChange: () => void 
   )
 }
 
-// `connected` is `undefined` while getAuthStatus() is still in flight --
-// rendering nothing then (rather than falling back to "not connected")
-// avoids a flash from the wrong state to the right one once it resolves.
-function StatusDot({ connected }: { connected: boolean | undefined }): JSX.Element | null {
-  if (connected === undefined) return null
-  return <span className={`provider-dot${connected ? ' is-connected' : ''}`} title={connected ? 'Connected' : 'Not connected'} />
-}
-
 export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element {
   const [section, setSection] = useState<Section>('general')
-  const [apiKey, setApiKey] = useState('')
-  const [status, setStatus] = useState<AuthStatus | null>(null)
-  const [anthropicError, setAnthropicError] = useState<string | null>(null)
-  const [geminiApiKey, setGeminiApiKey] = useState('')
-  const [geminiError, setGeminiError] = useState<string | null>(null)
-  const [copilotError, setCopilotError] = useState<string | null>(null)
-  const [challenge, setChallenge] = useState<DeviceCodeChallenge | null>(null)
-  const [loggingIn, setLoggingIn] = useState(false)
   const [policy, setPolicy] = useState<ToolApprovalPolicy | null>(null)
   const [theme, setTheme] = useTheme()
-  const [quota, setQuota] = useState<CopilotQuota | null>(null)
   const [telemetryConfig, setTelemetryConfig] = useState<UsageTelemetryConfig | null>(null)
   const [telemetryPathDraft, setTelemetryPathDraft] = useState('')
   const [telemetryError, setTelemetryError] = useState<string | null>(null)
@@ -95,39 +65,13 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
     setToasts((prev) => prev.filter((t) => t.id !== id))
   }
 
-  async function refresh(): Promise<void> {
-    setStatus(await window.api.settings.getAuthStatus())
-  }
-
   useEffect(() => {
-    refresh()
     window.api.approvals.getPolicy().then(setPolicy)
     window.api.settings.getUsageTelemetryConfig().then((config) => {
       setTelemetryConfig(config)
       setTelemetryPathDraft(config.outputPath)
     })
-    const unsubscribe = window.api.settings.onCopilotChallenge(setChallenge)
-    return unsubscribe
   }, [])
-
-  useEffect(() => {
-    if (section !== 'providers' || !status?.copilot) {
-      setQuota(null)
-      return
-    }
-    let cancelled = false
-    window.api.settings
-      .getCopilotQuota()
-      .then((result) => {
-        if (!cancelled) setQuota(result)
-      })
-      .catch(() => {
-        if (!cancelled) setQuota(null)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [section, status?.copilot])
 
   async function toggleAutoApprove(toolName: string): Promise<void> {
     if (!policy) return
@@ -163,42 +107,6 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
     const next = { ...telemetryConfig, outputPath: telemetryPathDraft }
     setTelemetryConfig(next)
     reportTelemetrySaveResult(await window.api.settings.setUsageTelemetryConfig(next))
-  }
-
-  async function handleSaveKey(): Promise<void> {
-    setAnthropicError(null)
-    const result = await window.api.settings.setAnthropicApiKey(apiKey)
-    if (!result.ok) {
-      setAnthropicError(result.error)
-      return
-    }
-    setApiKey('')
-    await refresh()
-  }
-
-  async function handleSaveGeminiKey(): Promise<void> {
-    setGeminiError(null)
-    const result = await window.api.settings.setGeminiApiKey(geminiApiKey)
-    if (!result.ok) {
-      setGeminiError(result.error)
-      return
-    }
-    setGeminiApiKey('')
-    await refresh()
-  }
-
-  async function handleCopilotLogin(): Promise<void> {
-    setCopilotError(null)
-    setLoggingIn(true)
-    setChallenge(null)
-    const result = await window.api.settings.loginCopilot()
-    setLoggingIn(false)
-    setChallenge(null)
-    if (!result.ok) {
-      setCopilotError(result.error)
-      return
-    }
-    await refresh()
   }
 
   return (
@@ -280,123 +188,6 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
                         Save
                       </button>
                     </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {section === 'providers' && (
-            <div className="settings-group">
-              <div className="settings-row">
-                <div className="settings-row-text">
-                  <span className="settings-row-title">
-                    Anthropic API Key
-                    <StatusDot connected={status?.anthropic} />
-                  </span>
-                  <span className="settings-row-desc">Used for direct Anthropic model access</span>
-                  {anthropicError && <span className="settings-row-error">{anthropicError}</span>}
-                </div>
-                <div className="settings-row-control settings-key-control">
-                  <input
-                    className="settings-input"
-                    type="password"
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleSaveKey()
-                    }}
-                    placeholder="sk-ant-..."
-                  />
-                  <button className="settings-btn" onClick={handleSaveKey}>
-                    Save
-                  </button>
-                </div>
-              </div>
-
-              <div className="settings-row">
-                <div className="settings-row-text">
-                  <span className="settings-row-title">
-                    Gemini API Key
-                    <StatusDot connected={status?.gemini} />
-                  </span>
-                  <span className="settings-row-desc">Used for direct Google Gemini model access</span>
-                  {geminiError && <span className="settings-row-error">{geminiError}</span>}
-                </div>
-                <div className="settings-row-control settings-key-control">
-                  <input
-                    className="settings-input"
-                    type="password"
-                    value={geminiApiKey}
-                    onChange={(e) => setGeminiApiKey(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleSaveGeminiKey()
-                    }}
-                    placeholder="AIza..."
-                  />
-                  <button className="settings-btn" onClick={handleSaveGeminiKey}>
-                    Save
-                  </button>
-                </div>
-              </div>
-
-              <div className="settings-row">
-                <div className="settings-row-text">
-                  <span className="settings-row-title">
-                    GitHub Copilot
-                    <StatusDot connected={status?.copilot} />
-                  </span>
-                  <span className="settings-row-desc">Sign in with a device code</span>
-                  {challenge && (
-                    <span className="settings-row-hint">
-                      Go to {challenge.verificationUri} and enter code <strong>{challenge.userCode}</strong>
-                    </span>
-                  )}
-                  {copilotError && <span className="settings-row-error">{copilotError}</span>}
-                  {quota && (
-                    <div className="copilot-quota">
-                      <span className="copilot-quota-subtitle">
-                        {quota.planName} plan · resets {formatQuotaResetDate(quota.resetDate)}
-                      </span>
-                      {quota.categories.map((category) => (
-                        <div key={category.id} className="copilot-quota-category">
-                          <span className="copilot-quota-category-label">
-                            {COPILOT_QUOTA_LABELS[category.id] ?? category.id}
-                          </span>
-                          {category.unlimited ? (
-                            <span className="copilot-quota-pill">Unlimited</span>
-                          ) : (
-                            <div className="copilot-quota-meter">
-                              <div className="copilot-quota-bar">
-                                <div
-                                  className="copilot-quota-bar-fill"
-                                  style={{
-                                    width: `${Math.max(0, Math.min(100, 100 - category.percentRemaining))}%`,
-                                    background:
-                                      category.percentRemaining < 20 ? 'var(--danger)' : 'var(--success)'
-                                  }}
-                                />
-                              </div>
-                              <span className="copilot-quota-meter-text">
-                                {(category.entitlement - category.remaining).toLocaleString()} /{' '}
-                                {category.entitlement.toLocaleString()} used (
-                                {Math.round(100 - category.percentRemaining)}%)
-                                {category.overagePermitted && category.overageCount > 0
-                                  ? ` · ${category.overageCount.toLocaleString()} over quota`
-                                  : ''}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                {status && !status.copilot && (
-                  <div className="settings-row-control">
-                    <button className="settings-btn" onClick={handleCopilotLogin} disabled={loggingIn}>
-                      {loggingIn ? 'Signing in…' : 'Sign in'}
-                    </button>
                   </div>
                 )}
               </div>

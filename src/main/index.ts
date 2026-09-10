@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, Menu } from 'electron'
+import { app, BrowserWindow, dialog, Menu, shell } from 'electron'
 import { join } from 'node:path'
 import { existsSync } from 'node:fs'
 import { mkdir } from 'node:fs/promises'
@@ -8,10 +8,14 @@ import { createProjectsRepository } from './db/projectsRepository'
 import { createReposRepository } from './db/reposRepository'
 import { createSessionsRepository } from './db/sessionsRepository'
 import { createAppSettingsRepository } from './db/appSettingsRepository'
+import { createPassportsRepository } from './db/passportsRepository'
 import { createProjectsHandlers } from './ipc/projectsHandlers'
 import { createReposHandlers } from './ipc/reposHandlers'
 import { createSessionHandlers } from './ipc/sessionHandlers'
 import { createSettingsHandlers } from './ipc/settingsHandlers'
+import { createPassportHandlers } from './ipc/passportHandlers'
+import { migratePassportsFromLegacyAuth } from './passports/migratePassports'
+import { getAuthMethodHandler } from './passports/authMethodHandlers'
 import { createApprovalHandlers } from './ipc/approvalHandlers'
 import { createUiPromptHandlers } from './ipc/uiPromptHandlers'
 import { createModelsHandlers } from './ipc/modelsHandlers'
@@ -85,15 +89,23 @@ app.whenReady().then(async () => {
   const reposRepo = createReposRepository(db)
   const sessionsRepo = createSessionsRepository(db)
   const appSettingsRepo = createAppSettingsRepository(db)
+  const passportsRepo = createPassportsRepository(db)
 
   const { ModelRuntime, ModelRegistry } = await import('@earendil-works/pi-coding-agent')
   const modelRuntime: ModelRuntime = await ModelRuntime.create()
-  // setRuntimeApiKey() is in-memory only (wiped on every process restart --
-  // see appSettingsRepository.ts) -- replay whatever was saved last time
-  // before the first availability refresh, so a provider stays "Connected"
-  // across restarts instead of silently reverting to disconnected.
-  for (const [providerId, apiKey] of Object.entries(appSettingsRepo.getProviderApiKeys())) {
-    await modelRuntime.setRuntimeApiKey(providerId, apiKey)
+  // One-time: copy any pre-Passports credential into a real passports row.
+  await migratePassportsFromLegacyAuth({
+    appSettingsRepo,
+    passportsRepo,
+    checkAuth: (providerId) => modelRuntime.checkAuth(providerId)
+  })
+  // setRuntimeApiKey()/OAuth credentials are in-memory-only or SDK-owned --
+  // replay every currently-active api_key passport's activation so it
+  // takes effect again after this restart (an active oauth passport needs
+  // no replay: its handler's activate() is a no-op, and the SDK's own
+  // credential store already persisted the real tokens).
+  for (const passport of passportsRepo.list()) {
+    if (passport.isActive) await getAuthMethodHandler(passport.authMethod).activate(passport, modelRuntime)
   }
   const modelRegistry = new ModelRegistry(modelRuntime)
   await modelRegistry.refresh()
@@ -168,9 +180,11 @@ app.whenReady().then(async () => {
       findModel: (provider, modelId) => modelRegistry.find(provider, modelId),
       buildPromptText,
       getUsageTelemetryConfig: () => appSettingsRepo.getUsageTelemetryConfig(),
+      recordPassportUsage: (providerId, usage) => passportsRepo.recordUsageForActiveProvider(providerId, usage),
       ensureGeneralRepo
     }),
-    settings: createSettingsHandlers(modelRuntime, appSettingsRepo),
+    settings: createSettingsHandlers(appSettingsRepo),
+    passports: createPassportHandlers(passportsRepo, modelRuntime, (url) => shell.openExternal(url)),
     models: createModelsHandlers(modelRegistry),
     skills: createSkillsHandlers(reposRepo),
     files: createFilesHandlers({

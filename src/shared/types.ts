@@ -41,12 +41,6 @@ export interface CreateProjectSessionError {
   error: string
 }
 
-export interface AuthStatus {
-  anthropic: boolean
-  copilot: boolean
-  gemini: boolean
-}
-
 export type PassportAuthMethod = 'api_key' | 'oauth'
 export type PassportStatus = 'connected' | 'error' | 'unknown'
 
@@ -90,11 +84,6 @@ export interface CopilotQuota {
   planName: string
   resetDate: string
   categories: CopilotQuotaCategory[]
-}
-
-export interface DeviceCodeChallenge {
-  userCode: string
-  verificationUri: string
 }
 
 export interface AddRepoResult {
@@ -339,11 +328,6 @@ export interface Api {
     pickFolder(): Promise<string | null>
   }
   settings: {
-    setAnthropicApiKey(apiKey: string): Promise<{ ok: true } | { ok: false; error: string }>
-    setGeminiApiKey(apiKey: string): Promise<{ ok: true } | { ok: false; error: string }>
-    getAuthStatus(): Promise<AuthStatus>
-    loginCopilot(): Promise<{ ok: true } | { ok: false; error: string }>
-    onCopilotChallenge(listener: (challenge: DeviceCodeChallenge) => void): () => void
     getCopilotQuota(): Promise<CopilotQuota | null>
     getUsageTelemetryConfig(): Promise<UsageTelemetryConfig>
     setUsageTelemetryConfig(config: UsageTelemetryConfig): Promise<{ ok: true } | { ok: false; error: string }>

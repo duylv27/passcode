@@ -4,6 +4,7 @@ import type { ProjectsHandlers } from './projectsHandlers'
 import type { ReposHandlers } from './reposHandlers'
 import type { SessionHandlers } from './sessionHandlers'
 import type { SettingsHandlers } from './settingsHandlers'
+import type { PassportHandlers } from './passportHandlers'
 import type { ApprovalHandlers } from './approvalHandlers'
 import type { UiPromptHandlers } from './uiPromptHandlers'
 import type { ModelsHandlers } from './modelsHandlers'
@@ -18,6 +19,7 @@ export interface IpcHandlers {
   repos: ReposHandlers
   session: SessionHandlers
   settings: SettingsHandlers
+  passports: PassportHandlers
   models: ModelsHandlers
   skills: SkillsHandlers
   files: FilesHandlers
@@ -95,19 +97,28 @@ export function registerIpcHandlers(handlers: IpcHandlers): void {
   ipcMain.handle('files:pickFile', () => handlers.files.pickFile())
   ipcMain.handle('files:pickFolder', () => handlers.files.pickFolder())
 
-  ipcMain.handle('settings:setAnthropicApiKey', (_e, apiKey: string) =>
-    handlers.settings.setAnthropicApiKey(apiKey)
-  )
-  ipcMain.handle('settings:setGeminiApiKey', (_e, apiKey: string) => handlers.settings.setGeminiApiKey(apiKey))
-  ipcMain.handle('settings:getAuthStatus', () => handlers.settings.getAuthStatus())
-  ipcMain.handle('settings:loginCopilot', (event) =>
-    handlers.settings.loginCopilot((challenge) => event.sender.send('settings:copilotChallenge', challenge))
-  )
   ipcMain.handle('settings:getCopilotQuota', () => handlers.settings.getCopilotQuota())
   ipcMain.handle('settings:getUsageTelemetryConfig', () => handlers.settings.getUsageTelemetryConfig())
   ipcMain.handle('settings:setUsageTelemetryConfig', (_e, config: UsageTelemetryConfig) =>
     handlers.settings.setUsageTelemetryConfig(config)
   )
+
+  ipcMain.handle('passports:list', () => handlers.passports.listPassports())
+  ipcMain.handle('passports:createApiKey', (_e, providerId: string, displayName: string, apiKey: string) =>
+    handlers.passports.createApiKeyPassport(providerId, displayName, apiKey)
+  )
+  ipcMain.handle('passports:createOAuth', (event, providerId: string, displayName: string) =>
+    handlers.passports.createOAuthPassport(providerId, displayName, (prompt) =>
+      event.sender.send('passports:oauthPrompt', prompt)
+    )
+  )
+  ipcMain.handle('passports:submitOAuthCode', (_e, code: string) => handlers.passports.submitOAuthCode(code))
+  ipcMain.handle('passports:cancelOAuth', () => handlers.passports.cancelOAuth())
+  ipcMain.handle('passports:setActive', (_e, id: string) => handlers.passports.setActivePassport(id))
+  ipcMain.handle('passports:rename', (_e, id: string, displayName: string) =>
+    handlers.passports.renamePassport(id, displayName)
+  )
+  ipcMain.handle('passports:remove', (_e, id: string) => handlers.passports.removePassport(id))
 
   ipcMain.handle('approvals:getPolicy', () => handlers.approvals.getPolicy())
   ipcMain.handle('approvals:setPolicy', (_e, policy: ToolApprovalPolicy) =>

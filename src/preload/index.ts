@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { Api, ApprovalRequest, ChatEvent, DeviceCodeChallenge, ToolApprovalPolicy, UiPromptRequest } from '../shared/types'
+import type { Api, ApprovalRequest, ChatEvent, PassportOAuthPrompt, ToolApprovalPolicy, UiPromptRequest } from '../shared/types'
 
 const api: Api = {
   projects: {
@@ -57,18 +57,25 @@ const api: Api = {
     pickFolder: () => ipcRenderer.invoke('files:pickFolder')
   },
   settings: {
-    setAnthropicApiKey: (apiKey) => ipcRenderer.invoke('settings:setAnthropicApiKey', apiKey),
-    setGeminiApiKey: (apiKey) => ipcRenderer.invoke('settings:setGeminiApiKey', apiKey),
-    getAuthStatus: () => ipcRenderer.invoke('settings:getAuthStatus'),
-    loginCopilot: () => ipcRenderer.invoke('settings:loginCopilot'),
-    onCopilotChallenge: (listener) => {
-      const wrapped = (_e: unknown, challenge: DeviceCodeChallenge): void => listener(challenge)
-      ipcRenderer.on('settings:copilotChallenge', wrapped)
-      return () => ipcRenderer.removeListener('settings:copilotChallenge', wrapped)
-    },
     getCopilotQuota: () => ipcRenderer.invoke('settings:getCopilotQuota'),
     getUsageTelemetryConfig: () => ipcRenderer.invoke('settings:getUsageTelemetryConfig'),
     setUsageTelemetryConfig: (config) => ipcRenderer.invoke('settings:setUsageTelemetryConfig', config)
+  },
+  passports: {
+    list: () => ipcRenderer.invoke('passports:list'),
+    createApiKey: (providerId, displayName, apiKey) =>
+      ipcRenderer.invoke('passports:createApiKey', providerId, displayName, apiKey),
+    createOAuth: (providerId, displayName) => ipcRenderer.invoke('passports:createOAuth', providerId, displayName),
+    onOAuthPrompt: (listener) => {
+      const wrapped = (_e: unknown, prompt: PassportOAuthPrompt): void => listener(prompt)
+      ipcRenderer.on('passports:oauthPrompt', wrapped)
+      return () => ipcRenderer.removeListener('passports:oauthPrompt', wrapped)
+    },
+    submitOAuthCode: (code) => ipcRenderer.invoke('passports:submitOAuthCode', code),
+    cancelOAuth: () => ipcRenderer.invoke('passports:cancelOAuth'),
+    setActive: (id) => ipcRenderer.invoke('passports:setActive', id),
+    rename: (id, displayName) => ipcRenderer.invoke('passports:rename', id, displayName),
+    remove: (id) => ipcRenderer.invoke('passports:remove', id)
   },
   approvals: {
     getPolicy: () => ipcRenderer.invoke('approvals:getPolicy'),
