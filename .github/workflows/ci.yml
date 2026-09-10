@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+# Cancel superseded runs on the same branch/PR so pushing again doesn't
+# leave stale runs racing the newest one.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  typecheck:
+    # Matches release.yml -- this app is Windows-only (see package.json's
+    # build.win config and node:sqlite usage), so an ubuntu runner wouldn't
+    # actually reflect what the release build/tests run against.
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.19.0'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      # `npm test` is intentionally not run here (or in release.yml) yet --
+      # 9 of the ~21 test files fail to even load under Vite 5.4.21's dev-
+      # server transform, which doesn't recognize the very new `node:sqlite`
+      # builtin and tries to resolve it as a real package instead. Confirmed
+      # this is a Vite-version issue, not a Node-version one (reproduced
+      # identically under both Node 20 and Node 24). Re-enable once that's
+      # fixed (e.g. a newer Vite release, or moving DB tests off the Vite
+      # transform pipeline).
