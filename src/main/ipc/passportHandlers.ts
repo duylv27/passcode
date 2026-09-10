@@ -10,7 +10,11 @@ export interface PassportModelRuntimeLike extends ModelRuntimeLike {
     type: AuthType,
     interaction: {
       notify: (event: unknown) => void
-      prompt: (prompt: { type: string; signal?: AbortSignal }) => Promise<string>
+      prompt: (prompt: {
+        type: string
+        signal?: AbortSignal
+        options?: readonly { id: string; label: string; description?: string }[]
+      }) => Promise<string>
     }
   ): Promise<Credential>
 }
@@ -106,6 +110,11 @@ export function createPassportHandlers(
             // plain text prompt: blank means "use the default", the only
             // case we have UI for.
             if (prompt.type === 'text') return Promise.resolve('')
+            // A login-method sub-choice (e.g. OpenAI Codex's "browser or
+            // device code?") -- we have no UI to present these options, so
+            // default to the first one, which every flow so far lists as
+            // its primary/recommended method.
+            if (prompt.type === 'select') return Promise.resolve(prompt.options?.[0]?.id ?? '')
             if (prompt.type === 'manual_code') {
               return new Promise<string>((resolve, reject) => {
                 pendingCode = { resolve, reject }

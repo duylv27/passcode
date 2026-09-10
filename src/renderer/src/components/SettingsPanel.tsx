@@ -176,21 +176,26 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
   const PROVIDER_LABELS: Record<string, string> = {
     anthropic: 'Anthropic',
     google: 'Google',
-    'github-copilot': 'GitHub Copilot'
+    'github-copilot': 'GitHub Copilot',
+    'openai-codex': 'ChatGPT'
   }
   const PROVIDER_ICONS: Record<string, string> = {
     anthropic: '\u{1F170}',
     google: '\u{1F1EC}',
-    'github-copilot': '\u{1F419}'
+    'github-copilot': '\u{1F419}',
+    'openai-codex': '\u{1F4AC}'
   }
-  const PROVIDERS_FOR_ADD = ['anthropic', 'google', 'github-copilot']
+  const PROVIDERS_FOR_ADD = ['anthropic', 'google', 'github-copilot', 'openai-codex']
   const METHODS_FOR_PROVIDER: Record<string, { value: 'api_key' | 'oauth'; title: string; desc: string }[]> = {
     anthropic: [
       { value: 'oauth', title: 'Sign in with browser (Claude Pro/Max)', desc: 'Usage covered by your subscription' },
       { value: 'api_key', title: 'API Key', desc: 'Paste a key from console.anthropic.com' }
     ],
     google: [{ value: 'api_key', title: 'API Key', desc: 'Paste a key from Google AI Studio' }],
-    'github-copilot': [{ value: 'oauth', title: 'Sign in with device code', desc: 'Authorize this app from github.com/login/device' }]
+    'github-copilot': [{ value: 'oauth', title: 'Sign in with device code', desc: 'Authorize this app from github.com/login/device' }],
+    'openai-codex': [
+      { value: 'oauth', title: 'Sign in with browser (ChatGPT Plus/Pro)', desc: 'Usage covered by your ChatGPT subscription' }
+    ]
   }
 
   function openAddPopup(): void {

@@ -182,6 +182,33 @@ describe('passportHandlers', () => {
     expect(prompted).toBe('')
   })
 
+  it('answers a select prompt during oauth login with the first option (e.g. OpenAI Codex\'s browser-vs-device-code choice)', async () => {
+    let selected: string | undefined
+    modelRuntime.login.mockImplementationOnce(
+      async (
+        _providerId: string,
+        _type: string,
+        interaction: {
+          prompt: (p: {
+            type: string
+            options?: readonly { id: string; label: string }[]
+          }) => Promise<string>
+        }
+      ) => {
+        selected = await interaction.prompt({
+          type: 'select',
+          options: [
+            { id: 'browser', label: 'Browser login (default)' },
+            { id: 'device_code', label: 'Device code login (headless)' }
+          ]
+        })
+        return { type: 'oauth', refresh: '', access: '', expires: 0 }
+      }
+    )
+    await handlers.createOAuthPassport('openai-codex', 'ChatGPT', () => {})
+    expect(selected).toBe('browser')
+  })
+
   it('resolves a pending manual_code prompt via submitOAuthCode', async () => {
     let resolvedCode: string | undefined
     modelRuntime.login.mockImplementationOnce(
