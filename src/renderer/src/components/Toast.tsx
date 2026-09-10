@@ -3,7 +3,7 @@ import { useEffect } from 'react'
 export interface ToastMessage {
   id: string
   text: string
-  variant: 'success' | 'error'
+  variant: 'success' | 'error' | 'info' | 'warning'
 }
 
 /** One floating, auto-dismissing notification. Each instance owns its own

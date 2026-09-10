@@ -275,6 +275,7 @@ button {
    Shell: Activity Bar + Sidebar + editor area + Status Bar
    --------------------------------------------------------------------- */
 .app-shell {
+  position: relative;
   display: flex;
   flex-direction: column;
   height: 100vh;
@@ -969,6 +970,7 @@ button {
 .chat-scroll {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: var(--space-4) var(--space-4) var(--space-3);
   display: flex;
   flex-direction: column;
@@ -991,6 +993,7 @@ button {
 }
 
 .chat-line {
+  min-width: 0;
   font-size: 13px;
   line-height: 1.6;
 }
@@ -1034,6 +1037,11 @@ button {
 
 .chat-line.is-markdown .md-body > *:first-child {
   margin-top: 0;
+}
+
+.chat-line.is-markdown .md-body {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .chat-line.is-markdown .md-body > *:last-child {
@@ -1292,6 +1300,48 @@ button {
   font-family: var(--font-mono);
   font-size: 12px;
   color: var(--danger);
+}
+
+/* A skipped tool call is a deliberate user choice, not a bug -- styled as
+   a quiet neutral row (matching the timeline's dot+label language) rather
+   than reusing the alarming red error treatment above. Reused for the
+   "answered a prompt" trace too (Asked / <title> / <answer>). */
+.chat-line.is-denied {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--fg-dim);
+}
+
+.denied-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--fg-faint);
+  flex-shrink: 0;
+}
+
+.denied-title {
+  font-weight: 600;
+  color: var(--fg);
+  flex-shrink: 0;
+}
+
+.denied-summary {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.denied-caption {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--fg-faint);
 }
 
 .chat-line.is-thinking {
@@ -1783,6 +1833,10 @@ button {
 
 .skill-picker-option:hover {
   background: var(--list-hover);
+}
+
+.skill-picker-option.is-active {
+  background: var(--list-active);
 }
 
 .skill-picker-option-title {
@@ -2510,6 +2564,24 @@ button {
   color: var(--accent);
 }
 
+.statusbar-version {
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--fg-dim);
+  opacity: 0.7;
+  letter-spacing: normal;
+}
+
+.statusbar-dev-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #fff;
+  background: #d9480f;
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
 /* ---------------------------------------------------------------------
    Settings — a single bordered row-list (title, description, and a
    right-aligned control per row) rather than a stack of cards.
@@ -2798,64 +2870,152 @@ button {
 }
 
 /* ---------------------------------------------------------------------
-   Tool approval dialog
+   Tool approval panel -- an inline, non-blocking card docked directly
+   above the composer (not a full-screen modal -- that blocked switching
+   tabs to check other sessions for what's really a single-session
+   concern).
+
+   Deliberately a single compact row by default: icon + one-line truncated
+   summary + Skip/Allow, nothing else -- no wrapping, no separate footer
+   row, no loud badge. Full args and "always allow" only appear behind an
+   explicit expand, so the default state never requires reading anything
+   extra or growing the card. Allow auto-focuses on mount and Enter/Escape
+   work immediately, no click needed first.
    --------------------------------------------------------------------- */
-.approval-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+.approval-panel-wrap {
+  max-width: 900px;
+  width: calc(100% - var(--space-4) * 2);
+  margin: var(--space-3) auto 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--input-bg);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+/* High-impact tools (bash/powershell/write/edit) get a quiet warning-
+   colored left accent instead of a loud badge -- visible but not alarming. */
+.approval-panel-wrap.is-high-impact {
+  border-left: 3px solid var(--warning);
+}
+
+.approval-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px 9px 12px;
+}
+
+.approval-bar-icon {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+
+.approval-panel-wrap.is-high-impact .approval-bar-icon {
+  color: var(--warning);
+}
+
+.approval-bar-text {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--fg-bright);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.approval-bar-expand {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 100;
-}
-
-.approval-dialog {
-  width: 460px;
-  max-width: calc(100vw - 48px);
-  background: var(--sidebar-bg);
-  border: 1px solid var(--border);
+  background: none;
+  border: none;
   border-radius: var(--radius-sm);
-  padding: var(--space-4);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  color: var(--fg-dim);
 }
 
-.approval-title {
-  font-size: 14px;
-  font-weight: 600;
-  margin-bottom: var(--space-2);
+.approval-bar-expand:hover {
+  background: var(--list-hover);
+  color: var(--fg-bright);
 }
 
-.approval-input {
+.approval-bar-expand .chevron {
+  transform: rotate(90deg);
+}
+
+.approval-bar-expand .chevron.is-open {
+  transform: rotate(-90deg);
+}
+
+.approval-bar-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.approval-bar-details {
+  border-top: 1px solid var(--border-subtle);
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.approval-bar-command {
+  flex: 1;
+  min-width: 0;
   background: var(--editor-bg);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  padding: var(--space-2);
+  padding: 6px 8px;
   font-family: var(--font-mono);
   font-size: 11.5px;
   color: var(--fg-dim);
-  max-height: 200px;
-  overflow: auto;
   white-space: pre-wrap;
   word-break: break-word;
   margin: 0;
+  max-height: 100px;
+  overflow: auto;
 }
 
-.approval-queue-hint {
-  margin-top: var(--space-2);
+.approval-bar-always {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--fg-faint);
+  background: none;
+  border: none;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.approval-bar-always:hover {
+  color: var(--accent);
+}
+
+.approval-bar-always-confirm {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--success);
+  font-weight: 600;
+}
+
+.approval-panel-queue-hint {
+  padding: 4px 12px 8px;
   font-size: 11px;
   color: var(--fg-dim);
-}
-
-.approval-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-2);
-  margin-top: var(--space-4);
+  border-top: 1px solid var(--border-subtle);
 }
 
 .approval-skip {
-  padding: 6px var(--space-3);
+  padding: 5px 12px;
   border-radius: var(--radius-sm);
   background: none;
   border: 1px solid var(--border);
@@ -2868,7 +3028,7 @@ button {
 }
 
 .approval-allow {
-  padding: 6px var(--space-3);
+  padding: 5px 14px;
   border-radius: var(--radius-sm);
   background: var(--button-bg);
   border: none;
@@ -2879,6 +3039,99 @@ button {
 
 .approval-allow:hover {
   background: var(--button-hover);
+}
+
+.approval-allow:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------------
+   Extension select/confirm/input prompts -- same card treatment as the
+   approval panel, reusing its .approval-skip/.approval-allow buttons.
+   --------------------------------------------------------------------- */
+.ui-prompt-panel {
+  max-width: 900px;
+  width: calc(100% - var(--space-4) * 2);
+  margin: var(--space-3) auto 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--input-bg);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  flex-shrink: 0;
+  padding: var(--space-3) var(--space-4);
+}
+
+.ui-prompt-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--fg-bright);
+  margin-bottom: 6px;
+}
+
+.ui-prompt-message {
+  font-size: 13px;
+  color: var(--fg-dim);
+  margin: 0 0 var(--space-3);
+}
+
+.ui-prompt-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.ui-prompt-options {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ui-prompt-option {
+  text-align: left;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  background: none;
+  border: 1px solid var(--border-subtle);
+  color: var(--fg);
+  font-size: 13px;
+}
+
+.ui-prompt-option:hover {
+  background: var(--list-hover);
+}
+
+.ui-prompt-option.is-active {
+  border-color: var(--accent);
+  background: var(--accent-wash);
+}
+
+.ui-prompt-option-custom {
+  color: var(--fg-dim);
+  font-style: italic;
+}
+
+.ui-prompt-custom-row {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: 4px;
+}
+
+.ui-prompt-custom-input {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--editor-bg);
+  color: var(--fg);
+  font-size: 13px;
+  font-family: var(--font-ui);
+}
+
+.ui-prompt-custom-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
 }
 
 .zoom-viewer-overlay {
@@ -3386,6 +3639,14 @@ button {
 
 .toast-error {
   background: var(--danger);
+}
+
+.toast-info {
+  background: var(--accent);
+}
+
+.toast-warning {
+  background: var(--warning);
 }
 
 @keyframes toast-in {

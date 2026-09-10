@@ -13,6 +13,7 @@ import { createReposHandlers } from './ipc/reposHandlers'
 import { createSessionHandlers } from './ipc/sessionHandlers'
 import { createSettingsHandlers } from './ipc/settingsHandlers'
 import { createApprovalHandlers } from './ipc/approvalHandlers'
+import { createUiPromptHandlers } from './ipc/uiPromptHandlers'
 import { createModelsHandlers } from './ipc/modelsHandlers'
 import { createSkillsHandlers } from './ipc/skillsHandlers'
 import { createFilesHandlers } from './ipc/filesHandlers'
@@ -126,6 +127,15 @@ app.whenReady().then(async () => {
     }
   })
 
+  const uiPromptHandlers = createUiPromptHandlers({
+    onRequest: (request) => {
+      if (!mainWindow.isDestroyed()) mainWindow.webContents.send('uiPrompt:request', request)
+    },
+    onCancel: (requestId) => {
+      if (!mainWindow.isDestroyed()) mainWindow.webContents.send('uiPrompt:cancel', requestId)
+    }
+  })
+
   registerIpcHandlers({
     projects: createProjectsHandlers(projectsRepo, () => appSettingsRepo.getGeneralRepo()?.projectId),
     repos: createReposHandlers(reposRepo, isGitRepo, getGitStatus),
@@ -133,13 +143,28 @@ app.whenReady().then(async () => {
       reposRepo,
       projectsRepo,
       sessionsRepo,
-      openRepoSession: (cwd, requestApproval, resumeSessionFile) =>
-        createRepoSession({ cwd, modelRuntime, requestApproval, resumeSessionFile }),
+      openRepoSession: (cwd, requestApproval, uiPrompts, resumeSessionFile) =>
+        createRepoSession({
+          cwd,
+          modelRuntime,
+          requestApproval,
+          requestSelect: uiPrompts.requestSelect,
+          requestConfirm: uiPrompts.requestConfirm,
+          requestInput: uiPrompts.requestInput,
+          notify: uiPrompts.notify,
+          resumeSessionFile
+        }),
       onEvent: (sessionId, event) => {
         if (!mainWindow.isDestroyed()) mainWindow.webContents.send('session:event', sessionId, event)
       },
       requestApproval: (sessionId, toolName, input) =>
         approvalHandlers.requestApproval(sessionId, toolName, input),
+      requestSelect: (sessionId, title, options, timeoutMs, signal) =>
+        uiPromptHandlers.requestSelect(sessionId, title, options, timeoutMs, signal),
+      requestConfirm: (sessionId, title, message, timeoutMs, signal) =>
+        uiPromptHandlers.requestConfirm(sessionId, title, message, timeoutMs, signal),
+      requestInput: (sessionId, title, placeholder, timeoutMs, signal) =>
+        uiPromptHandlers.requestInput(sessionId, title, placeholder, timeoutMs, signal),
       findModel: (provider, modelId) => modelRegistry.find(provider, modelId),
       buildPromptText,
       getUsageTelemetryConfig: () => appSettingsRepo.getUsageTelemetryConfig(),
@@ -153,6 +178,7 @@ app.whenReady().then(async () => {
       showOpenFolderDialog: () => dialog.showOpenDialog(mainWindow, { properties: ['openDirectory'] })
     }),
     approvals: approvalHandlers,
+    uiPrompts: uiPromptHandlers,
     window: createWindowHandlers(() => mainWindow),
     sessionPreview: createSessionPreviewHandlers(sessionsRepo)
   })

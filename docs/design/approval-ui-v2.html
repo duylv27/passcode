@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Approval Panel v2 — Compact Redesign</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+  rel="stylesheet"
+/>
+<style>
+:root {
+  --bg: #f4f5f3; --sidebar-bg: #eceeea; --editor-bg: #f4f5f3;
+  --border: #c7ccc7; --border-subtle: #dadedb;
+  --fg: #20242a; --fg-dim: #5c6268; --fg-faint: #8b9094; --fg-bright: #0b0d0f;
+  --accent: #55677a; --accent-wash: rgba(85,103,122,.09);
+  --list-hover: #e3e6e2; --list-active: rgba(85,103,122,.07);
+  --input-bg: #fbfcfb; --button-bg: #55677a; --button-hover: #44525f; --button-fg: #ffffff;
+  --success: #2e7d32; --danger: #c0392b; --warning: #a3690f;
+  --font-ui: 'Manrope', sans-serif; --font-mono: 'IBM Plex Mono', monospace;
+  --radius: 9px; --radius-sm: 6px;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: #dfe2de; font-family: var(--font-ui); color: var(--fg); padding: 40px 24px 100px; }
+.wrap { max-width: 720px; margin: 0 auto; }
+h1 { font-size: 20px; margin: 0 0 6px; }
+.sub { font-size: 13px; color: var(--fg-dim); margin: 0 0 28px; line-height: 1.6; }
+.section { margin-bottom: 40px; }
+.section h2 { font-size: 13px; font-weight: 700; margin: 0 0 4px; }
+.section .note { font-size: 12px; color: var(--fg-dim); margin: 0 0 14px; }
+.chat-shell {
+  border: 1px solid var(--border); border-radius: 12px; background: var(--editor-bg); overflow: hidden;
+}
+.chat-shell-scroll { padding: 14px 16px 6px; font-size: 13px; }
+.chat-line.is-user { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+.turn-bubble { background: var(--list-active); border-radius: var(--radius); padding: 8px 12px; max-width: 80%; }
+
+/* ============ v2 compact approval bar ============ */
+.approval-bar {
+  margin: 0 14px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--input-bg);
+  box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  padding: 9px 10px 9px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.approval-bar.is-high-impact { border-left: 3px solid var(--warning); padding-left: 9px; }
+.approval-bar-icon { flex-shrink: 0; color: var(--accent); width: 14px; height: 14px; }
+.approval-bar.is-high-impact .approval-bar-icon { color: var(--warning); }
+.approval-bar-text {
+  flex: 1; min-width: 0;
+  font-size: 13px; font-weight: 600; color: var(--fg-bright);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-family: var(--font-mono); font-weight: 500;
+}
+.approval-bar-expand {
+  flex-shrink: 0; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;
+  background: none; border: none; border-radius: var(--radius-sm); color: var(--fg-dim); cursor: pointer;
+}
+.approval-bar-expand:hover { background: var(--list-hover); color: var(--fg-bright); }
+.approval-bar-actions { flex-shrink: 0; display: flex; gap: 6px; }
+.approval-skip {
+  padding: 5px 12px; border-radius: var(--radius-sm); background: none; border: 1px solid var(--border);
+  color: var(--fg); font-size: 12.5px; cursor: pointer;
+}
+.approval-skip:hover { background: var(--list-hover); }
+.approval-allow {
+  padding: 5px 14px; border-radius: var(--radius-sm); background: var(--button-bg); border: none;
+  color: var(--button-fg); font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+.approval-allow:hover { background: var(--button-hover); }
+
+/* Expanded state: details drop below the bar, same card, no visual seam */
+.approval-bar-wrap {
+  margin: 0 14px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--input-bg);
+  box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  overflow: hidden;
+}
+.approval-bar-wrap.is-high-impact { border-left: 3px solid var(--warning); }
+.approval-bar-wrap .approval-bar { margin: 0; border: none; box-shadow: none; border-radius: 0; }
+.approval-bar-details {
+  border-top: 1px solid var(--border-subtle);
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.approval-bar-command {
+  flex: 1; min-width: 0;
+  background: var(--editor-bg); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
+  padding: 6px 8px; font-family: var(--font-mono); font-size: 11.5px; color: var(--fg-dim);
+  white-space: pre-wrap; word-break: break-word; margin: 0; max-height: 90px; overflow: auto;
+}
+.approval-bar-always {
+  flex-shrink: 0; font-size: 11px; color: var(--fg-faint); text-decoration: underline;
+  text-underline-offset: 2px; cursor: pointer; background: none; border: none;
+}
+.approval-bar-always:hover { color: var(--accent); }
+
+.mini-composer {
+  margin: 0 14px 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--input-bg);
+}
+.mini-composer-row { display: flex; align-items: center; gap: 8px; padding: 8px 12px; color: var(--fg-faint); font-size: 12px; }
+.mini-composer-row .spacer { flex: 1; }
+.mini-send { width: 24px; height: 24px; border-radius: 50%; background: var(--button-bg); color: var(--button-fg); border: none; opacity: .4; }
+
+.diff-row { display: flex; gap: 20px; flex-wrap: wrap; }
+.diff-col { flex: 1; min-width: 320px; }
+.diff-col h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--fg-dim); margin: 0 0 8px; }
+
+.before-error-line {
+  font-family: var(--font-mono); font-size: 12px; color: var(--danger);
+  display: flex; align-items: center; gap: 6px; margin-top: 8px;
+}
+.before-error-line svg { flex-shrink: 0; }
+
+.skip-row {
+  display: flex; align-items: center; gap: 8px; margin-top: 8px;
+  font-size: 12.5px; color: var(--fg-dim);
+}
+.skip-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--fg-faint); flex-shrink: 0;
+}
+.skip-row-title { font-weight: 600; color: var(--fg); flex-shrink: 0; }
+.skip-row-summary {
+  font-family: var(--font-mono); font-size: 12px; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; flex: 1; min-width: 0;
+}
+.skip-row-caption { flex-shrink: 0; font-size: 11px; color: var(--fg-faint); }
+
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Approval Panel v2 — Compact Redesign</h1>
+  <p class="sub">
+    v1 feedback: too big, too busy. Fix: everything collapses to a <strong>single row</strong> by default
+    (icon + one-line truncated command + Skip/Allow) — no wrapping, no separate footer row, no loud badge.
+    Details (full command, "always allow") only appear if you explicitly expand.
+  </p>
+
+  <div class="section">
+    <h2>1. Default state — single row, always</h2>
+    <p class="note">Long commands truncate with an ellipsis instead of wrapping to 2 lines and growing the card.</p>
+    <div class="chat-shell">
+      <div class="chat-shell-scroll">
+        <div class="chat-line is-user"><div class="turn-bubble">create aaa12333333.txt file</div></div>
+      </div>
+      <div class="approval-bar">
+        <svg class="approval-bar-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5" stroke-linejoin="round"/><path d="M4.5 6.5 7 8.5 4.5 10.5M8.5 10.5h3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="approval-bar-text">printf '%s' "This is aaa12333333.txt" &gt; aaa12333333.txt &amp;&amp; echo Created…</span>
+        <button class="approval-bar-expand" title="Show details">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M4 6l4 4 4-4H4z"/></svg>
+        </button>
+        <div class="approval-bar-actions">
+          <button class="approval-skip">Skip</button>
+          <button class="approval-allow">Allow ↵</button>
+        </div>
+      </div>
+      <div class="mini-composer">
+        <div class="mini-composer-row">Steer the agent…<span class="spacer"></span><button class="mini-send">▶</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>2. Expanded state — click the chevron</h2>
+    <p class="note">Full command + "always allow" only show up here, never cluttering the default row.</p>
+    <div class="chat-shell">
+      <div class="chat-shell-scroll">
+        <div class="chat-line is-user"><div class="turn-bubble">create aaa12333333.txt file</div></div>
+      </div>
+      <div class="approval-bar-wrap">
+        <div class="approval-bar">
+          <svg class="approval-bar-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5" stroke-linejoin="round"/><path d="M4.5 6.5 7 8.5 4.5 10.5M8.5 10.5h3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span class="approval-bar-text">printf '%s' "This is aaa12333333.txt" &gt; aaa12333333.txt &amp;&amp; echo Created…</span>
+          <button class="approval-bar-expand" title="Hide details">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="transform:rotate(180deg)"><path d="M4 6l4 4 4-4H4z"/></svg>
+          </button>
+          <div class="approval-bar-actions">
+            <button class="approval-skip">Skip</button>
+            <button class="approval-allow">Allow ↵</button>
+          </div>
+        </div>
+        <div class="approval-bar-details">
+          <pre class="approval-bar-command">printf '%s' "This is aaa12333333.txt" > aaa12333333.txt && echo Created aaa12333333.txt && sed -n '1,200p' aaa12333333.txt</pre>
+          <button class="approval-bar-always">Always allow bash</button>
+        </div>
+      </div>
+      <div class="mini-composer">
+        <div class="mini-composer-row">Steer the agent…<span class="spacer"></span><button class="mini-send">▶</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>3. High-impact indicator — no separate badge</h2>
+    <p class="note">Instead of a "REVIEW CAREFULLY" pill competing for attention, a thin left accent bar (warning color) on bash/write/edit calls — visible but quiet.</p>
+    <div class="diff-row">
+      <div class="diff-col">
+        <h3>Routine (read/grep/find/ls)</h3>
+        <div class="chat-shell">
+          <div class="chat-shell-scroll"></div>
+          <div class="approval-bar">
+            <svg class="approval-bar-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="6.5" cy="6.5" r="4"/><path d="M9.5 9.5 13 13" stroke-linecap="round"/></svg>
+            <span class="approval-bar-text">grep "TODO" src/**/*.ts</span>
+            <button class="approval-bar-expand"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M4 6l4 4 4-4H4z"/></svg></button>
+            <div class="approval-bar-actions">
+              <button class="approval-skip">Skip</button>
+              <button class="approval-allow">Allow ↵</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="diff-col">
+        <h3>High-impact (bash/write/edit)</h3>
+        <div class="chat-shell">
+          <div class="chat-shell-scroll"></div>
+          <div class="approval-bar is-high-impact">
+            <svg class="approval-bar-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5" stroke-linejoin="round"/><path d="M4.5 6.5 7 8.5 4.5 10.5M8.5 10.5h3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span class="approval-bar-text">rm -rf ./dist &amp;&amp; npm run build</span>
+            <button class="approval-bar-expand"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M4 6l4 4 4-4H4z"/></svg></button>
+            <div class="approval-bar-actions">
+              <button class="approval-skip">Skip</button>
+              <button class="approval-allow">Allow ↵</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>4. Skip/denial notice — quiet, not alarming</h2>
+    <p class="note">
+      v1 problem: reused the raw <code>chat-line.is-error</code> style (danger-red monospace paragraph)
+      for what's really just a user decision, not a bug/crash. It reads like something broke.
+      Fix: match the existing timeline row language (dot + label) with a neutral gray "skipped" dot,
+      not danger red -- same visual family as a tool call, just a different outcome.
+    </p>
+    <div class="diff-row">
+      <div class="diff-col">
+        <h3>Before (v1)</h3>
+        <div class="chat-shell">
+          <div class="chat-shell-scroll">
+            <div class="chat-line is-user"><div class="turn-bubble">delete the old backup folder</div></div>
+            <div class="before-error-line">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1 15 14H1Z"/><rect x="7.2" y="5.5" width="1.6" height="4" fill="#fff"/><rect x="7.2" y="10.5" width="1.6" height="1.6" fill="#fff"/></svg>
+              "bash" was denied -- stopping this turn.
+            </div>
+          </div>
+          <div class="mini-composer">
+            <div class="mini-composer-row">Message the agent…<span class="spacer"></span><button class="mini-send">▶</button></div>
+          </div>
+        </div>
+      </div>
+      <div class="diff-col">
+        <h3>After (v2)</h3>
+        <div class="chat-shell">
+          <div class="chat-shell-scroll">
+            <div class="chat-line is-user"><div class="turn-bubble">delete the old backup folder</div></div>
+            <div class="skip-row">
+              <span class="skip-dot"></span>
+              <span class="skip-row-title">Skipped</span>
+              <span class="skip-row-summary">bash · rm -rf ./backup-old</span>
+              <span class="skip-row-caption">turn stopped</span>
+            </div>
+          </div>
+          <div class="mini-composer">
+            <div class="mini-composer-row">Message the agent…<span class="spacer"></span><button class="mini-send">▶</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>5. What changed vs. v1</h2>
+    <p class="note" style="margin:0">
+      • Single row instead of a 2-row title + full-width footer &nbsp;·&nbsp;
+      long text truncates instead of wrapping &nbsp;·&nbsp;
+      "REVIEW CAREFULLY" pill replaced with a quiet left accent bar &nbsp;·&nbsp;
+      keyboard hint moved onto the Allow button itself ("Allow ↵") instead of a separate <kbd> row &nbsp;·&nbsp;
+      "Always allow" and the raw command both moved behind the expand chevron &nbsp;·&nbsp;
+      skip/denial notice now a quiet neutral timeline-style row instead of a red monospace error paragraph.
+    </p>
+  </div>
+</div>
+</body>
+</html>

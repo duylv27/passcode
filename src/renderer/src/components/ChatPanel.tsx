@@ -9,6 +9,7 @@ import {
   type ReactNode
 } from 'react'
 import type {
+  ApprovalRequest,
   ChatEvent,
   CompactionThresholds,
   ContextUsage,
@@ -20,10 +21,13 @@ import type {
   SkillSource,
   ThinkingInfo,
   ThinkingLevel,
-  ToolInfo,
-  TokenUsage
+  TokenUsage,
+  UiPromptRequest
 } from '../../../shared/types'
 import { KNOWN_TOOL_NAMES } from '../../../shared/types'
+import { ApprovalPanel } from './ApprovalPanel'
+import { UiPromptPanel } from './UiPromptPanel'
+import { TOOL_ICONS, describeToolAction, summarizeToolCall, toolActionLabel } from '../lib/toolDisplay'
 import { readBlobAsDataUrl, resizeImageDataUrl, splitDataUrl, type PastedImage } from '../lib/imageAttachment'
 import {
   ChevronIcon,
@@ -34,14 +38,7 @@ import {
   SlashIcon,
   AnthropicIcon,
   GitHubIcon,
-  GeminiIcon,
-  ReadIcon,
-  WriteIcon,
-  EditIcon,
-  SearchIcon,
-  FolderIcon,
-  ListIcon,
-  TerminalIcon
+  GeminiIcon
 } from './icons'
 import { Markdown } from './Markdown'
 import { DiffView, diffStats } from './DiffView'
@@ -86,6 +83,8 @@ type TranscriptItem =
       endedAt?: number
     }
   | { kind: 'error'; id: string; text: string }
+  | { kind: 'denied'; id: string; toolName: string; input: unknown }
+  | { kind: 'prompted'; id: string; title: string; answerText: string }
 
 interface Props {
   session: SessionRecord
@@ -93,6 +92,15 @@ interface Props {
   /** Bumped by App.tsx when Settings closes, so a provider key saved while
    * it was open (making new models available) shows up without a reload. */
   modelsRefreshKey: number
+  /** Pending tool-call approvals scoped to this session -- App.tsx owns the
+   * full cross-session queue and filters it down to this subset. */
+  approvalRequests: ApprovalRequest[]
+  onRespondApproval: (requestId: string, approved: boolean) => void
+  /** Same cross-session-queue-filtered-per-session pattern as
+   * approvalRequests above, for extension-raised select/confirm/input
+   * prompts (see piSession.ts's bindExtensions() call). */
+  uiPromptRequests: UiPromptRequest[]
+  onRespondUiPrompt: (requestId: string, value: string | boolean | undefined) => void
 }
 
 let idCounter = 0
@@ -125,7 +133,15 @@ class RowErrorBoundary extends Component<{ children: ReactNode }, { hasError: bo
   }
 }
 
-export function ChatPanel({ session, repoName, modelsRefreshKey }: Props): JSX.Element {
+export function ChatPanel({
+  session,
+  repoName,
+  modelsRefreshKey,
+  approvalRequests,
+  onRespondApproval,
+  uiPromptRequests,
+  onRespondUiPrompt
+}: Props): JSX.Element {
   const [items, setItems] = useState<TranscriptItem[]>([])
   // True from the moment a session is opened until its 'history' event
   // arrives -- without this, switching sessions resets `items` to []
@@ -151,13 +167,15 @@ export function ChatPanel({ session, repoName, modelsRefreshKey }: Props): JSX.E
   const [sessionStats, setSessionStats] = useState<SessionStats | null>(null)
   const [statsPopoverOpen, setStatsPopoverOpen] = useState(false)
   const statsPopoverRef = useRef<HTMLDivElement>(null)
-  const [toolsInfo, setToolsInfo] = useState<{ all: ToolInfo[]; active: string[] } | null>(null)
-  const [toolsPopoverOpen, setToolsPopoverOpen] = useState(false)
-  const toolsPopoverRef = useRef<HTMLDivElement>(null)
   const [thinkingInfo, setThinkingInfo] = useState<ThinkingInfo | null>(null)
   const [skills, setSkills] = useState<SkillInfo[]>([])
   const [selectedSkill, setSelectedSkill] = useState<SkillInfo | null>(null)
   const [skillMenuOpen, setSkillMenuOpen] = useState(false)
+  const [skillHighlightIndex, setSkillHighlightIndex] = useState(0)
+  // -1 = not navigating; otherwise an index into the user's own past
+  // messages (oldest to newest) for the composer's up/down recall, same
+  // convention as a shell history.
+  const [messageHistoryIndex, setMessageHistoryIndex] = useState(-1)
   const skillPickerRef = useRef<HTMLDivElement>(null)
   const [attachedFile, setAttachedFile] = useState<string | null>(null)
   const [pastedImages, setPastedImages] = useState<PastedImage[]>([])
@@ -206,7 +224,7 @@ export function ChatPanel({ session, repoName, modelsRefreshKey }: Props): JSX.E
     window.api.approvals.getPolicy().then((policy) => {
       setAutoMode(KNOWN_TOOL_NAMES.every((name) => policy.autoApprove[name]))
     })
-  }, [])
+  }, [modelsRefreshKey])
 
   useEffect(() => {
     if (!thinking) return
@@ -279,17 +297,6 @@ export function ChatPanel({ session, repoName, modelsRefreshKey }: Props): JSX.E
   }, [statsPopoverOpen])
 
   useEffect(() => {
-    if (!toolsPopoverOpen) return
-    function handleClickOutside(e: MouseEvent): void {
-      if (toolsPopoverRef.current && !toolsPopoverRef.current.contains(e.target as Node)) {
-        setToolsPopoverOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [toolsPopoverOpen])
-
-  useEffect(() => {
     setItems([])
     setLoadingHistory(true)
     setBusy(false)
@@ -303,9 +310,8 @@ export function ChatPanel({ session, repoName, modelsRefreshKey }: Props): JSX.E
     setContextWindowInput('')
     setSessionStats(null)
     setStatsPopoverOpen(false)
-    setToolsInfo(null)
-    setToolsPopoverOpen(false)
     setThinkingInfo(null)
+    setMessageHistoryIndex(-1)
     turnActionIdsRef.current = []
     window.api.session.open(session.id)
 
@@ -435,6 +441,10 @@ export function ChatPanel({ session, repoName, modelsRefreshKey }: Props): JSX.E
         setThinking(false)
         setBusy(false)
         setItems((prev) => [...prev, { kind: 'error', id: newId(), text: event.message }])
+      } else if (event.type === 'tool_denied') {
+        setThinking(false)
+        setBusy(false)
+        setItems((prev) => [...prev, { kind: 'denied', id: newId(), toolName: event.toolName, input: event.input }])
       } else if (event.type === 'turn_end') {
         // NOT the end of the whole agent run -- the SDK emits one turn_end
         // per model round-trip, and a single prompt can span several turns
@@ -517,11 +527,12 @@ export function ChatPanel({ session, repoName, modelsRefreshKey }: Props): JSX.E
   async function handleSend(): Promise<void> {
     const text = input.trim()
     if (!text && pastedImages.length === 0) return
-    // Typing "/" opens the skill picker inline; Enter here should pick a
-    // skill (when there's exactly one match) rather than send "/query" as
-    // a literal message.
+    // Typing "/" opens the skill picker inline -- clicking Send (the
+    // textarea's own Enter key is intercepted earlier, before this ever
+    // runs) should pick whichever row is currently highlighted rather than
+    // sending "/query" as a literal message.
     if (input.startsWith('/')) {
-      if (filteredSkills.length === 1) handleSelectSkill(filteredSkills[0])
+      if (showSkillMenu) handleSelectSkill(filteredSkills[activeSkillIndex])
       return
     }
     setInput('')
@@ -555,6 +566,21 @@ export function ChatPanel({ session, repoName, modelsRefreshKey }: Props): JSX.E
     // represents it now; a skill picked via the toolbar icon shouldn't
     // clobber whatever the user was otherwise typing.
     if (input.startsWith('/')) setInput('')
+  }
+
+  function handleRespondUiPrompt(requestId: string, value: string | boolean | undefined): void {
+    const request = uiPromptRequests.find((r) => r.requestId === requestId)
+    onRespondUiPrompt(requestId, value)
+    if (!request) return
+    const answerText =
+      value === undefined
+        ? 'cancelled'
+        : request.kind === 'confirm'
+          ? value
+            ? 'Yes'
+            : 'No'
+          : String(value)
+    setItems((prev) => [...prev, { kind: 'prompted', id: newId(), title: request.title, answerText }])
   }
 
   async function handleAttachFile(): Promise<void> {
@@ -597,7 +623,15 @@ export function ChatPanel({ session, repoName, modelsRefreshKey }: Props): JSX.E
   }
 
   async function handleToggleAuto(): Promise<void> {
-    const next = !autoMode
+    // Reads the live policy fresh instead of trusting this component's own
+    // `autoMode` -- that state is only synced on mount and whenever Settings
+    // closes (see the modelsRefreshKey-keyed effect above), so it can drift
+    // from reality if the per-tool switches in Settings changed since. Toggling
+    // off a stale "already Manual" read would otherwise flip everything back
+    // to fully auto-approved instead of actually turning it off.
+    const policy = await window.api.approvals.getPolicy()
+    const currentlyAllAuto = KNOWN_TOOL_NAMES.every((name) => policy.autoApprove[name])
+    const next = !currentlyAllAuto
     setAutoMode(next)
     const autoApprove: Record<string, boolean> = {}
     for (const name of KNOWN_TOOL_NAMES) autoApprove[name] = next
@@ -618,21 +652,6 @@ export function ChatPanel({ session, repoName, modelsRefreshKey }: Props): JSX.E
     // Refetched every open (not cached-forever like thresholds) since,
     // unlike thresholds, these numbers change constantly during a session.
     if (next) setSessionStats(await window.api.session.getSessionStats(session.id))
-  }
-
-  async function handleOpenToolsPopover(): Promise<void> {
-    const next = !toolsPopoverOpen
-    setToolsPopoverOpen(next)
-    if (next) setToolsInfo(await window.api.session.getToolsInfo(session.id))
-  }
-
-  async function handleToggleTool(toolName: string): Promise<void> {
-    if (!toolsInfo) return
-    const nextActive = toolsInfo.active.includes(toolName)
-      ? toolsInfo.active.filter((t) => t !== toolName)
-      : [...toolsInfo.active, toolName]
-    setToolsInfo({ ...toolsInfo, active: nextActive })
-    await window.api.session.setActiveTools(session.id, nextActive)
   }
 
   async function handleThinkingLevelCommit(level: ThinkingLevel): Promise<void> {
@@ -693,6 +712,11 @@ export function ChatPanel({ session, repoName, modelsRefreshKey }: Props): JSX.E
   // Typing "/" as the start of the message opens the skill picker inline,
   // filtered by whatever follows -- the standard slash-command convention.
   const slashQuery = input.startsWith('/') ? input.slice(1) : null
+
+  useEffect(() => {
+    setSkillHighlightIndex(0)
+  }, [slashQuery])
+
   const filteredSkills =
     slashQuery === null
       ? skills
@@ -702,6 +726,16 @@ export function ChatPanel({ session, repoName, modelsRefreshKey }: Props): JSX.E
             s.description.toLowerCase().includes(slashQuery.toLowerCase())
         )
   const showSkillMenu = skills.length > 0 && (skillMenuOpen || slashQuery !== null) && filteredSkills.length > 0
+  // Clamped rather than reset-via-effect -- keeps the highlight stable
+  // (e.g. still pointing at the same relative row) as the filtered list
+  // shrinks/grows while typing, only snapping back when it'd go out of
+  // bounds entirely.
+  const activeSkillIndex = Math.min(skillHighlightIndex, filteredSkills.length - 1)
+
+  // Derived from the already-loaded transcript (not a separate log) so
+  // recall works immediately after reopening a session, not just for
+  // messages sent this run.
+  const userMessageHistory = items.filter((i) => i.kind === 'user').map((i) => i.text)
 
   // Grouped by provider (in the order providers first appear in `models`,
   // which already reflects the registry's own ordering) rather than a flat
@@ -747,15 +781,22 @@ export function ChatPanel({ session, repoName, modelsRefreshKey }: Props): JSX.E
           </div>
         )}
       </div>
+      <ApprovalPanel requests={approvalRequests} onRespond={onRespondApproval} />
+      <UiPromptPanel requests={uiPromptRequests} onRespond={handleRespondUiPrompt} />
       <div className={`composer${busy ? ' is-busy' : ''}`} ref={skillPickerRef}>
         {showSkillMenu && (
           <div className="skill-picker-menu" role="listbox">
-            {filteredSkills.map((skill) => (
+            {filteredSkills.map((skill, index) => (
               <button
                 key={skill.filePath}
                 type="button"
                 role="option"
-                className="skill-picker-option"
+                aria-selected={index === activeSkillIndex}
+                className={`skill-picker-option${index === activeSkillIndex ? ' is-active' : ''}`}
+                ref={(el) => {
+                  if (index === activeSkillIndex) el?.scrollIntoView({ block: 'nearest' })
+                }}
+                onMouseEnter={() => setSkillHighlightIndex(index)}
                 onClick={() => handleSelectSkill(skill)}
               >
                 <span className="skill-picker-option-title">
@@ -1009,38 +1050,6 @@ export function ChatPanel({ session, repoName, modelsRefreshKey }: Props): JSX.E
               </div>
             )}
           </div>
-          <div className="context-usage" ref={toolsPopoverRef}>
-            <button type="button" className="composer-icon-badge" onClick={handleOpenToolsPopover} title="Active tools">
-              ⚙
-            </button>
-            {toolsPopoverOpen && (
-              <div className="context-usage-popover">
-                <div className="context-usage-popover-header">
-                  <h3>Active tools</h3>
-                </div>
-                <p className="context-usage-caption">
-                  A disabled tool is never offered to the model at all this turn onward -- stricter than
-                  requiring approval for it.
-                </p>
-                {toolsInfo ? (
-                  toolsInfo.all.map((tool) => (
-                    <div className="context-usage-row" key={tool.name}>
-                      <div className="context-usage-row-text">
-                        <span className="context-usage-row-title">{tool.name}</span>
-                        <span className="context-usage-row-desc">{tool.description}</span>
-                      </div>
-                      <Switch
-                        checked={toolsInfo.active.includes(tool.name)}
-                        onChange={() => handleToggleTool(tool.name)}
-                      />
-                    </div>
-                  ))
-                ) : (
-                  <div className="sidebar-empty">Loading…</div>
-                )}
-              </div>
-            )}
-          </div>
         </div>
         {(selectedSkill || attachedFile || pastedImages.length > 0) && (
           <div className="composer-chips">
@@ -1093,9 +1102,63 @@ export function ChatPanel({ session, repoName, modelsRefreshKey }: Props): JSX.E
           className="composer-field"
           rows={1}
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={(e) => {
+            setInput(e.target.value)
+            // A real keystroke, not our own history-recall setInput call
+            // (which never fires this handler) -- typing means composing
+            // fresh, so stop treating up/down as history recall until the
+            // box is empty again.
+            setMessageHistoryIndex(-1)
+          }}
           onPaste={handlePaste}
           onKeyDown={(e) => {
+            if (showSkillMenu) {
+              if (e.key === 'ArrowDown') {
+                e.preventDefault()
+                setSkillHighlightIndex((i) => (i + 1) % filteredSkills.length)
+                return
+              }
+              if (e.key === 'ArrowUp') {
+                e.preventDefault()
+                setSkillHighlightIndex((i) => (i - 1 + filteredSkills.length) % filteredSkills.length)
+                return
+              }
+              if ((e.key === 'Enter' && !e.shiftKey && !e.ctrlKey) || e.key === 'Tab') {
+                e.preventDefault()
+                handleSelectSkill(filteredSkills[activeSkillIndex])
+                return
+              }
+              if (e.key === 'Escape') {
+                e.preventDefault()
+                setSkillMenuOpen(false)
+                if (input.startsWith('/')) setInput('')
+                return
+              }
+            } else if (e.key === 'ArrowUp' && !e.shiftKey && !e.ctrlKey) {
+              // Recall: only kicks in from an empty box (so it never fights
+              // normal cursor movement while editing real multi-line text),
+              // but once recalling, keeps working even though the box is no
+              // longer empty -- it's now showing history, not a draft.
+              if (messageHistoryIndex === -1 && input !== '') return
+              if (userMessageHistory.length === 0) return
+              const nextIndex =
+                messageHistoryIndex === -1 ? userMessageHistory.length - 1 : Math.max(0, messageHistoryIndex - 1)
+              e.preventDefault()
+              setMessageHistoryIndex(nextIndex)
+              setInput(userMessageHistory[nextIndex])
+              return
+            } else if (e.key === 'ArrowDown' && !e.shiftKey && !e.ctrlKey && messageHistoryIndex !== -1) {
+              e.preventDefault()
+              const nextIndex = messageHistoryIndex + 1
+              if (nextIndex >= userMessageHistory.length) {
+                setMessageHistoryIndex(-1)
+                setInput('')
+              } else {
+                setMessageHistoryIndex(nextIndex)
+                setInput(userMessageHistory[nextIndex])
+              }
+              return
+            }
             if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey) {
               e.preventDefault()
               handleSend()
@@ -1235,6 +1298,30 @@ const TranscriptRow = memo(function TranscriptRow({
       </div>
     )
   }
+  if (item.kind === 'denied') {
+    const summary = summarizeToolCall(item.toolName, item.input)
+    return (
+      <div className="chat-line is-denied">
+        <span className="denied-dot" />
+        <span className="denied-title">Skipped</span>
+        <span className="denied-summary">
+          {item.toolName}
+          {summary ? ` · ${summary}` : ''}
+        </span>
+        <span className="denied-caption">turn stopped</span>
+      </div>
+    )
+  }
+  if (item.kind === 'prompted') {
+    return (
+      <div className="chat-line is-denied">
+        <span className="denied-dot" />
+        <span className="denied-title">Asked</span>
+        <span className="denied-summary">{item.title}</span>
+        <span className="denied-caption">{item.answerText}</span>
+      </div>
+    )
+  }
   return <div className="chat-line is-error">{item.text}</div>
 })
 
@@ -1351,50 +1438,6 @@ function truncateOutput(text: string, maxLines = 6, maxCharsPerLine = 160): stri
   return truncated.join('\n') + (hasMore ? '\n…' : '')
 }
 
-const TOOL_ACTION_LABELS: Record<string, string> = {
-  read: 'Read file',
-  edit: 'Edit file',
-  write: 'Create file',
-  grep: 'Search text',
-  find: 'Find files',
-  ls: 'List directory',
-  bash: 'Run command',
-  powershell: 'Run command'
-}
-
-/** Per-tool-type marker shown in place of a plain status dot, so the
- * timeline reads as "what kind of action happened" at a glance rather
- * than a row of identical dots. A tool name with no entry here falls
- * back to the plain dot (see TimelineRow) rather than rendering nothing. */
-const TOOL_ICONS: Record<string, (props: { className?: string }) => JSX.Element> = {
-  read: ReadIcon,
-  write: WriteIcon,
-  edit: EditIcon,
-  grep: SearchIcon,
-  find: FolderIcon,
-  ls: ListIcon,
-  bash: TerminalIcon,
-  powershell: TerminalIcon
-}
-
-/** A plain-English name for the action, shown in place of the raw tool
- * identifier so the card reads as "what happened" at a glance. */
-function toolActionLabel(toolName: string): string {
-  return TOOL_ACTION_LABELS[toolName] ?? toolName
-}
-
-function describeToolAction(toolName: string, args: unknown): string {
-  const summary = summarizeToolCall(toolName, args)
-  if (toolName === 'read') return summary ? `Read the file ${summary}` : 'Read a file'
-  if (toolName === 'edit') return summary ? `Update ${summary}` : 'Update a file'
-  if (toolName === 'write') return summary ? `Create ${summary}` : 'Create a file'
-  if (toolName === 'grep') return summary ? `Search the codebase for ${summary}` : 'Search the codebase'
-  if (toolName === 'find') return summary ? `Find files matching ${summary}` : 'Find files'
-  if (toolName === 'ls') return summary ? `List the directory ${summary}` : 'List a directory'
-  if (toolName === 'bash' || toolName === 'powershell') return summary ? `Run the command ${summary}` : 'Run a command'
-  return `Run the ${toolName} action`
-}
-
 function formatUsage(usage: TokenUsage | undefined, scope: 'model response' | 'turn total' | undefined): string {
   if (!usage) return 'usage unavailable'
   const suffix = scope === 'turn total' ? ' turn' : ''
@@ -1409,29 +1452,6 @@ function formatActionMetrics(
   scope: 'model response' | 'turn total' | undefined
 ): string {
   return `${duration ?? 'running'} · ${formatUsage(usage, scope)}`
-}
-
-/** A short, human-readable description of what the call is doing, shown
- * inline in the tool card's header so the action is legible without
- * expanding it. */
-function summarizeToolCall(toolName: string, args: unknown): string | null {
-  const a = args as Record<string, unknown> | undefined
-  if (!a) return null
-  switch (toolName) {
-    case 'bash':
-    case 'powershell':
-      return typeof a.command === 'string' ? a.command : null
-    case 'read':
-    case 'edit':
-    case 'write':
-    case 'ls':
-      return typeof a.path === 'string' ? a.path : null
-    case 'grep':
-    case 'find':
-      return typeof a.pattern === 'string' ? a.pattern : null
-    default:
-      return null
-  }
 }
 
 /** A one-line summary of the completed call's output, shown under the

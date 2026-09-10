@@ -1,0 +1,775 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>PassCode — Approval UI Design Artifact</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+  rel="stylesheet"
+/>
+<style>
+/* ============================================================
+   Tokens -- lifted directly from theme.css ("Ledger" light theme)
+   ============================================================ */
+:root {
+  --bg: #f4f5f3;
+  --sheet-bg: #eceeea;
+  --sidebar-bg: #eceeea;
+  --editor-bg: #f4f5f3;
+  --border: #c7ccc7;
+  --border-subtle: #dadedb;
+  --fg: #20242a;
+  --fg-dim: #5c6268;
+  --fg-faint: #8b9094;
+  --fg-bright: #0b0d0f;
+  --accent: #55677a;
+  --accent-wash: rgba(85, 103, 122, 0.09);
+  --list-hover: #e3e6e2;
+  --list-active: rgba(85, 103, 122, 0.07);
+  --input-bg: #fbfcfb;
+  --button-bg: #55677a;
+  --button-hover: #44525f;
+  --button-fg: #ffffff;
+  --success: #2e7d32;
+  --danger: #c0392b;
+  --warning: #a3690f;
+  --font-ui: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', Consolas, 'Cascadia Code', ui-monospace, monospace;
+  --radius: 9px;
+  --radius-sm: 6px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: #dfe2de;
+  font-family: var(--font-ui);
+  color: var(--fg);
+  padding: 40px 24px 120px;
+}
+
+/* ------------------------------------------------------------
+   Artifact chrome (not part of the app -- just organizes this
+   page into labeled, side-by-side specimens)
+   ------------------------------------------------------------ */
+.artifact-header {
+  max-width: 1240px;
+  margin: 0 auto 36px;
+}
+.artifact-header h1 {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 6px;
+  color: var(--fg-bright);
+}
+.artifact-header p {
+  font-size: 14px;
+  color: var(--fg-dim);
+  max-width: 720px;
+  line-height: 1.6;
+  margin: 0;
+}
+.artifact-nav {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+.artifact-nav a {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 5px 12px;
+  text-decoration: none;
+}
+.artifact-nav a:hover { background: var(--list-hover); }
+
+.section {
+  max-width: 1240px;
+  margin: 0 auto 56px;
+}
+.section h2 {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--fg-bright);
+  margin: 0 0 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.section h2 .tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--fg-dim);
+  background: #fff;
+  border: 1px solid var(--border);
+  padding: 2px 7px;
+  border-radius: 999px;
+  letter-spacing: 0.02em;
+}
+.section .desc {
+  font-size: 12.5px;
+  color: var(--fg-dim);
+  max-width: 700px;
+  line-height: 1.6;
+  margin: 4px 0 18px;
+}
+
+.specimen-row {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.specimen {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+
+.specimen-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--fg-dim);
+  padding: 8px 14px;
+  background: var(--sheet-bg);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.specimen-label .state-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.state-dot.pending { background: var(--accent); }
+.state-dot.denied { background: var(--danger); }
+.state-dot.allowed { background: var(--success); }
+
+.specimen-body {
+  padding: 20px;
+}
+
+/* ============================================================
+   1. Composer chrome (Manual/Auto button, for context)
+   ============================================================ */
+.mini-composer {
+  width: 420px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--input-bg);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+.mini-composer-topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3) 0;
+}
+.composer-auto-btn {
+  flex-shrink: 0;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--fg-dim);
+  cursor: pointer;
+}
+.composer-auto-btn:hover { border-color: var(--fg-dim); color: var(--fg-bright); }
+.composer-auto-btn.is-active {
+  background: var(--accent-wash);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.mini-model-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 10px 3px 6px;
+  font-size: 12px;
+  color: var(--fg);
+}
+.mini-model-pill .dot {
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--accent-wash);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--accent); font-size: 8px;
+}
+.mini-composer-field {
+  padding: 10px 14px 4px;
+  font-size: 13px;
+  color: var(--fg-faint);
+}
+.mini-composer-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px 10px;
+  color: var(--fg-dim);
+}
+.mini-composer-toolbar .spacer { flex: 1; }
+.mini-send {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: var(--button-bg); color: var(--button-fg);
+  display: flex; align-items: center; justify-content: center;
+  border: none;
+}
+
+/* ============================================================
+   2. Approval panel (the actual component)
+   ============================================================ */
+.chat-shell {
+  width: 560px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--editor-bg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.chat-shell-scroll {
+  padding: 18px 18px 8px;
+  min-height: 90px;
+  font-size: 13px;
+  color: var(--fg-dim);
+  font-family: var(--font-mono);
+  font-style: italic;
+}
+.chat-shell-scroll.has-content { font-style: normal; font-family: var(--font-ui); }
+
+.chat-line { font-size: 13px; line-height: 1.6; margin-bottom: 10px; }
+.chat-line.is-user { display: flex; justify-content: flex-end; }
+.turn-bubble {
+  background: var(--list-active);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  color: var(--fg);
+  max-width: 80%;
+}
+.chat-line.is-error {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--danger);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.chat-line.is-error svg { flex-shrink: 0; }
+
+.approval-panel {
+  margin: 10px 14px 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--input-bg);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  padding: var(--space-3) var(--space-4);
+}
+.approval-panel-main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+.approval-panel-text { flex: 1; min-width: 0; }
+.approval-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--fg-bright);
+}
+.approval-panel-title .tool-icon {
+  width: 14px; height: 14px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.approval-panel-input {
+  background: var(--editor-bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--fg-dim);
+  max-height: 120px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+}
+.approval-panel-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+.approval-panel-queue-hint {
+  margin-top: var(--space-2);
+  font-size: 11px;
+  color: var(--fg-dim);
+}
+.approval-skip {
+  padding: 6px var(--space-3);
+  border-radius: var(--radius-sm);
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--fg);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.approval-skip:hover { background: var(--list-hover); }
+.approval-allow {
+  padding: 6px var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--button-bg);
+  border: none;
+  color: var(--button-fg);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.approval-allow:hover { background: var(--button-hover); }
+
+.mini-composer-inline {
+  margin: 12px 14px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--input-bg);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+/* ============================================================
+   3. Settings rows (per-tool switches)
+   ============================================================ */
+.settings-card {
+  width: 460px;
+  background: var(--editor-bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.settings-row:last-child { border-bottom: none; }
+.settings-row-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.settings-row-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg-bright);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.settings-row-title svg { color: var(--fg-dim); flex-shrink: 0; }
+.settings-row-desc { font-size: 12px; color: var(--fg-dim); }
+
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 38px;
+  height: 21px;
+  flex-shrink: 0;
+}
+.switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.switch-track {
+  position: absolute;
+  inset: 0;
+  background: var(--border);
+  border-radius: 999px;
+  transition: background 150ms ease;
+}
+.switch input:checked + .switch-track { background: var(--accent); }
+.switch-thumb {
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 17px; height: 17px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+  transition: transform 150ms ease;
+}
+.switch input:checked + .switch-track .switch-thumb { transform: translateX(17px); }
+
+/* ============================================================
+   4. Annotation callouts
+   ============================================================ */
+.callout {
+  margin-top: 14px;
+  font-size: 12px;
+  color: var(--fg-dim);
+  line-height: 1.6;
+  max-width: 460px;
+}
+.callout code {
+  font-family: var(--font-mono);
+  background: var(--sheet-bg);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+.callout ul { margin: 6px 0 0; padding-left: 18px; }
+.callout li { margin-bottom: 4px; }
+
+.flow-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+.flow-step {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 12px;
+  color: var(--fg);
+  min-width: 150px;
+  text-align: center;
+}
+.flow-step strong { display: block; font-size: 12.5px; margin-bottom: 3px; color: var(--fg-bright); }
+.flow-arrow { color: var(--fg-faint); font-size: 16px; }
+.flow-step.accent { border-color: var(--accent); background: var(--accent-wash); }
+.flow-step.danger-step { border-color: var(--danger); background: rgba(192,57,43,0.06); }
+.flow-step.success-step { border-color: var(--success); background: rgba(46,125,50,0.06); }
+
+footer.artifact-footer {
+  max-width: 1240px;
+  margin: 60px auto 0;
+  font-size: 11px;
+  color: var(--fg-faint);
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+</style>
+</head>
+<body>
+
+<div class="artifact-header">
+  <h1>Approval UI — Design Artifact</h1>
+  <p>
+    Every surface involved in tool-call approval: the composer's Manual/Auto toggle, the inline
+    approval panel (pending / queued / denied), the resulting chat note when a call is skipped,
+    and the per-tool Settings switches that back it all. Colors, spacing, and type match the
+    shipping "Ledger" light theme 1:1.
+  </p>
+  <div class="artifact-nav">
+    <a href="#composer">1. Composer toggle</a>
+    <a href="#panel">2. Approval panel</a>
+    <a href="#denied">3. Denied note</a>
+    <a href="#settings">4. Settings rows</a>
+    <a href="#flow">5. Full flow</a>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<div class="section" id="composer">
+  <h2>1. Composer Manual / Auto toggle <span class="tag">composer-auto-btn</span></h2>
+  <p class="desc">
+    A single pill button that flips every known tool's auto-approve flag at once. Always reads the
+    live policy before toggling (not cached component state) so it can't silently re-enable
+    everything if Settings changed the per-tool switches since the button last rendered.
+  </p>
+  <div class="specimen-row">
+    <div class="specimen">
+      <div class="specimen-label">Manual — nothing auto-approved</div>
+      <div class="specimen-body">
+        <div class="mini-composer">
+          <div class="mini-composer-topbar">
+            <button class="composer-auto-btn">Manual</button>
+            <span class="mini-model-pill"><span class="dot">●</span> Claude Sonnet 5</span>
+          </div>
+          <div class="mini-composer-field">Message the agent about pi-agent-desktop</div>
+          <div class="mini-composer-toolbar">
+            <span class="spacer"></span>
+            <span style="font-size:11px">New session</span>
+            <button class="mini-send">▶</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="specimen">
+      <div class="specimen-label">Auto — everything auto-approved</div>
+      <div class="specimen-body">
+        <div class="mini-composer">
+          <div class="mini-composer-topbar">
+            <button class="composer-auto-btn is-active">Auto</button>
+            <span class="mini-model-pill"><span class="dot">●</span> Claude Sonnet 5</span>
+          </div>
+          <div class="mini-composer-field">Message the agent about pi-agent-desktop</div>
+          <div class="mini-composer-toolbar">
+            <span class="spacer"></span>
+            <span style="font-size:11px">New session</span>
+            <button class="mini-send">▶</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<div class="section" id="panel">
+  <h2>2. Inline approval panel <span class="tag">.approval-panel</span></h2>
+  <p class="desc">
+    Docked directly above the composer as a bordered card matching its own shape/shadow — not a
+    full-screen modal. Non-blocking: switching sessions/tabs stays possible while a request from
+    another session waits underneath.
+  </p>
+  <div class="specimen-row">
+
+    <div class="specimen">
+      <div class="specimen-label"><span><span class="state-dot pending"></span> Pending — single request</span></div>
+      <div class="specimen-body">
+        <div class="chat-shell">
+          <div class="chat-shell-scroll has-content">
+            <div class="chat-line is-user"><div class="turn-bubble">Create a file called notes.txt with today's TODOs</div></div>
+          </div>
+          <div class="approval-panel">
+            <div class="approval-panel-main">
+              <div class="approval-panel-text">
+                <div class="approval-panel-title">
+                  <svg class="tool-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3.5 1.5h6l3 3v10h-9Z" stroke-linejoin="round"/><path d="M8 7.5v4M6 9.5h4" stroke-linecap="round"/></svg>
+                  Run write?
+                </div>
+                <pre class="approval-panel-input">{
+  "path": "notes.txt",
+  "content": "- Buy milk\n- Finish approval UI"
+}</pre>
+              </div>
+              <div class="approval-panel-actions">
+                <button class="approval-skip">Skip</button>
+                <button class="approval-allow">Allow</button>
+              </div>
+            </div>
+          </div>
+          <div class="mini-composer-inline">
+            <div class="mini-composer-toolbar" style="padding-top:8px;">
+              <span style="font-size:12px;color:var(--fg-faint)">Message the agent…</span>
+              <span class="spacer"></span>
+              <button class="mini-send" style="opacity:.4">▶</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="specimen">
+      <div class="specimen-label"><span><span class="state-dot pending"></span> Pending — queued behind another</span></div>
+      <div class="specimen-body">
+        <div class="chat-shell">
+          <div class="chat-shell-scroll has-content">
+            <div class="chat-line is-user"><div class="turn-bubble">Run the test suite and fix anything red</div></div>
+          </div>
+          <div class="approval-panel">
+            <div class="approval-panel-main">
+              <div class="approval-panel-text">
+                <div class="approval-panel-title">
+                  <svg class="tool-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5" stroke-linejoin="round"/><path d="M4.5 6.5 7 8.5 4.5 10.5M8.5 10.5h3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  Run bash?
+                </div>
+                <pre class="approval-panel-input">{
+  "command": "npm test"
+}</pre>
+              </div>
+              <div class="approval-panel-actions">
+                <button class="approval-skip">Skip</button>
+                <button class="approval-allow">Allow</button>
+              </div>
+            </div>
+            <div class="approval-panel-queue-hint">2 more waiting</div>
+          </div>
+          <div class="mini-composer-inline">
+            <div class="mini-composer-toolbar" style="padding-top:8px;">
+              <span style="font-size:12px;color:var(--fg-faint)">Message the agent…</span>
+              <span class="spacer"></span>
+              <button class="mini-send" style="opacity:.4">▶</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <div class="callout">
+    <strong>Notes</strong>
+    <ul>
+      <li>Tool icon + name reused from the existing timeline row treatment (<code>read/write/edit/bash</code> icon set) so it reads as the same "action" language as the transcript.</li>
+      <li><code>&lt;pre&gt;</code> input block truncates at <code>max-height: 120px</code> with scroll, matching timeline detail panels.</li>
+      <li>Queue hint appears only when &gt;1 request is pending <em>for this session</em> — cross-session requests stay queued invisibly until you switch tabs.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<div class="section" id="denied">
+  <h2>3. Denied — chat note &amp; composer state <span class="tag">chat-line.is-error</span></h2>
+  <p class="desc">
+    Clicking <strong>Skip</strong> does two things: the SDK's tool_call hook returns
+    <code>{ block: true, terminate: true }</code> (stop the turn, don't let the model route around
+    the denial), and the main process emits a distinct chat note so the user gets visible
+    confirmation instead of just a stall.
+  </p>
+  <div class="specimen-row">
+    <div class="specimen">
+      <div class="specimen-label"><span><span class="state-dot denied"></span> After clicking Skip</span></div>
+      <div class="specimen-body">
+        <div class="chat-shell">
+          <div class="chat-shell-scroll has-content">
+            <div class="chat-line is-user"><div class="turn-bubble">Delete the old backup folder</div></div>
+            <div class="chat-line is-error">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1 15 14H1Z"/><rect x="7.2" y="5.5" width="1.6" height="4" fill="#fff"/><rect x="7.2" y="10.5" width="1.6" height="1.6" fill="#fff"/></svg>
+              "bash" was denied — stopping this turn.
+            </div>
+          </div>
+          <div class="mini-composer-inline">
+            <div class="mini-composer-toolbar" style="padding-top:8px;">
+              <span style="font-size:12px;color:var(--fg-faint)">Message the agent…</span>
+              <span class="spacer"></span>
+              <button class="mini-send">▶</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="callout">
+    <strong>Behavior</strong>
+    <ul>
+      <li>Reuses the existing <code>error</code> chat-event styling (monospace, danger red) rather than introducing a new visual language for "denial" — it's still an interruption, just a deliberate one.</li>
+      <li>The same event immediately clears <code>busy</code>/<code>thinking</code> client-side, so the composer re-enables at once instead of waiting on the model's (possibly empty) post-termination response.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<div class="section" id="settings">
+  <h2>4. Settings — per-tool approval switches <span class="tag">.settings-row</span></h2>
+  <p class="desc">
+    The source of truth the composer button reads/writes in bulk. Read-only tools default to
+    auto-approved; anything that mutates the filesystem or shells out defaults to requiring approval.
+  </p>
+  <div class="specimen-row">
+    <div class="specimen">
+      <div class="specimen-label">Tool approval policy</div>
+      <div class="specimen-body">
+        <div class="settings-card">
+          <div class="settings-row">
+            <div class="settings-row-text">
+              <span class="settings-row-title">
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3.5 1.5h6l3 3v10h-9Z" stroke-linejoin="round"/><path d="M6 8h4M6 10.5h4" stroke-linecap="round"/></svg>
+                read
+              </span>
+              <span class="settings-row-desc">Read a file's contents</span>
+            </div>
+            <label class="switch"><input type="checkbox" checked><span class="switch-track"></span><span class="switch-thumb"></span></label>
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-text">
+              <span class="settings-row-title">
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="6.5" cy="6.5" r="4"/><path d="M9.5 9.5 13 13" stroke-linecap="round"/></svg>
+                grep
+              </span>
+              <span class="settings-row-desc">Search file contents</span>
+            </div>
+            <label class="switch"><input type="checkbox" checked><span class="switch-track"></span><span class="switch-thumb"></span></label>
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-text">
+              <span class="settings-row-title">
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5" stroke-linejoin="round"/><path d="M4.5 6.5 7 8.5 4.5 10.5M8.5 10.5h3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                bash
+              </span>
+              <span class="settings-row-desc">Run a shell command</span>
+            </div>
+            <label class="switch"><input type="checkbox"><span class="switch-track"></span><span class="switch-thumb"></span></label>
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-text">
+              <span class="settings-row-title">
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3.5 1.5h6l3 3v10h-9Z" stroke-linejoin="round"/><path d="M8 7.5v4M6 9.5h4" stroke-linecap="round"/></svg>
+                write
+              </span>
+              <span class="settings-row-desc">Create a new file</span>
+            </div>
+            <label class="switch"><input type="checkbox"><span class="switch-track"></span><span class="switch-thumb"></span></label>
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-text">
+              <span class="settings-row-title">
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M10.5 2.5 13.5 5.5 5.5 13.5H2.5V10.5Z" stroke-linejoin="round"/></svg>
+                edit
+              </span>
+              <span class="settings-row-desc">Modify an existing file</span>
+            </div>
+            <label class="switch"><input type="checkbox"><span class="switch-track"></span><span class="switch-thumb"></span></label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<div class="section" id="flow">
+  <h2>5. End-to-end flow</h2>
+  <p class="desc">From model wanting to call a tool, to the two possible outcomes.</p>
+  <div class="flow-strip">
+    <div class="flow-step"><strong>Model requests tool</strong>e.g. bash / write</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-step accent"><strong>Policy check</strong>autoApprove[tool]?</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-step"><strong>Auto-approved</strong>runs immediately, no UI</div>
+  </div>
+  <div class="flow-strip" style="margin-top:10px;">
+    <div class="flow-step" style="visibility:hidden"><strong>_</strong>_</div>
+    <span class="flow-arrow" style="visibility:hidden">→</span>
+    <div class="flow-step" style="visibility:hidden"><strong>_</strong>_</div>
+    <span class="flow-arrow">↳</span>
+    <div class="flow-step accent"><strong>Requires approval</strong>Approval panel shown</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-step success-step"><strong>Allow</strong>tool executes</div>
+  </div>
+  <div class="flow-strip" style="margin-top:10px;">
+    <div class="flow-step" style="visibility:hidden"><strong>_</strong>_</div>
+    <span class="flow-arrow" style="visibility:hidden">→</span>
+    <div class="flow-step" style="visibility:hidden"><strong>_</strong>_</div>
+    <span class="flow-arrow" style="visibility:hidden">↳</span>
+    <div class="flow-step" style="visibility:hidden"><strong>_</strong>_</div>
+    <span class="flow-arrow">↳</span>
+    <div class="flow-step danger-step"><strong>Skip</strong>blocked + terminate:true + red chat note</div>
+  </div>
+</div>
+
+<footer class="artifact-footer">
+  PassCode — Approval UI design artifact · generated to match theme.css ("Ledger" light) 1:1 · components: composer-auto-btn, approval-panel, chat-line.is-error, settings-row + switch
+</footer>
+
+</body>
+</html>

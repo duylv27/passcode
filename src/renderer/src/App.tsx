@@ -1,19 +1,23 @@
-import { useEffect, useState, type PointerEvent as ReactPointerEvent } from 'react'
-import type { Project, Repo, SessionRecord, SessionWithScope } from '../../shared/types'
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import type { ApprovalRequest, Project, Repo, SessionRecord, SessionWithScope, UiPromptRequest } from '../../shared/types'
 import { ProjectExplorer } from './components/ProjectExplorer'
 import { SessionTabs } from './components/SessionTabs'
 import { ChatPanel } from './components/ChatPanel'
 import { WelcomeScreen } from './components/WelcomeScreen'
 import { SettingsPanel } from './components/SettingsPanel'
-import { ApprovalDialog } from './components/ApprovalDialog'
 import { TitleBar } from './components/TitleBar'
 import { AboutDialog } from './components/AboutDialog'
+import { ToastStack, type ToastMessage } from './components/Toast'
 import { ChatIcon, ExplorerIcon, GearIcon, LogoIcon } from './components/icons'
 import { clampSidebarWidth, SIDEBAR_DEFAULT_WIDTH, SIDEBAR_WIDTH_KEY } from './lib/sidebarWidth'
 
 export default function App(): JSX.Element {
   const [openSessions, setOpenSessions] = useState<SessionWithScope[]>([])
+  const openSessionsRef = useRef(openSessions)
+  openSessionsRef.current = openSessions
   const [selectedSession, setSelectedSession] = useState<SessionWithScope | null>(null)
+  const selectedSessionIdRef = useRef<string | null>(null)
+  selectedSessionIdRef.current = selectedSession?.session.id ?? null
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
     try {
@@ -25,6 +29,20 @@ export default function App(): JSX.Element {
   })
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
+  const [appVersion, setAppVersion] = useState<string | null>(null)
+  // Global so no request is lost while its session's tab isn't the active
+  // one -- ApprovalPanel only renders the subset scoped to whichever
+  // session is currently selected (see the filter passed to ChatPanel
+  // below), but this queue keeps every pending request alive underneath.
+  const [approvalQueue, setApprovalQueue] = useState<ApprovalRequest[]>([])
+  // Same global-queue-filtered-per-session pattern as approvalQueue above.
+  const [uiPromptQueue, setUiPromptQueue] = useState<UiPromptRequest[]>([])
+  // Toasts for ctx.ui.notify() calls -- a separate stack from Settings'
+  // own (that one only ever shows its own save-confirmation toasts), fed
+  // by a session-agnostic listener since only the *active* tab's ChatPanel
+  // otherwise subscribes to session events at all; a background tab's
+  // notify would never be seen by anything without this.
+  const [notifyToasts, setNotifyToasts] = useState<ToastMessage[]>([])
   const [explorerView, setExplorerView] = useState<'sessions' | 'projects'>('sessions')
   const [pinnedSessionIds, setPinnedSessionIds] = useState<Set<string>>(new Set())
   // Bumped to force ProjectExplorer to refetch after a session is created
@@ -103,6 +121,63 @@ export default function App(): JSX.Element {
   useEffect(() => {
     if (openSessions.length === 0) setSidebarCollapsed(true)
   }, [openSessions.length])
+
+  useEffect(() => {
+    window.api.app.getVersion().then(setAppVersion)
+  }, [])
+
+  useEffect(() => {
+    const unsubscribe = window.api.approvals.onRequest((request) => {
+      setApprovalQueue((prev) => [...prev, request])
+    })
+    return unsubscribe
+  }, [])
+
+  useEffect(() => {
+    const unsubscribeRequest = window.api.uiPrompts.onRequest((request) => {
+      setUiPromptQueue((prev) => [...prev, request])
+    })
+    // A request that timed out or whose signal aborted -- drop it from the
+    // queue without treating it as a user response (that would otherwise
+    // resolve a promise that's already resolved on the main side).
+    const unsubscribeCancel = window.api.uiPrompts.onCancel((requestId) => {
+      setUiPromptQueue((prev) => prev.filter((r) => r.requestId !== requestId))
+    })
+    return () => {
+      unsubscribeRequest()
+      unsubscribeCancel()
+    }
+  }, [])
+
+  useEffect(() => {
+    // Session-agnostic on purpose -- catches ui_notify from every open
+    // session, not just whichever tab's ChatPanel happens to be mounted
+    // (only the active one is), so a background tab's notify still
+    // surfaces instead of being silently dropped.
+    const unsubscribe = window.api.session.onEvent((eventSessionId, event) => {
+      if (event.type !== 'ui_notify') return
+      const isBackground = eventSessionId !== selectedSessionIdRef.current
+      const sessionTitle = openSessionsRef.current.find((s) => s.session.id === eventSessionId)?.session.title
+      const text = isBackground && sessionTitle ? `${sessionTitle}: ${event.message}` : event.message
+      const variant = event.level === 'error' ? 'error' : event.level === 'warning' ? 'warning' : 'info'
+      setNotifyToasts((prev) => [...prev, { id: crypto.randomUUID(), text, variant }])
+    })
+    return unsubscribe
+  }, [])
+
+  function dismissNotifyToast(id: string): void {
+    setNotifyToasts((prev) => prev.filter((t) => t.id !== id))
+  }
+
+  async function handleRespondApproval(requestId: string, approved: boolean): Promise<void> {
+    await window.api.approvals.respond(requestId, approved)
+    setApprovalQueue((prev) => prev.filter((r) => r.requestId !== requestId))
+  }
+
+  async function handleRespondUiPrompt(requestId: string, value: string | boolean | undefined): Promise<void> {
+    await window.api.uiPrompts.respond(requestId, value)
+    setUiPromptQueue((prev) => prev.filter((r) => r.requestId !== requestId))
+  }
 
   function handleCloseTab(item: SessionWithScope): void {
     const remaining = openSessions.filter((s) => s.session.id !== item.session.id)
@@ -302,6 +377,10 @@ export default function App(): JSX.Element {
                     session={selectedSession.session}
                     repoName={scopeName!}
                     modelsRefreshKey={modelsRefreshKey}
+                    approvalRequests={approvalQueue.filter((r) => r.sessionId === selectedSession.session.id)}
+                    onRespondApproval={handleRespondApproval}
+                    uiPromptRequests={uiPromptQueue.filter((r) => r.sessionId === selectedSession.session.id)}
+                    onRespondUiPrompt={handleRespondUiPrompt}
                   />
                 ) : (
                   <div className="editor-empty">Pick or create a session in the sidebar</div>
@@ -318,11 +397,12 @@ export default function App(): JSX.Element {
         <span className="statusbar-brand">
           <LogoIcon />
           PassCode
+          {appVersion && <span className="statusbar-version">v{appVersion}</span>}
+          {import.meta.env.DEV && <span className="statusbar-dev-badge">DEV BUILD</span>}
         </span>
         {scopeName && <div className="statusbar-item">{scopeName}</div>}
       </div>
 
-      <ApprovalDialog />
       {settingsOpen && (
         <SettingsPanel
           onClose={() => {
@@ -332,6 +412,7 @@ export default function App(): JSX.Element {
         />
       )}
       {aboutOpen && <AboutDialog onClose={() => setAboutOpen(false)} />}
+      <ToastStack messages={notifyToasts} onDismiss={dismissNotifyToast} />
     </div>
   )
 }

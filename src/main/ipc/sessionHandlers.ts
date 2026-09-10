@@ -19,7 +19,6 @@ import type {
   ThinkingInfo,
   ThinkingLevel,
   TokenUsage,
-  ToolInfo,
   UsageTelemetryConfig
 } from '../../shared/types'
 
@@ -32,10 +31,42 @@ export interface CreateSessionHandlersDeps {
   openRepoSession: (
     cwd: string,
     requestApproval: (toolName: string, input: unknown) => Promise<boolean>,
+    uiPrompts: {
+      requestSelect: (title: string, options: string[], timeoutMs?: number, signal?: AbortSignal) => Promise<string | undefined>
+      requestConfirm: (title: string, message: string, timeoutMs?: number, signal?: AbortSignal) => Promise<boolean>
+      requestInput: (
+        title: string,
+        placeholder: string | undefined,
+        timeoutMs?: number,
+        signal?: AbortSignal
+      ) => Promise<string | undefined>
+      notify: (message: string, level: 'info' | 'warning' | 'error') => void
+    },
     resumeSessionFile?: string
   ) => Promise<{ repoSession: RepoSession; sessionId: string; sessionFile: string | undefined }>
   onEvent: (sessionId: string, event: ChatEvent) => void
   requestApproval: (sessionId: string, toolName: string, input: unknown) => Promise<boolean>
+  requestSelect: (
+    sessionId: string,
+    title: string,
+    options: string[],
+    timeoutMs?: number,
+    signal?: AbortSignal
+  ) => Promise<string | undefined>
+  requestConfirm: (
+    sessionId: string,
+    title: string,
+    message: string,
+    timeoutMs?: number,
+    signal?: AbortSignal
+  ) => Promise<boolean>
+  requestInput: (
+    sessionId: string,
+    title: string,
+    placeholder: string | undefined,
+    timeoutMs?: number,
+    signal?: AbortSignal
+  ) => Promise<string | undefined>
   findModel: (provider: string, modelId: string) => Model<any> | undefined
   buildPromptText: (text: string, options?: BuildPromptTextOptions) => Promise<string>
   /** Idempotently returns the hidden project+repo backing project-less
@@ -69,8 +100,6 @@ export interface SessionHandlers {
   getCompactionThresholds(sessionId: string): Promise<CompactionThresholds>
   setContextWindowOverride(sessionId: string, contextWindow: number | null): Promise<void>
   getSessionStats(sessionId: string): Promise<SessionStats>
-  getToolsInfo(sessionId: string): Promise<{ all: ToolInfo[]; active: string[] }>
-  setActiveTools(sessionId: string, toolNames: string[]): Promise<void>
   getThinkingInfo(sessionId: string): Promise<ThinkingInfo>
   setThinkingLevel(sessionId: string, level: ThinkingLevel): Promise<void>
 }
@@ -100,7 +129,29 @@ export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionH
       sessionFile
     } = await deps.openRepoSession(
       repo.path,
-      (toolName, input) => deps.requestApproval(sessionId, toolName, input),
+      async (toolName, input) => {
+        const approved = await deps.requestApproval(sessionId, toolName, input)
+        // Denying a tool call is a deliberate stop, not a silent no-op -- the
+        // SDK's `terminate: true` hint (see piSession.ts's tool_call handler)
+        // ends the turn, but says nothing on its own; without this, a user
+        // who clicks Skip has no visible confirmation anything happened
+        // beyond the composer going idle. 'tool_denied' (not 'error') so the
+        // UI renders a quiet notice, not an alarming red error paragraph --
+        // the user made a deliberate choice, nothing actually broke.
+        if (!approved) {
+          deps.onEvent(sessionId, { type: 'tool_denied', toolName, input })
+        }
+        return approved
+      },
+      {
+        requestSelect: (title, options, timeoutMs, signal) =>
+          deps.requestSelect(sessionId, title, options, timeoutMs, signal),
+        requestConfirm: (title, message, timeoutMs, signal) =>
+          deps.requestConfirm(sessionId, title, message, timeoutMs, signal),
+        requestInput: (title, placeholder, timeoutMs, signal) =>
+          deps.requestInput(sessionId, title, placeholder, timeoutMs, signal),
+        notify: (message, level) => deps.onEvent(sessionId, { type: 'ui_notify', message, level })
+      },
       resumeSessionFile
     )
     deps.sessionsRepo.setPiSessionId(sessionId, piSessionId)
@@ -371,14 +422,6 @@ export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionH
     async getSessionStats(sessionId: string): Promise<SessionStats> {
       const session = await ensureSession(sessionId)
       return session.getSessionStats()
-    },
-    async getToolsInfo(sessionId: string): Promise<{ all: ToolInfo[]; active: string[] }> {
-      const session = await ensureSession(sessionId)
-      return { all: session.getAllToolInfo(), active: session.getActiveToolNames() }
-    },
-    async setActiveTools(sessionId: string, toolNames: string[]): Promise<void> {
-      const session = await ensureSession(sessionId)
-      session.setActiveToolsByName(toolNames)
     },
     async getThinkingInfo(sessionId: string): Promise<ThinkingInfo> {
       const session = await ensureSession(sessionId)

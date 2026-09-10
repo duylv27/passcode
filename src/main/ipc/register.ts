@@ -1,9 +1,11 @@
 import { app, ipcMain } from 'electron'
+import { resolveDevVersion } from '../devVersion'
 import type { ProjectsHandlers } from './projectsHandlers'
 import type { ReposHandlers } from './reposHandlers'
 import type { SessionHandlers } from './sessionHandlers'
 import type { SettingsHandlers } from './settingsHandlers'
 import type { ApprovalHandlers } from './approvalHandlers'
+import type { UiPromptHandlers } from './uiPromptHandlers'
 import type { ModelsHandlers } from './modelsHandlers'
 import type { SkillsHandlers } from './skillsHandlers'
 import type { FilesHandlers } from './filesHandlers'
@@ -20,6 +22,7 @@ export interface IpcHandlers {
   skills: SkillsHandlers
   files: FilesHandlers
   approvals: ApprovalHandlers
+  uiPrompts: UiPromptHandlers
   window: WindowHandlers
   sessionPreview: SessionPreviewHandlers
 }
@@ -80,10 +83,6 @@ export function registerIpcHandlers(handlers: IpcHandlers): void {
     handlers.session.setContextWindowOverride(sessionId, contextWindow)
   )
   ipcMain.handle('session:getSessionStats', (_e, sessionId: string) => handlers.session.getSessionStats(sessionId))
-  ipcMain.handle('session:getToolsInfo', (_e, sessionId: string) => handlers.session.getToolsInfo(sessionId))
-  ipcMain.handle('session:setActiveTools', (_e, sessionId: string, toolNames: string[]) =>
-    handlers.session.setActiveTools(sessionId, toolNames)
-  )
   ipcMain.handle('session:getThinkingInfo', (_e, sessionId: string) => handlers.session.getThinkingInfo(sessionId))
   ipcMain.handle('session:setThinkingLevel', (_e, sessionId: string, level: ThinkingLevel) =>
     handlers.session.setThinkingLevel(sessionId, level)
@@ -118,12 +117,22 @@ export function registerIpcHandlers(handlers: IpcHandlers): void {
     handlers.approvals.respond(requestId, approved)
   )
 
+  ipcMain.handle('uiPrompt:respond', (_e, requestId: string, value: string | boolean | undefined) =>
+    handlers.uiPrompts.respond(requestId, value)
+  )
+
   ipcMain.handle('window:minimize', () => handlers.window.minimize())
   ipcMain.handle('window:toggleMaximize', () => handlers.window.toggleMaximize())
   ipcMain.handle('window:close', () => handlers.window.close())
   ipcMain.handle('window:isMaximized', () => handlers.window.isMaximized())
 
-  ipcMain.handle('app:getVersion', () => app.getVersion())
+  ipcMain.handle('app:getVersion', () => {
+    if (!app.isPackaged) {
+      const devVersion = resolveDevVersion(app.getAppPath())
+      if (devVersion) return devVersion
+    }
+    return app.getVersion()
+  })
 
   ipcMain.handle('sessionPreview:get', (_e, sessionId: string) => handlers.sessionPreview.getPreview(sessionId))
 }

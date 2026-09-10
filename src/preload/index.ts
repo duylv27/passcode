@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { Api, ApprovalRequest, ChatEvent, DeviceCodeChallenge, ToolApprovalPolicy } from '../shared/types'
+import type { Api, ApprovalRequest, ChatEvent, DeviceCodeChallenge, ToolApprovalPolicy, UiPromptRequest } from '../shared/types'
 
 const api: Api = {
   projects: {
@@ -38,8 +38,6 @@ const api: Api = {
     setContextWindowOverride: (sessionId, contextWindow) =>
       ipcRenderer.invoke('session:setContextWindowOverride', sessionId, contextWindow),
     getSessionStats: (sessionId) => ipcRenderer.invoke('session:getSessionStats', sessionId),
-    getToolsInfo: (sessionId) => ipcRenderer.invoke('session:getToolsInfo', sessionId),
-    setActiveTools: (sessionId, toolNames) => ipcRenderer.invoke('session:setActiveTools', sessionId, toolNames),
     getThinkingInfo: (sessionId) => ipcRenderer.invoke('session:getThinkingInfo', sessionId),
     setThinkingLevel: (sessionId, level) => ipcRenderer.invoke('session:setThinkingLevel', sessionId, level),
     onEvent: (listener) => {
@@ -80,6 +78,19 @@ const api: Api = {
       const wrapped = (_e: unknown, request: ApprovalRequest): void => listener(request)
       ipcRenderer.on('approvals:request', wrapped)
       return () => ipcRenderer.removeListener('approvals:request', wrapped)
+    }
+  },
+  uiPrompts: {
+    respond: (requestId, value) => ipcRenderer.invoke('uiPrompt:respond', requestId, value),
+    onRequest: (listener) => {
+      const wrapped = (_e: unknown, request: UiPromptRequest): void => listener(request)
+      ipcRenderer.on('uiPrompt:request', wrapped)
+      return () => ipcRenderer.removeListener('uiPrompt:request', wrapped)
+    },
+    onCancel: (listener) => {
+      const wrapped = (_e: unknown, requestId: string): void => listener(requestId)
+      ipcRenderer.on('uiPrompt:cancel', wrapped)
+      return () => ipcRenderer.removeListener('uiPrompt:cancel', wrapped)
     }
   },
   window: {

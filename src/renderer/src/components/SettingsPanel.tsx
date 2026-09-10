@@ -371,15 +371,16 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
                                 <div
                                   className="copilot-quota-bar-fill"
                                   style={{
-                                    width: `${Math.max(0, Math.min(100, category.percentRemaining))}%`,
+                                    width: `${Math.max(0, Math.min(100, 100 - category.percentRemaining))}%`,
                                     background:
                                       category.percentRemaining < 20 ? 'var(--danger)' : 'var(--success)'
                                   }}
                                 />
                               </div>
                               <span className="copilot-quota-meter-text">
-                                {category.remaining.toLocaleString()} / {category.entitlement.toLocaleString()}{' '}
-                                remaining ({Math.round(category.percentRemaining)}%)
+                                {(category.entitlement - category.remaining).toLocaleString()} /{' '}
+                                {category.entitlement.toLocaleString()} used (
+                                {Math.round(100 - category.percentRemaining)}%)
                                 {category.overagePermitted && category.overageCount > 0
                                   ? ` · ${category.overageCount.toLocaleString()} over quota`
                                   : ''}
