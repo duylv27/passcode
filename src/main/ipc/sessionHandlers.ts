@@ -191,17 +191,23 @@ export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionH
           if (deps.recordPassportUsage) {
             const model = repoSession.getModel()
             if (model) {
-              // The SDK's own usage object already carries a real,
-              // pre-computed dollar cost for this turn (message.usage.cost.total)
-              // -- read it straight from the raw event rather than deriving
-              // one ourselves from model pricing tables.
-              const rawCost = (
-                event as { message?: { usage?: { cost?: { total?: number } } } }
-              )?.message?.usage?.cost?.total
+              // pi-ai's own per-event usage.cost is always left at zero at
+              // this layer (the real $ computation happens elsewhere, e.g.
+              // in AgentSession's own getSessionStats() accumulation) -- so
+              // it must be computed here from the model's real per-million-
+              // token pricing instead of read off the raw event.
+              const pricedModel = deps.findModel(model.provider, model.id)
+              const cost = pricedModel
+                ? (item.usage.input * pricedModel.cost.input +
+                    item.usage.output * pricedModel.cost.output +
+                    item.usage.cacheRead * pricedModel.cost.cacheRead +
+                    item.usage.cacheWrite * pricedModel.cost.cacheWrite) /
+                  1_000_000
+                : 0
               deps.recordPassportUsage(model.provider, {
                 inputTokens: item.usage.input,
                 outputTokens: item.usage.output,
-                cost: typeof rawCost === 'number' ? rawCost : 0
+                cost
               })
             }
           }

@@ -213,6 +213,16 @@ export interface ModelInfo {
   providerName: string
   id: string
   name: string
+  contextWindow: number
+  maxTokens: number
+  reasoning: boolean
+  /** Dollars per million tokens. */
+  cost: {
+    input: number
+    output: number
+    cacheRead: number
+    cacheWrite: number
+  }
 }
 
 /** Which of the scanned directories a skill was found in -- see

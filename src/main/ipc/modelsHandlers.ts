@@ -17,7 +17,16 @@ export function createModelsHandlers(registry: ModelRegistryLike): ModelsHandler
         provider: model.provider,
         providerName: registry.getProviderDisplayName(model.provider),
         id: model.id,
-        name: model.name
+        name: model.name,
+        contextWindow: model.contextWindow,
+        maxTokens: model.maxTokens,
+        reasoning: model.reasoning,
+        cost: {
+          input: model.cost.input,
+          output: model.cost.output,
+          cacheRead: model.cost.cacheRead,
+          cacheWrite: model.cost.cacheWrite
+        }
       }))
     }
   }

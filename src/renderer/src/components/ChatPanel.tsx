@@ -154,6 +154,11 @@ export function ChatPanel({
   const [thinking, setThinking] = useState(false)
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const [models, setModels] = useState<ModelInfo[]>([])
+  // position:fixed rather than absolute -- .model-picker-menu has
+  // overflow-y:auto (which computes overflow-x to auto too per spec), so an
+  // absolutely-positioned tooltip escaping the option to either side would
+  // get clipped/scrolled away instead of floating over the whole window.
+  const [modelTooltip, setModelTooltip] = useState<{ model: ModelInfo; top: number; left: number } | null>(null)
   const [currentModel, setCurrentModel] = useState<ModelInfo | null>(null)
   const [modelMenuOpen, setModelMenuOpen] = useState(false)
   const modelPickerRef = useRef<HTMLDivElement>(null)
@@ -477,12 +482,18 @@ export function ChatPanel({
         // already-fetched models list, falling back to the raw provider id
         // if that list hasn't loaded yet.
         const matched = modelsRef.current.find((m) => m.provider === event.provider && m.id === event.id)
-        setCurrentModel({
-          provider: event.provider,
-          providerName: matched?.providerName ?? event.provider,
-          id: event.id,
-          name: event.name
-        })
+        setCurrentModel(
+          matched ?? {
+            provider: event.provider,
+            providerName: event.provider,
+            id: event.id,
+            name: event.name,
+            contextWindow: 0,
+            maxTokens: 0,
+            reasoning: false,
+            cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }
+          }
+        )
         // Thinking support/available-levels are per-model -- refetch on
         // every model change (manual switch or override) rather than
         // trying to derive them client-side.
@@ -853,6 +864,11 @@ export function ChatPanel({
                             aria-selected={isSelected}
                             className={`model-picker-option${isSelected ? ' is-selected' : ''}`}
                             onClick={() => handleModelChange(m)}
+                            onMouseEnter={(e) => {
+                              const rect = e.currentTarget.getBoundingClientRect()
+                              setModelTooltip({ model: m, top: rect.top, left: rect.right + 6 })
+                            }}
+                            onMouseLeave={() => setModelTooltip(null)}
                           >
                             {m.name}
                           </button>
@@ -860,6 +876,40 @@ export function ChatPanel({
                       })}
                     </div>
                   ))}
+                </div>
+              )}
+              {modelTooltip && (
+                <div
+                  className="model-config-tooltip"
+                  style={{ position: 'fixed', top: modelTooltip.top, left: modelTooltip.left }}
+                >
+                  <div className="model-config-tooltip-title">{modelTooltip.model.name}</div>
+                  <div className="model-config-tooltip-row">
+                    <span>Context window</span>
+                    <b>{modelTooltip.model.contextWindow.toLocaleString()} tokens</b>
+                  </div>
+                  <div className="model-config-tooltip-row">
+                    <span>Max output</span>
+                    <b>{modelTooltip.model.maxTokens.toLocaleString()} tokens</b>
+                  </div>
+                  <div className="model-config-tooltip-row">
+                    <span>Reasoning</span>
+                    <b>{modelTooltip.model.reasoning ? 'Supported' : 'Not supported'}</b>
+                  </div>
+                  <div className="model-config-tooltip-row">
+                    <span>Input price</span>
+                    <b>${modelTooltip.model.cost.input.toFixed(2)} / M tokens</b>
+                  </div>
+                  <div className="model-config-tooltip-row">
+                    <span>Output price</span>
+                    <b>${modelTooltip.model.cost.output.toFixed(2)} / M tokens</b>
+                  </div>
+                  {modelTooltip.model.cost.cacheRead > 0 && (
+                    <div className="model-config-tooltip-row">
+                      <span>Cache read price</span>
+                      <b>${modelTooltip.model.cost.cacheRead.toFixed(2)} / M tokens</b>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
