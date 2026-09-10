@@ -603,12 +603,18 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
                         key={providerId}
                         className={`passport-method-card ${addProviderId === providerId ? 'is-selected' : ''}`}
                         onClick={() => setAddProviderId(providerId)}
+                        style={{ alignItems: 'center' }}
                       >
-                        <span className="passport-icon" style={{ width: 28, height: 28, flexShrink: 0 }}>
+                        <span
+                          className="passport-icon"
+                          style={{ width: 28, height: 28, flexShrink: 0, marginTop: 0 }}
+                        >
                           <ProviderIcon providerId={providerId} size={14} />
                         </span>
-                        <div className="passport-method-title">{PROVIDER_LABELS[providerId]}</div>
-                        <span className="passport-radio" style={{ marginLeft: 'auto' }} />
+                        <div className="passport-method-title" style={{ lineHeight: 1 }}>
+                          {PROVIDER_LABELS[providerId]}
+                        </div>
+                        <span className="passport-radio" style={{ marginLeft: 'auto', marginTop: 0 }} />
                       </div>
                     ))}
                   </div>
