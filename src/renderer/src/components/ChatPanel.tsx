@@ -824,6 +824,12 @@ export function ChatPanel({
     else modelGroups.push({ providerName: m.providerName, models: [m] })
   }
 
+  // The override slider's ceiling should reflect what the current model can
+  // actually support, not a fixed guess -- CONTEXT_WINDOW_MAX only covers
+  // the case where the model list hasn't loaded yet.
+  const contextWindowMax =
+    currentModel?.contextWindow && currentModel.contextWindow > 0 ? currentModel.contextWindow : CONTEXT_WINDOW_MAX
+
   return (
     <ZoomViewerProvider>
       <div className="chat">
@@ -1144,7 +1150,7 @@ export function ChatPanel({
                       <input
                         type="range"
                         min={CONTEXT_WINDOW_MIN}
-                        max={CONTEXT_WINDOW_MAX}
+                        max={contextWindowMax}
                         step={CONTEXT_WINDOW_STEP}
                         className="context-usage-window-slider-input"
                         value={contextWindowInput || 0}
@@ -1156,13 +1162,13 @@ export function ChatPanel({
                         <div
                           className="context-usage-window-fill"
                           style={{
-                            width: `${(((Number(contextWindowInput) || CONTEXT_WINDOW_MIN) - CONTEXT_WINDOW_MIN) / (CONTEXT_WINDOW_MAX - CONTEXT_WINDOW_MIN)) * 100}%`
+                            width: `${(((Number(contextWindowInput) || CONTEXT_WINDOW_MIN) - CONTEXT_WINDOW_MIN) / (contextWindowMax - CONTEXT_WINDOW_MIN)) * 100}%`
                           }}
                         />
                         <div
                           className="context-usage-window-thumb"
                           style={{
-                            left: `${(((Number(contextWindowInput) || CONTEXT_WINDOW_MIN) - CONTEXT_WINDOW_MIN) / (CONTEXT_WINDOW_MAX - CONTEXT_WINDOW_MIN)) * 100}%`
+                            left: `${(((Number(contextWindowInput) || CONTEXT_WINDOW_MIN) - CONTEXT_WINDOW_MIN) / (contextWindowMax - CONTEXT_WINDOW_MIN)) * 100}%`
                           }}
                         />
                       </div>
@@ -1192,32 +1198,52 @@ export function ChatPanel({
                   Totals across the whole session, including history that's been compacted away.
                 </p>
                 {sessionStats ? (
-                  <div className="session-stats-grid">
-                    <div className="session-stats-cell">
-                      <span className="session-stats-label">Messages</span>
-                      <span className="session-stats-value">{sessionStats.totalMessages.toLocaleString()}</span>
-                    </div>
-                    <div className="session-stats-cell">
-                      <span className="session-stats-label">Tool calls</span>
-                      <span className="session-stats-value">{sessionStats.toolCalls.toLocaleString()}</span>
-                    </div>
-                    <div className="session-stats-cell">
-                      <span className="session-stats-label">Est. cost</span>
-                      <span className="session-stats-value is-accent">${sessionStats.cost.toFixed(2)}</span>
-                    </div>
-                    <div className="session-stats-cell">
-                      <span className="session-stats-label">Input tokens</span>
-                      <span className="session-stats-value">{sessionStats.tokens.input.toLocaleString()}</span>
-                    </div>
-                    <div className="session-stats-cell">
-                      <span className="session-stats-label">Output tokens</span>
-                      <span className="session-stats-value">{sessionStats.tokens.output.toLocaleString()}</span>
-                    </div>
-                    <div className="session-stats-cell">
-                      <span className="session-stats-label">Cache read</span>
-                      <span className="session-stats-value">{sessionStats.tokens.cacheRead.toLocaleString()}</span>
-                    </div>
-                  </div>
+                  (() => {
+                    const { input, output, cacheRead, cacheWrite, total } = sessionStats.tokens
+                    const pct = (n: number): number => (total > 0 ? (n / total) * 100 : 0)
+                    return (
+                      <div className="session-stats-panel">
+                        <div className="session-stats-mini-row">
+                          <div className="session-stats-mini">
+                            <span>Messages</span>
+                            <b>{sessionStats.totalMessages.toLocaleString()}</b>
+                          </div>
+                          <div className="session-stats-mini">
+                            <span>Tool calls</span>
+                            <b>{sessionStats.toolCalls.toLocaleString()}</b>
+                          </div>
+                          <div className="session-stats-mini">
+                            <span>Est. cost</span>
+                            <b className="is-accent">${sessionStats.cost.toFixed(2)}</b>
+                          </div>
+                        </div>
+                        <div className="session-stats-token-bar">
+                          <span style={{ width: `${pct(input)}%`, background: 'var(--accent)' }} />
+                          <span style={{ width: `${pct(output)}%`, background: 'var(--success)' }} />
+                          <span style={{ width: `${pct(cacheRead)}%`, background: 'var(--fg-faint)' }} />
+                          <span style={{ width: `${pct(cacheWrite)}%`, background: 'var(--danger)' }} />
+                        </div>
+                        <div className="session-stats-token-legend">
+                          <span>
+                            <i style={{ background: 'var(--accent)' }} /> In {formatTokenCount(input)}
+                          </span>
+                          <span>
+                            <i style={{ background: 'var(--success)' }} /> Out {formatTokenCount(output)}
+                          </span>
+                          {cacheRead > 0 && (
+                            <span>
+                              <i style={{ background: 'var(--fg-faint)' }} /> Cache R {formatTokenCount(cacheRead)}
+                            </span>
+                          )}
+                          {cacheWrite > 0 && (
+                            <span>
+                              <i style={{ background: 'var(--danger)' }} /> Cache W {formatTokenCount(cacheWrite)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })()
                 ) : (
                   <div className="sidebar-empty">Loading…</div>
                 )}
