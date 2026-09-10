@@ -33,6 +33,8 @@ export const DEFAULT_USAGE_TELEMETRY_CONFIG: UsageTelemetryConfig = {
 // this app already relies on for other local secrets.
 const PROVIDER_API_KEYS_KEY = 'providerApiKeys'
 
+const PASSPORTS_MIGRATED_KEY = 'passportsMigrated'
+
 function readProviderApiKeys(db: DatabaseSync): Record<string, string> {
   const row = db.prepare('SELECT value FROM app_settings WHERE key = ?').get(PROVIDER_API_KEYS_KEY) as
     | { value: string }
@@ -69,8 +71,12 @@ export interface AppSettingsRepository {
   setToolApprovalPolicy(policy: ToolApprovalPolicy): void
   getUsageTelemetryConfig(): UsageTelemetryConfig
   setUsageTelemetryConfig(config: UsageTelemetryConfig): void
+  /** Read-only now -- values here are the one-time source
+   * migratePassportsFromLegacyAuth() copies into `passports` rows; nothing
+   * writes through this path anymore. */
   getProviderApiKeys(): Record<string, string>
-  setProviderApiKey(providerId: string, apiKey: string): void
+  getPassportsMigrated(): boolean
+  setPassportsMigrated(): void
   getGeneralRepo(): GeneralRepoInfo | null
   setGeneralRepo(info: GeneralRepoInfo): void
 }
@@ -121,12 +127,17 @@ export function createAppSettingsRepository(db: DatabaseSync): AppSettingsReposi
     getProviderApiKeys(): Record<string, string> {
       return readProviderApiKeys(db)
     },
-    setProviderApiKey(providerId: string, apiKey: string): void {
-      const next = { ...readProviderApiKeys(db), [providerId]: apiKey }
+    getPassportsMigrated(): boolean {
+      const row = db.prepare('SELECT value FROM app_settings WHERE key = ?').get(PASSPORTS_MIGRATED_KEY) as
+        | { value: string }
+        | undefined
+      return row?.value === 'true'
+    },
+    setPassportsMigrated(): void {
       db.prepare(
         'INSERT INTO app_settings (key, value) VALUES (?, ?) ' +
           'ON CONFLICT(key) DO UPDATE SET value = excluded.value'
-      ).run(PROVIDER_API_KEYS_KEY, JSON.stringify(next))
+      ).run(PASSPORTS_MIGRATED_KEY, 'true')
     },
     getGeneralRepo(): GeneralRepoInfo | null {
       const row = db.prepare('SELECT value FROM app_settings WHERE key = ?').get(GENERAL_REPO_KEY) as

@@ -71,30 +71,13 @@ describe('AppSettingsRepository', () => {
     expect(repo.getProviderApiKeys()).toEqual({})
   })
 
-  it('persists and retrieves a saved provider API key', () => {
-    repo.setProviderApiKey('anthropic', 'sk-test-123')
-    expect(repo.getProviderApiKeys()).toEqual({ anthropic: 'sk-test-123' })
+  it('returns false for passportsMigrated when it has not been set', () => {
+    expect(repo.getPassportsMigrated()).toBe(false)
   })
 
-  it('accumulates keys for multiple providers rather than overwriting the whole set', () => {
-    repo.setProviderApiKey('anthropic', 'sk-test-123')
-    repo.setProviderApiKey('google', 'AIza-test-456')
-    expect(repo.getProviderApiKeys()).toEqual({ anthropic: 'sk-test-123', google: 'AIza-test-456' })
-  })
-
-  it('overwrites a previously saved key for the same provider rather than duplicating it', () => {
-    repo.setProviderApiKey('anthropic', 'sk-old')
-    repo.setProviderApiKey('anthropic', 'sk-new')
-    expect(repo.getProviderApiKeys()).toEqual({ anthropic: 'sk-new' })
-  })
-
-  it('does not let a saved provider API key leak into the tool approval policy or vice versa', () => {
-    repo.setToolApprovalPolicy({ autoApprove: { bash: true } })
-    repo.setProviderApiKey('anthropic', 'sk-test-123')
-    expect(repo.getToolApprovalPolicy()).toEqual({
-      autoApprove: { ...DEFAULT_TOOL_APPROVAL_POLICY.autoApprove, bash: true }
-    })
-    expect(repo.getProviderApiKeys()).toEqual({ anthropic: 'sk-test-123' })
+  it('persists passportsMigrated once set', () => {
+    repo.setPassportsMigrated()
+    expect(repo.getPassportsMigrated()).toBe(true)
   })
 
   it('returns no general repo info when none has been saved', () => {
