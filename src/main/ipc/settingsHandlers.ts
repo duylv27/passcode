@@ -13,6 +13,7 @@ import type {
 
 export interface ModelRuntimeLike {
   setRuntimeApiKey(providerId: string, apiKey: string): Promise<void>
+  removeRuntimeApiKey(providerId: string): Promise<void>
   checkAuth(providerId: string): Promise<AuthCheck | undefined>
   login(providerId: string, type: AuthType, interaction: AuthInteraction): Promise<Credential>
 }
@@ -150,6 +151,13 @@ export function createSettingsHandlers(
             })
           }
         })
+        // A runtime API-key override (whether set this session or replayed
+        // from storage on every launch, see main/index.ts) outranks an
+        // OAuth credential in auth resolution -- without clearing it here,
+        // the subscription login would succeed but never actually take
+        // effect, silently overridden by the old key forever.
+        await modelRuntime.removeRuntimeApiKey('anthropic')
+        appSettingsRepo.removeProviderApiKey('anthropic')
         return { ok: true }
       } catch (err) {
         return { ok: false, error: (err as Error).message }

@@ -71,6 +71,10 @@ export interface AppSettingsRepository {
   setUsageTelemetryConfig(config: UsageTelemetryConfig): void
   getProviderApiKeys(): Record<string, string>
   setProviderApiKey(providerId: string, apiKey: string): void
+  /** Used when switching a provider over to OAuth (e.g. Claude Pro/Max) --
+   * without this, the persisted key gets replayed via setRuntimeApiKey()
+   * on every future launch and keeps outranking the OAuth credential. */
+  removeProviderApiKey(providerId: string): void
   getGeneralRepo(): GeneralRepoInfo | null
   setGeneralRepo(info: GeneralRepoInfo): void
 }
@@ -123,6 +127,14 @@ export function createAppSettingsRepository(db: DatabaseSync): AppSettingsReposi
     },
     setProviderApiKey(providerId: string, apiKey: string): void {
       const next = { ...readProviderApiKeys(db), [providerId]: apiKey }
+      db.prepare(
+        'INSERT INTO app_settings (key, value) VALUES (?, ?) ' +
+          'ON CONFLICT(key) DO UPDATE SET value = excluded.value'
+      ).run(PROVIDER_API_KEYS_KEY, JSON.stringify(next))
+    },
+    removeProviderApiKey(providerId: string): void {
+      const next = { ...readProviderApiKeys(db) }
+      delete next[providerId]
       db.prepare(
         'INSERT INTO app_settings (key, value) VALUES (?, ?) ' +
           'ON CONFLICT(key) DO UPDATE SET value = excluded.value'

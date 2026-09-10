@@ -35,6 +35,7 @@ describe('settingsHandlers', () => {
   beforeEach(() => {
     modelRuntime = {
       setRuntimeApiKey: vi.fn(async () => {}),
+      removeRuntimeApiKey: vi.fn(async () => {}),
       checkAuth: vi.fn(async (providerId: string) =>
         providerId === 'anthropic' ? { type: 'api_key' as const } : undefined
       ),
@@ -58,6 +59,11 @@ describe('settingsHandlers', () => {
       getProviderApiKeys: () => storedProviderApiKeys,
       setProviderApiKey: (providerId, apiKey) => {
         storedProviderApiKeys = { ...storedProviderApiKeys, [providerId]: apiKey }
+      },
+      removeProviderApiKey: (providerId) => {
+        const next = { ...storedProviderApiKeys }
+        delete next[providerId]
+        storedProviderApiKeys = next
       }
     }
     handlers = createSettingsHandlers(modelRuntime, appSettingsRepo, () => {})
