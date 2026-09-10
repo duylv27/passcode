@@ -43,6 +43,11 @@ export interface CreateProjectSessionError {
 
 export interface AuthStatus {
   anthropic: boolean
+  /** Which of the two Anthropic auth methods is actually active -- the API
+   * key field and the Claude Pro/Max subscription option share the same
+   * `anthropic` connected flag, so this is what lets the UI show which one
+   * is really in effect instead of leaving that ambiguous. */
+  anthropicAuthType: 'api_key' | 'oauth' | null
   copilot: boolean
   gemini: boolean
 }

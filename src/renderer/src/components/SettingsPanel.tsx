@@ -327,7 +327,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
                 <div className="settings-row-text">
                   <span className="settings-row-title">
                     Anthropic API Key
-                    <StatusDot connected={status?.anthropic} />
+                    <StatusDot connected={status ? status.anthropicAuthType === 'api_key' : undefined} />
                   </span>
                   <span className="settings-row-desc">Used for direct Anthropic model access</span>
                   {anthropicError && <span className="settings-row-error">{anthropicError}</span>}
@@ -351,10 +351,14 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
 
               <div className="settings-row">
                 <div className="settings-row-text">
-                  <span className="settings-row-title">Claude Pro/Max Subscription</span>
+                  <span className="settings-row-title">
+                    Claude Pro/Max Subscription
+                    <StatusDot connected={status ? status.anthropicAuthType === 'oauth' : undefined} />
+                  </span>
                   <span className="settings-row-desc">
-                    Sign in with your Anthropic account instead of an API key — usage is covered by your
-                    subscription's included quota, not metered billing.
+                    {status?.anthropicAuthType === 'oauth'
+                      ? "Signed in — usage is covered by your subscription's included quota."
+                      : "Sign in with your Anthropic account instead of an API key — usage is covered by your subscription's included quota, not metered billing."}
                   </span>
                   {anthropicOAuthError && <span className="settings-row-error">{anthropicOAuthError}</span>}
                   {anthropicOAuthPrompt && (
@@ -384,7 +388,11 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
                 {!anthropicOAuthPrompt && (
                   <div className="settings-row-control">
                     <button className="settings-btn" onClick={handleAnthropicOAuthLogin} disabled={anthropicOAuthLoading}>
-                      {anthropicOAuthLoading ? 'Signing in…' : 'Sign in with Claude Pro/Max'}
+                      {anthropicOAuthLoading
+                        ? 'Signing in…'
+                        : status?.anthropicAuthType === 'oauth'
+                          ? 'Switch account'
+                          : 'Sign in with Claude Pro/Max'}
                     </button>
                   </div>
                 )}

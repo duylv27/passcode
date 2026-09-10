@@ -87,7 +87,12 @@ export function createSettingsHandlers(
         modelRuntime.checkAuth('github-copilot'),
         modelRuntime.checkAuth('google')
       ])
-      return { anthropic: anthropic !== undefined, copilot: copilot !== undefined, gemini: gemini !== undefined }
+      return {
+        anthropic: anthropic !== undefined,
+        anthropicAuthType: anthropic?.type ?? null,
+        copilot: copilot !== undefined,
+        gemini: gemini !== undefined
+      }
     },
     async loginCopilot(onChallenge) {
       try {

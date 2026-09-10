@@ -92,7 +92,7 @@ describe('settingsHandlers', () => {
 
   it('reports auth status per provider based on whether checkAuth resolves a value', async () => {
     const status = await handlers.getAuthStatus()
-    expect(status).toEqual({ anthropic: true, copilot: false, gemini: false })
+    expect(status).toEqual({ anthropic: true, anthropicAuthType: 'api_key', copilot: false, gemini: false })
   })
 
   it('sets a valid Gemini API key', async () => {
@@ -127,7 +127,7 @@ describe('settingsHandlers', () => {
       providerId === 'google' ? { type: 'api_key' as const } : undefined
     )
     const status = await handlers.getAuthStatus()
-    expect(status).toEqual({ anthropic: false, copilot: false, gemini: true })
+    expect(status).toEqual({ anthropic: false, anthropicAuthType: null, copilot: false, gemini: true })
   })
 
   it('signs in to Copilot and surfaces the device code challenge', async () => {
