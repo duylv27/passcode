@@ -68,6 +68,14 @@ export interface Passport {
   createdAt: string
 }
 
+/** A generic OAuth interaction prompt, covering both shapes the SDK's real
+ * login() flows raise today: GitHub Copilot's device code (visit a URL,
+ * type a short code) and Anthropic's browser + manual-code fallback (open
+ * a URL, optionally paste back a code if the redirect doesn't complete). */
+export type PassportOAuthPrompt =
+  | { kind: 'device_code'; userCode: string; verificationUri: string }
+  | { kind: 'browser'; url: string; instructions?: string }
+
 export interface CopilotQuotaCategory {
   id: string
   unlimited: boolean
@@ -339,6 +347,24 @@ export interface Api {
     getCopilotQuota(): Promise<CopilotQuota | null>
     getUsageTelemetryConfig(): Promise<UsageTelemetryConfig>
     setUsageTelemetryConfig(config: UsageTelemetryConfig): Promise<{ ok: true } | { ok: false; error: string }>
+  }
+  passports: {
+    list(): Promise<Passport[]>
+    createApiKey(
+      providerId: string,
+      displayName: string,
+      apiKey: string
+    ): Promise<{ ok: true; passport: Passport } | { ok: false; error: string }>
+    createOAuth(
+      providerId: string,
+      displayName: string
+    ): Promise<{ ok: true; passport: Passport } | { ok: false; error: string }>
+    onOAuthPrompt(listener: (prompt: PassportOAuthPrompt) => void): () => void
+    submitOAuthCode(code: string): Promise<void>
+    cancelOAuth(): Promise<void>
+    setActive(id: string): Promise<void>
+    rename(id: string, displayName: string): Promise<void>
+    remove(id: string): Promise<void>
   }
   approvals: {
     getPolicy(): Promise<ToolApprovalPolicy>
