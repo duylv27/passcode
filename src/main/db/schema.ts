@@ -28,6 +28,25 @@ export function initSchema(db: DatabaseSync): void {
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS passports (
+      id TEXT PRIMARY KEY,
+      provider_id TEXT NOT NULL,
+      auth_method TEXT NOT NULL,
+      display_name TEXT NOT NULL,
+      is_active INTEGER NOT NULL DEFAULT 0,
+      credential_data TEXT,
+      status TEXT NOT NULL DEFAULT 'unknown',
+      last_validated_at TEXT,
+      total_input_tokens INTEGER NOT NULL DEFAULT 0,
+      total_output_tokens INTEGER NOT NULL DEFAULT 0,
+      total_requests INTEGER NOT NULL DEFAULT 0,
+      last_used_at TEXT,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS passports_active_per_provider
+      ON passports(provider_id) WHERE is_active = 1;
   `)
 
   // sessions.session_file and sessions.last_opened_at were added after the

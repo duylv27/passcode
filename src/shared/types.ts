@@ -47,6 +47,27 @@ export interface AuthStatus {
   gemini: boolean
 }
 
+export type PassportAuthMethod = 'api_key' | 'oauth'
+export type PassportStatus = 'connected' | 'error' | 'unknown'
+
+export interface Passport {
+  id: string
+  providerId: string
+  authMethod: PassportAuthMethod
+  displayName: string
+  isActive: boolean
+  /** Only set for authMethod 'api_key' -- oauth Passports never store a
+   * credential of our own, see docs/superpowers/specs/2026-09-10-passports-design.md. */
+  apiKey: string | null
+  status: PassportStatus
+  lastValidatedAt: string | null
+  totalInputTokens: number
+  totalOutputTokens: number
+  totalRequests: number
+  lastUsedAt: string | null
+  createdAt: string
+}
+
 export interface CopilotQuotaCategory {
   id: string
   unlimited: boolean
