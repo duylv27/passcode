@@ -82,7 +82,10 @@ export interface CreateSessionHandlersDeps {
    * telemetry record above) so a Passport's totals reflect what's actually
    * been billed against it. Omitted entirely when the caller doesn't wire
    * Passport usage tracking at all. */
-  recordPassportUsage?: (providerId: string, usage: { inputTokens: number; outputTokens: number }) => void
+  recordPassportUsage?: (
+    providerId: string,
+    usage: { inputTokens: number; outputTokens: number; cost: number }
+  ) => void
 }
 
 export interface SessionHandlers {
@@ -188,9 +191,17 @@ export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionH
           if (deps.recordPassportUsage) {
             const model = repoSession.getModel()
             if (model) {
+              // The SDK's own usage object already carries a real,
+              // pre-computed dollar cost for this turn (message.usage.cost.total)
+              // -- read it straight from the raw event rather than deriving
+              // one ourselves from model pricing tables.
+              const rawCost = (
+                event as { message?: { usage?: { cost?: { total?: number } } } }
+              )?.message?.usage?.cost?.total
               deps.recordPassportUsage(model.provider, {
                 inputTokens: item.usage.input,
-                outputTokens: item.usage.output
+                outputTokens: item.usage.output,
+                cost: typeof rawCost === 'number' ? rawCost : 0
               })
             }
           }

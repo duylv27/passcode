@@ -14,6 +14,7 @@ interface PassportRow {
   total_input_tokens: number
   total_output_tokens: number
   total_requests: number
+  total_cost: number
   last_used_at: string | null
   created_at: string
 }
@@ -40,6 +41,7 @@ function rowToPassport(row: PassportRow): Passport {
     totalInputTokens: row.total_input_tokens,
     totalOutputTokens: row.total_output_tokens,
     totalRequests: row.total_requests,
+    totalCost: row.total_cost,
     lastUsedAt: row.last_used_at,
     createdAt: row.created_at
   }
@@ -62,14 +64,17 @@ export interface PassportsRepository {
   rename(id: string, displayName: string): void
   remove(id: string): void
   updateStatus(id: string, status: PassportStatus): void
-  recordUsageForActiveProvider(providerId: string, usage: { inputTokens: number; outputTokens: number }): void
+  recordUsageForActiveProvider(
+    providerId: string,
+    usage: { inputTokens: number; outputTokens: number; cost: number }
+  ): void
 }
 
 export function createPassportsRepository(db: DatabaseSync): PassportsRepository {
   const SELECT_COLUMNS = `
     id, provider_id, auth_method, display_name, is_active, credential_data,
     status, last_validated_at, total_input_tokens, total_output_tokens,
-    total_requests, last_used_at, created_at
+    total_requests, total_cost, last_used_at, created_at
   `
 
   return {
@@ -136,15 +141,19 @@ export function createPassportsRepository(db: DatabaseSync): PassportsRepository
         id
       )
     },
-    recordUsageForActiveProvider(providerId: string, usage: { inputTokens: number; outputTokens: number }): void {
+    recordUsageForActiveProvider(
+      providerId: string,
+      usage: { inputTokens: number; outputTokens: number; cost: number }
+    ): void {
       db.prepare(
         `UPDATE passports
            SET total_input_tokens = total_input_tokens + ?,
                total_output_tokens = total_output_tokens + ?,
                total_requests = total_requests + 1,
+               total_cost = total_cost + ?,
                last_used_at = ?
          WHERE provider_id = ? AND is_active = 1`
-      ).run(usage.inputTokens, usage.outputTokens, new Date().toISOString(), providerId)
+      ).run(usage.inputTokens, usage.outputTokens, usage.cost, new Date().toISOString(), providerId)
     }
   }
 }

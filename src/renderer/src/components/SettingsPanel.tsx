@@ -77,6 +77,51 @@ function ProviderIcon({ providerId, size = 16 }: { providerId: string; size?: nu
   )
 }
 
+function formatTokenCount(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`
+  return n.toLocaleString()
+}
+
+/** Visualizes Input/Output token split as a proportional bar instead of a
+ * raw number -- optionally with a legend and cost total for a bigger,
+ * standalone reading (the compact row usage just shows the bar + cost). */
+function UsageBar({
+  input,
+  output,
+  cost,
+  showLegend = false
+}: {
+  input: number
+  output: number
+  cost: number
+  showLegend?: boolean
+}): JSX.Element {
+  const total = input + output
+  const inputPct = total > 0 ? (input / total) * 100 : 50
+  return (
+    <div className="passport-usage-chart">
+      <div className="passport-usage-chart-bar">
+        <span style={{ width: `${inputPct}%`, background: 'var(--accent)' }} />
+        <span style={{ width: `${100 - inputPct}%`, background: 'var(--success)' }} />
+      </div>
+      {showLegend ? (
+        <div className="passport-usage-chart-legend">
+          <span>
+            <i style={{ background: 'var(--accent)' }} /> Input {formatTokenCount(input)}
+          </span>
+          <span>
+            <i style={{ background: 'var(--success)' }} /> Output {formatTokenCount(output)}
+          </span>
+          <span className="passport-usage-chart-cost">${cost.toFixed(2)}</span>
+        </div>
+      ) : (
+        <span className="passport-usage-chart-cost">${cost.toFixed(2)}</span>
+      )}
+    </div>
+  )
+}
+
 function Switch({ checked, onChange }: { checked: boolean; onChange: () => void }): JSX.Element {
   return (
     <label className="switch">
@@ -414,6 +459,20 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
                   + Add Passport
                 </button>
               </div>
+              {passports.length > 0 &&
+                (() => {
+                  const totalInput = passports.reduce((sum, p) => sum + p.totalInputTokens, 0)
+                  const totalOutput = passports.reduce((sum, p) => sum + p.totalOutputTokens, 0)
+                  const totalCost = passports.reduce((sum, p) => sum + p.totalCost, 0)
+                  const totalRequests = passports.reduce((sum, p) => sum + p.totalRequests, 0)
+                  if (totalInput + totalOutput === 0) return null
+                  return (
+                    <div className="passport-overview">
+                      <div className="passport-overview-label">Overall usage · {totalRequests.toLocaleString()} requests</div>
+                      <UsageBar input={totalInput} output={totalOutput} cost={totalCost} showLegend />
+                    </div>
+                  )
+                })()}
               {Object.entries(
                 passports.reduce<Record<string, Passport[]>>((groups, p) => {
                   ;(groups[p.providerId] ??= []).push(p)
@@ -463,10 +522,12 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
                               'Never used'
                             )}
                           </span>
-                          {passport.authMethod === 'api_key' && (
-                            <span className="passport-meta-item">
-                              <b>{(passport.totalInputTokens + passport.totalOutputTokens).toLocaleString()}</b> tokens all-time
-                            </span>
+                          {passport.totalInputTokens + passport.totalOutputTokens > 0 && (
+                            <UsageBar
+                              input={passport.totalInputTokens}
+                              output={passport.totalOutputTokens}
+                              cost={passport.totalCost}
+                            />
                           )}
                           {providerId === 'github-copilot' && passport.isActive && quota && (
                             (() => {
@@ -772,10 +833,19 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
                       <dd>{new Date(passport.createdAt).toLocaleString()}</dd>
                     </dl>
                     <div className="passport-detail-usage">
-                      <div className="passport-detail-usage-row">
-                        <span>Total tokens (all-time)</span>
-                        <b>{(passport.totalInputTokens + passport.totalOutputTokens).toLocaleString()}</b>
-                      </div>
+                      {passport.totalInputTokens + passport.totalOutputTokens > 0 ? (
+                        <UsageBar
+                          input={passport.totalInputTokens}
+                          output={passport.totalOutputTokens}
+                          cost={passport.totalCost}
+                          showLegend
+                        />
+                      ) : (
+                        <div className="passport-detail-usage-row">
+                          <span>Usage</span>
+                          <b>No activity yet</b>
+                        </div>
+                      )}
                       <div className="passport-detail-usage-row">
                         <span>Requests</span>
                         <b>{passport.totalRequests.toLocaleString()}</b>
