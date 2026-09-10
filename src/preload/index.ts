@@ -54,7 +54,8 @@ const api: Api = {
   },
   files: {
     pickFile: () => ipcRenderer.invoke('files:pickFile'),
-    pickFolder: () => ipcRenderer.invoke('files:pickFolder')
+    pickFolder: () => ipcRenderer.invoke('files:pickFolder'),
+    listRepoFiles: (repoId) => ipcRenderer.invoke('files:listRepoFiles', repoId)
   },
   settings: {
     getCopilotQuota: () => ipcRenderer.invoke('settings:getCopilotQuota'),

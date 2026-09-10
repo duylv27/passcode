@@ -339,6 +339,9 @@ export interface Api {
   files: {
     pickFile(): Promise<string | null>
     pickFolder(): Promise<string | null>
+    /** Repo-relative paths, tracked + untracked-but-not-gitignored, for the
+     * @-mention fuzzy file picker. */
+    listRepoFiles(repoId: string): Promise<string[]>
   }
   settings: {
     getCopilotQuota(): Promise<CopilotQuota | null>

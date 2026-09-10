@@ -1900,6 +1900,56 @@ button {
   border-color: color-mix(in srgb, #58a6ff 40%, transparent);
 }
 
+/* Deliberately thinner/lighter than .skill-picker-menu -- a plain list of
+   single-line file paths needs none of that menu's per-row description
+   line or badge, so the whole panel reads as a quick, minimal overlay. */
+.file-picker-menu {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  max-height: 220px;
+  overflow-y: auto;
+  background: var(--sidebar-bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+  padding: 4px;
+  z-index: 20;
+}
+
+.file-picker-option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 5px 9px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--fg-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-picker-option:hover {
+  background: var(--list-hover);
+  color: var(--fg);
+}
+
+.file-picker-option.is-active {
+  background: var(--list-active);
+  color: var(--fg-bright);
+}
+
+.file-picker-empty {
+  padding: 6px 9px;
+  font-size: 11.5px;
+  color: var(--fg-faint);
+}
+
 .composer-field {
   display: block;
   width: 100%;

@@ -189,10 +189,13 @@ app.whenReady().then(async () => {
     }),
     models: createModelsHandlers(modelRegistry),
     skills: createSkillsHandlers(reposRepo),
-    files: createFilesHandlers({
-      showOpenDialog: () => dialog.showOpenDialog(mainWindow, { properties: ['openFile'] }),
-      showOpenFolderDialog: () => dialog.showOpenDialog(mainWindow, { properties: ['openDirectory'] })
-    }),
+    files: createFilesHandlers(
+      {
+        showOpenDialog: () => dialog.showOpenDialog(mainWindow, { properties: ['openFile'] }),
+        showOpenFolderDialog: () => dialog.showOpenDialog(mainWindow, { properties: ['openDirectory'] })
+      },
+      reposRepo
+    ),
     approvals: approvalHandlers,
     uiPrompts: uiPromptHandlers,
     window: createWindowHandlers(() => mainWindow),

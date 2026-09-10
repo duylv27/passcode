@@ -134,6 +134,39 @@ class RowErrorBoundary extends Component<{ children: ReactNode }, { hasError: bo
   }
 }
 
+/** VS Code Quick-Open-style subsequence fuzzy match: every character of
+ * `query` must appear in `path` in order (case-insensitive), scored so a
+ * denser/earlier match ranks higher than a scattered one. Returns null for
+ * no match at all. No embeddings, no index -- just a cheap client-side
+ * scan, fine for a single repo's file count. */
+function fuzzyScoreFile(query: string, path: string): number | null {
+  if (query === '') return 0
+  const q = query.toLowerCase()
+  const p = path.toLowerCase()
+  let qi = 0
+  let score = 0
+  let lastMatchIndex = -1
+  for (let pi = 0; pi < p.length && qi < q.length; pi++) {
+    if (p[pi] === q[qi]) {
+      // Consecutive matches score higher than ones separated by gaps, and
+      // matches earlier in the path score higher than late ones.
+      score += lastMatchIndex === pi - 1 ? 3 : 1
+      score += Math.max(0, 5 - pi / 10)
+      lastMatchIndex = pi
+      qi++
+    }
+  }
+  return qi === q.length ? score : null
+}
+
+function fuzzyFilterFiles(files: string[], query: string): string[] {
+  return files
+    .map((path) => ({ path, score: fuzzyScoreFile(query, path) }))
+    .filter((r): r is { path: string; score: number } => r.score !== null)
+    .sort((a, b) => b.score - a.score)
+    .map((r) => r.path)
+}
+
 export function ChatPanel({
   session,
   repoName,
@@ -178,6 +211,13 @@ export function ChatPanel({
   const [selectedSkill, setSelectedSkill] = useState<SkillInfo | null>(null)
   const [skillMenuOpen, setSkillMenuOpen] = useState(false)
   const [skillHighlightIndex, setSkillHighlightIndex] = useState(0)
+  const [repoFiles, setRepoFiles] = useState<string[]>([])
+  const [fileHighlightIndex, setFileHighlightIndex] = useState(0)
+  // The @-file menu is otherwise fully derived from the composer text (no
+  // open/closed state of its own) -- this lets Escape dismiss it for the
+  // current mention attempt without touching the typed text, re-arming as
+  // soon as the user types another character (a new mention attempt).
+  const [fileMenuDismissedFor, setFileMenuDismissedFor] = useState<string | null>(null)
   // -1 = not navigating; otherwise an index into the user's own past
   // messages (oldest to newest) for the composer's up/down recall, same
   // convention as a shell history.
@@ -224,6 +264,10 @@ export function ChatPanel({
 
   useEffect(() => {
     window.api.skills.list(session.repoId).then(setSkills)
+  }, [session.repoId])
+
+  useEffect(() => {
+    window.api.files.listRepoFiles(session.repoId).then(setRepoFiles)
   }, [session.repoId])
 
   useEffect(() => {
@@ -744,6 +788,25 @@ export function ChatPanel({
   // bounds entirely.
   const activeSkillIndex = Math.min(skillHighlightIndex, filteredSkills.length - 1)
 
+  // An in-progress "@mention" is the trailing "@word" at the end of
+  // whatever's been typed so far -- unlike "/", it can start anywhere in
+  // the message, not just at position 0.
+  const atMatch = input.match(/@(\S*)$/)
+  const atQuery = atMatch ? atMatch[1] : null
+
+  useEffect(() => {
+    setFileHighlightIndex(0)
+  }, [atQuery])
+
+  const filteredFiles = atQuery === null ? [] : fuzzyFilterFiles(repoFiles, atQuery).slice(0, 20)
+  const showFileMenu = atQuery !== null && atQuery !== fileMenuDismissedFor
+  const activeFileIndex = Math.min(fileHighlightIndex, Math.max(0, filteredFiles.length - 1))
+
+  function handleSelectFile(path: string): void {
+    setAttachedFile(path)
+    setInput((prev) => prev.replace(/@\S*$/, ''))
+  }
+
   // Derived from the already-loaded transcript (not a separate log) so
   // recall works immediately after reopening a session, not just for
   // messages sent this run.
@@ -818,6 +881,30 @@ export function ChatPanel({
                 <span className="skill-picker-option-desc">{skill.description}</span>
               </button>
             ))}
+          </div>
+        )}
+        {showFileMenu && (
+          <div className="file-picker-menu" role="listbox">
+            {filteredFiles.length === 0 ? (
+              <div className="file-picker-empty">No matching files</div>
+            ) : (
+              filteredFiles.map((path, index) => (
+                <button
+                  key={path}
+                  type="button"
+                  role="option"
+                  aria-selected={index === activeFileIndex}
+                  className={`file-picker-option${index === activeFileIndex ? ' is-active' : ''}`}
+                  ref={(el) => {
+                    if (index === activeFileIndex) el?.scrollIntoView({ block: 'nearest' })
+                  }}
+                  onMouseEnter={() => setFileHighlightIndex(index)}
+                  onClick={() => handleSelectFile(path)}
+                >
+                  {path}
+                </button>
+              ))
+            )}
           </div>
         )}
         <div className="composer-topbar">
@@ -1199,7 +1286,32 @@ export function ChatPanel({
           }}
           onPaste={handlePaste}
           onKeyDown={(e) => {
-            if (showSkillMenu) {
+            if (showFileMenu) {
+              if (e.key === 'ArrowDown') {
+                e.preventDefault()
+                if (filteredFiles.length > 0) setFileHighlightIndex((i) => (i + 1) % filteredFiles.length)
+                return
+              }
+              if (e.key === 'ArrowUp') {
+                e.preventDefault()
+                if (filteredFiles.length > 0) {
+                  setFileHighlightIndex((i) => (i - 1 + filteredFiles.length) % filteredFiles.length)
+                }
+                return
+              }
+              if ((e.key === 'Enter' && !e.shiftKey && !e.ctrlKey) || e.key === 'Tab') {
+                if (filteredFiles.length > 0) {
+                  e.preventDefault()
+                  handleSelectFile(filteredFiles[activeFileIndex])
+                }
+                return
+              }
+              if (e.key === 'Escape') {
+                e.preventDefault()
+                setFileMenuDismissedFor(atQuery)
+                return
+              }
+            } else if (showSkillMenu) {
               if (e.key === 'ArrowDown') {
                 e.preventDefault()
                 setSkillHighlightIndex((i) => (i + 1) % filteredSkills.length)

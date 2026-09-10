@@ -96,6 +96,7 @@ export function registerIpcHandlers(handlers: IpcHandlers): void {
 
   ipcMain.handle('files:pickFile', () => handlers.files.pickFile())
   ipcMain.handle('files:pickFolder', () => handlers.files.pickFolder())
+  ipcMain.handle('files:listRepoFiles', (_e, repoId: string) => handlers.files.listRepoFiles(repoId))
 
   ipcMain.handle('settings:getCopilotQuota', () => handlers.settings.getCopilotQuota())
   ipcMain.handle('settings:getUsageTelemetryConfig', () => handlers.settings.getUsageTelemetryConfig())
