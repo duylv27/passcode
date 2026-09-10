@@ -71,7 +71,15 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
   const [toasts, setToasts] = useState<ToastMessage[]>([])
 
   const [passports, setPassports] = useState<Passport[]>([])
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+  // .passport-kebab-menu is position:fixed, anchored to the kebab button's
+  // own viewport coordinates on open -- it used to be position:absolute
+  // inside .settings-scroll-area, which clips any absolutely-positioned
+  // descendant that overflows the scrollable viewport, cutting the menu off
+  // for any row near the bottom of a long, scrolled list.
+  const [menuAnchor, setMenuAnchor] = useState<{ id: string; top: number; left: number; openUpward: boolean } | null>(
+    null
+  )
+  const ESTIMATED_MENU_HEIGHT = 80
   const [detailPassportId, setDetailPassportId] = useState<string | null>(null)
   const [addStep, setAddStep] = useState<'provider' | 'method' | 'connect'>('provider')
   const [addProviderId, setAddProviderId] = useState<string | null>(null)
@@ -249,13 +257,13 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
   }
 
   async function handleSetActive(id: string): Promise<void> {
-    setOpenMenuId(null)
+    setMenuAnchor(null)
     await window.api.passports.setActive(id)
     await refreshPassports()
   }
 
   async function handleRemove(id: string): Promise<void> {
-    setOpenMenuId(null)
+    setMenuAnchor(null)
     setDetailPassportId(null)
     await window.api.passports.remove(id)
     await refreshPassports()
@@ -415,22 +423,25 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
                         <button className="passport-link-btn" onClick={() => setDetailPassportId(passport.id)}>
                           View details
                         </button>
-                        <div style={{ position: 'relative' }}>
-                          <button
-                            className="passport-kebab"
-                            onClick={() => setOpenMenuId(openMenuId === passport.id ? null : passport.id)}
-                          >
-                            ⋯
-                          </button>
-                          {openMenuId === passport.id && (
-                            <div className="passport-kebab-menu">
-                              {!passport.isActive && (
-                                <button onClick={() => handleSetActive(passport.id)}>Set Active</button>
-                              )}
-                              <button onClick={() => handleRemove(passport.id)}>Remove</button>
-                            </div>
-                          )}
-                        </div>
+                        <button
+                          className="passport-kebab"
+                          onClick={(e) => {
+                            if (menuAnchor?.id === passport.id) {
+                              setMenuAnchor(null)
+                              return
+                            }
+                            const rect = e.currentTarget.getBoundingClientRect()
+                            const openUpward = rect.bottom + ESTIMATED_MENU_HEIGHT > window.innerHeight
+                            setMenuAnchor({
+                              id: passport.id,
+                              left: rect.right,
+                              top: openUpward ? rect.top : rect.bottom,
+                              openUpward
+                            })
+                          }}
+                        >
+                          ⋯
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -466,6 +477,34 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
           )}
           </div>
         </div>
+
+        {menuAnchor &&
+          (() => {
+            const passport = passports.find((p) => p.id === menuAnchor.id)
+            if (!passport) return null
+            return (
+              <>
+                {/* Full-viewport click-catcher so clicking anywhere else closes the menu. */}
+                <div
+                  style={{ position: 'fixed', inset: 0, zIndex: 30 }}
+                  onClick={() => setMenuAnchor(null)}
+                />
+                <div
+                  className="passport-kebab-menu"
+                  style={{
+                    position: 'fixed',
+                    left: menuAnchor.left,
+                    top: menuAnchor.top,
+                    transform: `translate(-100%, ${menuAnchor.openUpward ? '-100%' : '0'})`,
+                    zIndex: 31
+                  }}
+                >
+                  {!passport.isActive && <button onClick={() => handleSetActive(passport.id)}>Set Active</button>}
+                  <button onClick={() => handleRemove(passport.id)}>Remove</button>
+                </div>
+              </>
+            )
+          })()}
 
         {addPopupOpen && (
           <div className="passport-popup-backdrop" onClick={closeAddPopup}>
