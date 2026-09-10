@@ -133,6 +133,22 @@ describe('passportHandlers', () => {
     expect(result.ok).toBe(true)
     expect(openExternal).toHaveBeenCalledWith('https://claude.ai/oauth/authorize?x=1')
     expect(prompts).toEqual([{ kind: 'browser', url: 'https://claude.ai/oauth/authorize?x=1', instructions: 'go' }])
+    if (result.ok) expect(result.passport.apiKey).toBeNull()
+  })
+
+  it('removes the passport row if activation fails after an oauth login succeeds', async () => {
+    modelRuntime.login.mockImplementationOnce(
+      async (_providerId: string, _type: string, interaction: { notify: (e: unknown) => void }) => {
+        interaction.notify({ type: 'auth_url', url: 'https://claude.ai/oauth/authorize?x=1', instructions: 'go' })
+        return { type: 'oauth', refresh: '', access: '', expires: 0 }
+      }
+    )
+    passportsRepo.setActive = () => {
+      throw new Error('activation failed')
+    }
+    const result = await handlers.createOAuthPassport('anthropic', 'Claude Pro/Max', () => {})
+    expect(result).toEqual({ ok: false, error: 'activation failed' })
+    expect(passportsRepo.rows).toHaveLength(0)
   })
 
   it('creates an oauth passport via the device-code flow without opening a browser itself', async () => {

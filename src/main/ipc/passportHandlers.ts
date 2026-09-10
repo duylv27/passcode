@@ -82,6 +82,7 @@ export function createPassportHandlers(
       return { ok: true, passport: passportsRepo.getById(passport.id)! }
     },
     async createOAuthPassport(providerId, displayName, onPrompt) {
+      let passport: Passport | undefined
       try {
         await modelRuntime.login(providerId, 'oauth', {
           notify: (event) => {
@@ -114,10 +115,11 @@ export function createPassportHandlers(
             return Promise.reject(new Error(`Interactive login prompt of type "${prompt.type}" is not supported yet`))
           }
         })
-        const passport = passportsRepo.create({ providerId, authMethod: 'oauth', displayName, apiKey: null })
+        passport = passportsRepo.create({ providerId, authMethod: 'oauth', displayName, apiKey: null })
         await activatePassport(passport)
         return { ok: true, passport: passportsRepo.getById(passport.id)! }
       } catch (err) {
+        if (passport) passportsRepo.remove(passport.id)
         return { ok: false, error: (err as Error).message }
       } finally {
         pendingCode = null
