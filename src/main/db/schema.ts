@@ -41,6 +41,7 @@ export function initSchema(db: DatabaseSync): void {
       total_input_tokens INTEGER NOT NULL DEFAULT 0,
       total_output_tokens INTEGER NOT NULL DEFAULT 0,
       total_requests INTEGER NOT NULL DEFAULT 0,
+      total_cost REAL NOT NULL DEFAULT 0,
       last_used_at TEXT,
       created_at TEXT NOT NULL
     );
@@ -72,14 +73,14 @@ export function initSchema(db: DatabaseSync): void {
     db.exec('ALTER TABLE sessions ADD COLUMN bookmarked INTEGER NOT NULL DEFAULT 0')
   }
 
-  // total_cost was briefly added then removed in this branch's dev builds --
-  // it computed a fabricated $ figure from a static per-token price table,
-  // not real provider billing. Drop it for any database that already picked
-  // up the earlier ADD COLUMN migration.
+  // total_cost is unused at the application layer (it used to compute a
+  // fabricated $ figure from a static per-token price table, not real
+  // provider billing -- see passportsRepository.ts) but the column itself
+  // stays in the schema: add it for any database created before it existed.
   const passportColumns = db.prepare("SELECT name FROM pragma_table_info('passports')").all() as Array<{
     name: string
   }>
-  if (passportColumns.some((c) => c.name === 'total_cost')) {
-    db.exec('ALTER TABLE passports DROP COLUMN total_cost')
+  if (passportColumns.length > 0 && !passportColumns.some((c) => c.name === 'total_cost')) {
+    db.exec('ALTER TABLE passports ADD COLUMN total_cost REAL NOT NULL DEFAULT 0')
   }
 }
