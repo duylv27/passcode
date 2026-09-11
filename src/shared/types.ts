@@ -243,8 +243,11 @@ export interface PromptOptions {
    * to the model. */
   skillFilePath?: string
   skillName?: string
-  /** Absolute path to a file the user attached as context for this turn. */
-  attachedFilePath?: string
+  /** Paths to files the user attached as context for this turn -- may be
+   * absolute (native file-picker) or repo-relative (the @-mention fuzzy
+   * picker); promptBuilder.ts resolves relative ones against the repo's
+   * cwd. */
+  attachedFilePaths?: string[]
   /** Images pasted into the composer, sent as real multimodal content via
    * the SDK's own `images` prompt option -- not spliced into prompt text. */
   images?: { data: string; mimeType: string }[]

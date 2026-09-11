@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises'
+import { isAbsolute, resolve } from 'node:path'
 import type { PromptOptions } from '../../shared/types'
 import { readSkillFile } from './skills'
 
@@ -14,6 +15,10 @@ export interface BuildPromptTextOptions extends PromptOptions {
   /** Every repo in the session's project, when this is a project-scoped
    * session -- lets the model know it can touch more than just its cwd. */
   projectRepos?: { name: string; path: string }[]
+  /** The session's repo path -- resolves a repo-relative attachedFilePaths
+   * entry (from the @-mention fuzzy picker) into a real filesystem path.
+   * Absolute entries (the native file-picker) pass through unchanged. */
+  cwd?: string
 }
 
 /** Builds what's actually sent to the model for a turn: a short label
@@ -32,12 +37,14 @@ export async function buildPromptText(text: string, options?: BuildPromptTextOpt
     )
   }
 
-  if (options?.attachedFilePath) {
+  for (const attachedFilePath of options?.attachedFilePaths ?? []) {
+    const resolvedPath =
+      options?.cwd && !isAbsolute(attachedFilePath) ? resolve(options.cwd, attachedFilePath) : attachedFilePath
     try {
-      const content = await readFile(options.attachedFilePath, 'utf-8')
-      contextParts.push(`Attached file: ${options.attachedFilePath}\n\n\`\`\`\n${content}\n\`\`\``)
+      const content = await readFile(resolvedPath, 'utf-8')
+      contextParts.push(`Attached file: ${attachedFilePath}\n\n\`\`\`\n${content}\n\`\`\``)
     } catch (err) {
-      contextParts.push(`[Could not read attached file "${options.attachedFilePath}": ${(err as Error).message}]`)
+      contextParts.push(`[Could not read attached file "${attachedFilePath}": ${(err as Error).message}]`)
     }
   }
 

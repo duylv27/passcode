@@ -357,12 +357,13 @@ export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionH
       try {
         const session = await ensureSession(sessionId)
         const record = deps.sessionsRepo.getById(sessionId)
+        const repo = record ? deps.reposRepo.getById(record.repoId) : undefined
         const projectRepos = record?.projectId
           ? deps.reposRepo
               .listByProject(record.projectId)
               .map((r) => ({ name: r.name, path: r.path }))
           : undefined
-        const promptText = await deps.buildPromptText(text, { ...options, projectRepos })
+        const promptText = await deps.buildPromptText(text, { ...options, projectRepos, cwd: repo?.path })
         // Images bypass buildPromptText entirely -- they're sent as real
         // multimodal content via the SDK's own `images` option, not spliced
         // into the prompt text. Only pass a second argument when there

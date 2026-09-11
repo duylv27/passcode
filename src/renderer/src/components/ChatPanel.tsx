@@ -223,7 +223,7 @@ export function ChatPanel({
   // convention as a shell history.
   const [messageHistoryIndex, setMessageHistoryIndex] = useState(-1)
   const skillPickerRef = useRef<HTMLDivElement>(null)
-  const [attachedFile, setAttachedFile] = useState<string | null>(null)
+  const [attachedFiles, setAttachedFiles] = useState<string[]>([])
   const [pastedImages, setPastedImages] = useState<PastedImage[]>([])
   const [autoMode, setAutoMode] = useState(false)
   const [thinkingWord, setThinkingWord] = useState(THINKING_WORDS[0])
@@ -246,11 +246,11 @@ export function ChatPanel({
     const options = {
       skillFilePath: selectedSkill?.filePath,
       skillName: selectedSkill?.name,
-      attachedFilePath: attachedFile ?? undefined,
+      attachedFilePaths: attachedFiles.length > 0 ? attachedFiles : undefined,
       images: pastedImages.length > 0 ? pastedImages.map((img) => splitDataUrl(img.dataUrl)) : undefined
     }
     setSelectedSkill(null)
-    setAttachedFile(null)
+    setAttachedFiles([])
     setPastedImages([])
     await window.api.session.prompt(session.id, text, options)
   }
@@ -641,7 +641,7 @@ export function ChatPanel({
 
   async function handleAttachFile(): Promise<void> {
     const path = await window.api.files.pickFile()
-    if (path) setAttachedFile(path)
+    if (path) setAttachedFiles((prev) => (prev.includes(path) ? prev : [...prev, path]))
   }
 
   async function handlePaste(e: ClipboardEvent<HTMLTextAreaElement>): Promise<void> {
@@ -803,8 +803,12 @@ export function ChatPanel({
   const activeFileIndex = Math.min(fileHighlightIndex, Math.max(0, filteredFiles.length - 1))
 
   function handleSelectFile(path: string): void {
-    setAttachedFile(path)
+    setAttachedFiles((prev) => (prev.includes(path) ? prev : [...prev, path]))
     setInput((prev) => prev.replace(/@\S*$/, ''))
+  }
+
+  function handleRemoveAttachedFile(path: string): void {
+    setAttachedFiles((prev) => prev.filter((p) => p !== path))
   }
 
   // Derived from the already-loaded transcript (not a separate log) so
@@ -1251,7 +1255,7 @@ export function ChatPanel({
             )}
           </div>
         </div>
-        {(selectedSkill || attachedFile || pastedImages.length > 0) && (
+        {(selectedSkill || attachedFiles.length > 0 || pastedImages.length > 0) && (
           <div className="composer-chips">
             {selectedSkill && (
               <span className="composer-chip">
@@ -1269,19 +1273,19 @@ export function ChatPanel({
                 </button>
               </span>
             )}
-            {attachedFile && (
-              <span className="composer-chip">
-                <PlusIcon /> {attachedFile.split(/[/\\]/).pop()}
+            {attachedFiles.map((path) => (
+              <span key={path} className="composer-chip">
+                <PlusIcon /> {path.split(/[/\\]/).pop()}
                 <button
                   type="button"
                   className="composer-chip-remove"
-                  onClick={() => setAttachedFile(null)}
+                  onClick={() => handleRemoveAttachedFile(path)}
                   title="Remove attachment"
                 >
                   ×
                 </button>
               </span>
-            )}
+            ))}
             {pastedImages.map((img) => (
               <span key={img.id} className="composer-image-chip">
                 <img src={img.dataUrl} alt="Pasted image" />
