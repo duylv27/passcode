@@ -13,6 +13,7 @@ import type {
   ChatEvent,
   CompactionThresholds,
   ContextUsage,
+  CopilotQuota,
   HistoryItem,
   ModelInfo,
   SessionRecord,
@@ -216,6 +217,11 @@ export function ChatPanel({
   // get clipped/scrolled away instead of floating over the whole window.
   const [modelTooltip, setModelTooltip] = useState<{ model: ModelInfo; top: number; left: number } | null>(null)
   const [currentModel, setCurrentModel] = useState<ModelInfo | null>(null)
+  // Real provider-reported quota for the session's current model, shown in
+  // the Session Stats popover alongside the session's own (also real)
+  // message/token totals -- only Copilot exposes a live quota API today, so
+  // this stays null (and hidden) for every other provider.
+  const [sessionQuota, setSessionQuota] = useState<CopilotQuota | null>(null)
   const [modelMenuOpen, setModelMenuOpen] = useState(false)
   const modelPickerRef = useRef<HTMLDivElement>(null)
   const [contextUsage, setContextUsage] = useState<ContextUsage | null>(null)
@@ -291,6 +297,25 @@ export function ChatPanel({
   useEffect(() => {
     window.api.files.listRepoFiles(session.repoId).then(setRepoFiles)
   }, [session.repoId])
+
+  useEffect(() => {
+    if (currentModel?.provider !== 'github-copilot') {
+      setSessionQuota(null)
+      return
+    }
+    let cancelled = false
+    window.api.settings
+      .getCopilotQuota()
+      .then((quota) => {
+        if (!cancelled) setSessionQuota(quota)
+      })
+      .catch(() => {
+        if (!cancelled) setSessionQuota(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [currentModel?.provider])
 
   useEffect(() => {
     window.api.approvals.getPolicy().then((policy) => {
@@ -992,6 +1017,9 @@ export function ChatPanel({
                             role="option"
                             aria-selected={isSelected}
                             className={`model-picker-option${isSelected ? ' is-selected' : ''}`}
+                            ref={(el) => {
+                              if (isSelected) el?.scrollIntoView({ block: 'nearest' })
+                            }}
                             onClick={() => handleModelChange(m)}
                             onMouseEnter={(e) => {
                               const rect = e.currentTarget.getBoundingClientRect()
@@ -1247,10 +1275,6 @@ export function ChatPanel({
                             <span>Tool calls</span>
                             <b>{sessionStats.toolCalls.toLocaleString()}</b>
                           </div>
-                          <div className="session-stats-mini">
-                            <span>Est. cost</span>
-                            <b className="is-accent">${sessionStats.cost.toFixed(2)}</b>
-                          </div>
                         </div>
                         <div className="session-stats-token-bar">
                           <span style={{ width: `${pct(input)}%`, background: 'var(--accent)' }} />
@@ -1276,6 +1300,23 @@ export function ChatPanel({
                             </span>
                           )}
                         </div>
+                        {sessionQuota &&
+                          (() => {
+                            const premium = sessionQuota.categories.find((c) => c.id === 'premium_interactions')
+                            if (!premium || premium.unlimited) return null
+                            const usedPct = Math.max(0, Math.min(100, 100 - premium.percentRemaining))
+                            return (
+                              <div className="session-stats-quota">
+                                <span className="session-stats-quota-label">
+                                  {sessionQuota.planName} premium quota
+                                </span>
+                                <div className="session-stats-token-bar">
+                                  <span style={{ width: `${usedPct}%`, background: 'var(--accent)' }} />
+                                </div>
+                                <span className="session-stats-quota-value">{Math.round(usedPct)}% used</span>
+                              </div>
+                            )
+                          })()}
                       </div>
                     )
                   })()

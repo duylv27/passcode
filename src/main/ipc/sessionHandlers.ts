@@ -82,10 +82,7 @@ export interface CreateSessionHandlersDeps {
    * telemetry record above) so a Passport's totals reflect what's actually
    * been billed against it. Omitted entirely when the caller doesn't wire
    * Passport usage tracking at all. */
-  recordPassportUsage?: (
-    providerId: string,
-    usage: { inputTokens: number; outputTokens: number; cost: number }
-  ) => void
+  recordPassportUsage?: (providerId: string, usage: { inputTokens: number; outputTokens: number }) => void
 }
 
 export interface SessionHandlers {
@@ -191,23 +188,9 @@ export function createSessionHandlers(deps: CreateSessionHandlersDeps): SessionH
           if (deps.recordPassportUsage) {
             const model = repoSession.getModel()
             if (model) {
-              // pi-ai's own per-event usage.cost is always left at zero at
-              // this layer (the real $ computation happens elsewhere, e.g.
-              // in AgentSession's own getSessionStats() accumulation) -- so
-              // it must be computed here from the model's real per-million-
-              // token pricing instead of read off the raw event.
-              const pricedModel = deps.findModel(model.provider, model.id)
-              const cost = pricedModel
-                ? (item.usage.input * pricedModel.cost.input +
-                    item.usage.output * pricedModel.cost.output +
-                    item.usage.cacheRead * pricedModel.cost.cacheRead +
-                    item.usage.cacheWrite * pricedModel.cost.cacheWrite) /
-                  1_000_000
-                : 0
               deps.recordPassportUsage(model.provider, {
                 inputTokens: item.usage.input,
-                outputTokens: item.usage.output,
-                cost
+                outputTokens: item.usage.output
               })
             }
           }

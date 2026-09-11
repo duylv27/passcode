@@ -2452,10 +2452,6 @@ button {
   color: var(--fg-dim);
 }
 
-.session-stats-mini b.is-accent {
-  color: var(--accent);
-}
-
 .session-stats-token-bar {
   display: flex;
   width: 100%;
@@ -2491,6 +2487,31 @@ button {
   width: 7px;
   height: 7px;
   border-radius: 2px;
+}
+
+.session-stats-quota {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.session-stats-quota-label {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--fg-faint);
+  margin-bottom: 5px;
+}
+
+.session-stats-quota .session-stats-token-bar {
+  margin-bottom: 4px;
+}
+
+.session-stats-quota-value {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--fg-dim);
 }
 
 .context-usage-ring {
@@ -4743,12 +4764,6 @@ button {
   border-radius: 2px;
 }
 
-.passport-usage-chart-cost {
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  font-weight: 600;
-  color: var(--accent);
-}
 
 .passport-overview {
   border: 1px solid var(--border-subtle);

@@ -58,9 +58,6 @@ export interface Passport {
   totalInputTokens: number
   totalOutputTokens: number
   totalRequests: number
-  /** Real dollar cost, accumulated from the SDK's own already-computed
-   * per-turn usage.cost.total -- not derived/estimated by us. */
-  totalCost: number
   lastUsedAt: string | null
   createdAt: string
 }

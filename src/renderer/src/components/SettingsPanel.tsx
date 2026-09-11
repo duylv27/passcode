@@ -86,15 +86,17 @@ function formatTokenCount(n: number): string {
 /** Visualizes Input/Output token split as a proportional bar instead of a
  * raw number -- optionally with a legend and cost total for a bigger,
  * standalone reading (the compact row usage just shows the bar + cost). */
+// Only ever fed real numbers reported by the provider (token counts) --
+// never a $ figure, since that would have to be derived from a static
+// per-token price table rather than actual provider billing, and most
+// providers here are subscription-billed anyway (no real $ to show).
 function UsageBar({
   input,
   output,
-  cost,
   showLegend = false
 }: {
   input: number
   output: number
-  cost: number
   showLegend?: boolean
 }): JSX.Element {
   const total = input + output
@@ -105,7 +107,7 @@ function UsageBar({
         <span style={{ width: `${inputPct}%`, background: 'var(--accent)' }} />
         <span style={{ width: `${100 - inputPct}%`, background: 'var(--success)' }} />
       </div>
-      {showLegend ? (
+      {showLegend && (
         <div className="passport-usage-chart-legend">
           <span>
             <i style={{ background: 'var(--accent)' }} /> Input {formatTokenCount(input)}
@@ -113,10 +115,7 @@ function UsageBar({
           <span>
             <i style={{ background: 'var(--success)' }} /> Output {formatTokenCount(output)}
           </span>
-          <span className="passport-usage-chart-cost">${cost.toFixed(2)}</span>
         </div>
-      ) : (
-        <span className="passport-usage-chart-cost">${cost.toFixed(2)}</span>
       )}
     </div>
   )
@@ -463,7 +462,6 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
                 (() => {
                   const totalInput = passports.reduce((sum, p) => sum + p.totalInputTokens, 0)
                   const totalOutput = passports.reduce((sum, p) => sum + p.totalOutputTokens, 0)
-                  const totalCost = passports.reduce((sum, p) => sum + p.totalCost, 0)
                   const totalRequests = passports.reduce((sum, p) => sum + p.totalRequests, 0)
                   if (totalInput + totalOutput === 0) return null
                   return (
@@ -471,7 +469,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
                       <div className="passport-overview-label">
                         Overall usage · {totalRequests.toLocaleString()} {totalRequests === 1 ? 'request' : 'requests'}
                       </div>
-                      <UsageBar input={totalInput} output={totalOutput} cost={totalCost} showLegend />
+                      <UsageBar input={totalInput} output={totalOutput} showLegend />
                     </div>
                   )
                 })()}
@@ -525,11 +523,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
                             )}
                           </span>
                           {passport.totalInputTokens + passport.totalOutputTokens > 0 && (
-                            <UsageBar
-                              input={passport.totalInputTokens}
-                              output={passport.totalOutputTokens}
-                              cost={passport.totalCost}
-                            />
+                            <UsageBar input={passport.totalInputTokens} output={passport.totalOutputTokens} />
                           )}
                           {providerId === 'github-copilot' && passport.isActive && quota && (
                             (() => {
@@ -839,7 +833,6 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
                         <UsageBar
                           input={passport.totalInputTokens}
                           output={passport.totalOutputTokens}
-                          cost={passport.totalCost}
                           showLegend
                         />
                       ) : (
