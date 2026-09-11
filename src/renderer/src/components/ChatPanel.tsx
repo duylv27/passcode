@@ -235,6 +235,8 @@ export function ChatPanel({
   const [sessionStats, setSessionStats] = useState<SessionStats | null>(null)
   const [statsPopoverOpen, setStatsPopoverOpen] = useState(false)
   const statsPopoverRef = useRef<HTMLDivElement>(null)
+  const [providerStatsPopoverOpen, setProviderStatsPopoverOpen] = useState(false)
+  const providerStatsPopoverRef = useRef<HTMLDivElement>(null)
   const [thinkingInfo, setThinkingInfo] = useState<ThinkingInfo | null>(null)
   const [skills, setSkills] = useState<SkillInfo[]>([])
   const [selectedSkill, setSelectedSkill] = useState<SkillInfo | null>(null)
@@ -402,6 +404,17 @@ export function ChatPanel({
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [statsPopoverOpen])
+
+  useEffect(() => {
+    if (!providerStatsPopoverOpen) return
+    function handleClickOutside(e: MouseEvent): void {
+      if (providerStatsPopoverRef.current && !providerStatsPopoverRef.current.contains(e.target as Node)) {
+        setProviderStatsPopoverOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [providerStatsPopoverOpen])
 
   useEffect(() => {
     setItems([])
@@ -1307,23 +1320,6 @@ export function ChatPanel({
                             </span>
                           )}
                         </div>
-                        {sessionQuota &&
-                          (() => {
-                            const premium = sessionQuota.categories.find((c) => c.id === 'premium_interactions')
-                            if (!premium || premium.unlimited) return null
-                            const usedPct = Math.max(0, Math.min(100, 100 - premium.percentRemaining))
-                            return (
-                              <div className="session-stats-quota">
-                                <span className="session-stats-quota-label">
-                                  {sessionQuota.planName} premium quota
-                                </span>
-                                <div className="session-stats-token-bar">
-                                  <span style={{ width: `${usedPct}%`, background: 'var(--accent)' }} />
-                                </div>
-                                <span className="session-stats-quota-value">{Math.round(usedPct)}% used</span>
-                              </div>
-                            )
-                          })()}
                       </div>
                     )
                   })()
@@ -1333,6 +1329,42 @@ export function ChatPanel({
               </div>
             )}
           </div>
+          {sessionQuota && (
+            <div className="context-usage" ref={providerStatsPopoverRef}>
+              <button
+                type="button"
+                className="composer-icon-badge"
+                onClick={() => setProviderStatsPopoverOpen((v) => !v)}
+                title="Provider stats"
+              >
+                ⛁
+              </button>
+              {providerStatsPopoverOpen &&
+                (() => {
+                  const premium = sessionQuota.categories.find((c) => c.id === 'premium_interactions')
+                  if (!premium || premium.unlimited) return null
+                  const usedPct = Math.max(0, Math.min(100, 100 - premium.percentRemaining))
+                  return (
+                    <div className="context-usage-popover">
+                      <div className="context-usage-popover-header">
+                        <h3>Provider stats</h3>
+                      </div>
+                      <p className="context-usage-caption">
+                        Real usage reported by {currentModel?.providerName ?? 'the provider'} for this account, not
+                        computed by PassCode.
+                      </p>
+                      <div className="session-stats-quota">
+                        <span className="session-stats-quota-label">{sessionQuota.planName} premium quota</span>
+                        <div className="session-stats-token-bar">
+                          <span style={{ width: `${usedPct}%`, background: 'var(--accent)' }} />
+                        </div>
+                        <span className="session-stats-quota-value">{Math.round(usedPct)}% used</span>
+                      </div>
+                    </div>
+                  )
+                })()}
+            </div>
+          )}
         </div>
         {(selectedSkill || attachedFiles.length > 0 || pastedImages.length > 0) && (
           <div className="composer-chips">
