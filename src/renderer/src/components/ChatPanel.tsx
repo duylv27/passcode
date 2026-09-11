@@ -16,6 +16,7 @@ import type {
   CopilotQuota,
   HistoryItem,
   ModelInfo,
+  Passport,
   SessionRecord,
   SessionStats,
   SkillInfo,
@@ -225,6 +226,14 @@ export function ChatPanel({
   const [modelMenuOpen, setModelMenuOpen] = useState(false)
   const modelMenuScrollRef = useRef<HTMLDivElement>(null)
   const modelPickerRef = useRef<HTMLDivElement>(null)
+  // A shortcut to switch which Passport is globally active for a provider,
+  // right from the composer -- same setActive() Settings already exposes,
+  // not a per-session override (Passports stay global-active-per-provider
+  // by design). Picking one also updates this session's current model to
+  // match, since a Passport switch is meaningless without that.
+  const [passports, setPassports] = useState<Passport[]>([])
+  const [passportMenuOpen, setPassportMenuOpen] = useState(false)
+  const passportPickerRef = useRef<HTMLDivElement>(null)
   const [contextUsage, setContextUsage] = useState<ContextUsage | null>(null)
   const [autoCompactEnabled, setAutoCompactEnabled] = useState(false)
   const [compacting, setCompacting] = useState(false)
@@ -291,6 +300,10 @@ export function ChatPanel({
 
   useEffect(() => {
     window.api.models.list().then(setModels)
+  }, [modelsRefreshKey])
+
+  useEffect(() => {
+    window.api.passports.list().then(setPassports)
   }, [modelsRefreshKey])
 
   useEffect(() => {
@@ -362,6 +375,17 @@ export function ChatPanel({
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [modelMenuOpen])
+
+  useEffect(() => {
+    if (!passportMenuOpen) return
+    function handleClickOutside(e: MouseEvent): void {
+      if (passportPickerRef.current && !passportPickerRef.current.contains(e.target as Node)) {
+        setPassportMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [passportMenuOpen])
 
   // Scroll the current model into view exactly once when the dropdown
   // opens -- doing this from a ref callback on the option itself instead
@@ -685,6 +709,21 @@ export function ChatPanel({
     setModelMenuOpen((v) => !v)
   }
 
+  async function handleSelectPassport(passport: Passport): Promise<void> {
+    setPassportMenuOpen(false)
+    if (passport.isActive) return
+    await window.api.passports.setActive(passport.id)
+    const freshPassports = await window.api.passports.list()
+    setPassports(freshPassports)
+    // setActive() already refreshes the backend's model registry -- refetch
+    // here so this session's own model list reflects it immediately rather
+    // than waiting for the next Settings-close-triggered refresh.
+    const freshModels = await window.api.models.list()
+    setModels(freshModels)
+    const modelForProvider = freshModels.find((m) => m.provider === passport.providerId)
+    if (modelForProvider) handleModelChange(modelForProvider)
+  }
+
   function handleSelectSkill(skill: SkillInfo): void {
     setSelectedSkill(skill)
     setSkillMenuOpen(false)
@@ -898,6 +937,20 @@ export function ChatPanel({
     else modelGroups.push({ providerName: m.providerName, models: [m] })
   }
 
+  function providerNameFor(providerId: string): string {
+    return models.find((m) => m.provider === providerId)?.providerName ?? providerId
+  }
+  const passportGroups: { providerName: string; passports: Passport[] }[] = []
+  for (const p of passports) {
+    const providerName = providerNameFor(p.providerId)
+    const group = passportGroups.find((g) => g.providerName === providerName)
+    if (group) group.passports.push(p)
+    else passportGroups.push({ providerName, passports: [p] })
+  }
+  const activePassportForCurrentModel = currentModel
+    ? passports.find((p) => p.providerId === currentModel.provider && p.isActive)
+    : undefined
+
   // The override slider's ceiling should reflect what the current model can
   // actually support, not a fixed guess -- CONTEXT_WINDOW_MAX only covers
   // the case where the model list hasn't loaded yet.
@@ -1005,6 +1058,47 @@ export function ChatPanel({
           >
             {autoMode ? 'Auto' : 'Manual'}
           </button>
+          {passports.length > 0 && (
+            <div className="model-picker" ref={passportPickerRef}>
+              <button
+                type="button"
+                className="model-picker-trigger"
+                onClick={() => setPassportMenuOpen((v) => !v)}
+                title="Passport"
+              >
+                <span className="model-picker-label">
+                  {activePassportForCurrentModel ? activePassportForCurrentModel.displayName : 'Passport…'}
+                </span>
+                <ChevronIcon className={`chevron model-picker-chevron${passportMenuOpen ? ' is-open' : ''}`} />
+              </button>
+              {passportMenuOpen && (
+                <div className="model-picker-menu" role="listbox">
+                  {passportGroups.map((group) => (
+                    <div key={group.providerName} className="model-picker-group">
+                      <div className="model-picker-group-label">
+                        <span className={`model-provider-icon is-${group.passports[0].providerId}`}>
+                          <ProviderMark provider={group.passports[0].providerId} providerName={group.providerName} />
+                        </span>
+                        {group.providerName}
+                      </div>
+                      {group.passports.map((p) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          role="option"
+                          aria-selected={p.isActive}
+                          className={`model-picker-option${p.isActive ? ' is-selected' : ''}`}
+                          onClick={() => handleSelectPassport(p)}
+                        >
+                          {p.displayName}
+                        </button>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           {models.length > 0 && (
             <div className="model-picker" ref={modelPickerRef}>
               <button
