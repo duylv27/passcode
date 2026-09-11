@@ -188,6 +188,25 @@ export function ReadIcon({ className }: IconProps): JSX.Element {
   )
 }
 
+export function CodeFileIcon({ className }: IconProps): JSX.Element {
+  return (
+    <svg className={className} width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <path d="M3.5 1.5h6l3 3v10h-9Z" strokeLinejoin="round" />
+      <path d="M6.5 7 5 8.5l1.5 1.5M9.5 7 11 8.5 9.5 10" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+export function ImageFileIcon({ className }: IconProps): JSX.Element {
+  return (
+    <svg className={className} width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <path d="M3.5 1.5h6l3 3v10h-9Z" strokeLinejoin="round" />
+      <circle cx="6" cy="7.2" r="0.9" fill="currentColor" stroke="none" />
+      <path d="M5 12 7.3 9.3 9 11l1.5-1.7L12 11" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 export function WriteIcon({ className }: IconProps): JSX.Element {
   return (
     <svg className={className} width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">

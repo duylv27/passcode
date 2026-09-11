@@ -1919,29 +1919,52 @@ button {
 }
 
 .file-picker-option {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 7px;
   width: 100%;
   text-align: left;
   background: none;
   border: none;
   border-radius: var(--radius-sm);
   padding: 5px 9px;
-  font-family: var(--font-mono);
-  font-size: 11.5px;
-  color: var(--fg-dim);
-  white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .file-picker-option:hover {
   background: var(--list-hover);
-  color: var(--fg);
 }
 
 .file-picker-option.is-active {
   background: var(--list-active);
-  color: var(--fg-bright);
+}
+
+.file-picker-option-icon {
+  flex-shrink: 0;
+  display: flex;
+  color: var(--fg-faint);
+}
+
+.file-picker-option-icon svg {
+  width: 12px;
+  height: 12px;
+}
+
+.file-picker-option-name {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--fg);
+}
+
+.file-picker-option-dir {
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--fg-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .file-picker-empty {

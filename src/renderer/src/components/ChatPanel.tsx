@@ -39,7 +39,11 @@ import {
   AnthropicIcon,
   GitHubIcon,
   GeminiIcon,
-  OpenAIIcon
+  OpenAIIcon,
+  ReadIcon,
+  CodeFileIcon,
+  ImageFileIcon,
+  GearIcon
 } from './icons'
 import { Markdown } from './Markdown'
 import { DiffView, diffStats } from './DiffView'
@@ -157,6 +161,24 @@ function fuzzyScoreFile(query: string, path: string): number | null {
     }
   }
   return qi === q.length ? score : null
+}
+
+const CODE_EXTENSIONS = new Set([
+  'ts', 'tsx', 'js', 'jsx', 'mjs', 'cjs', 'py', 'go', 'rs', 'java', 'kt', 'c', 'h', 'cpp', 'hpp', 'cs', 'rb', 'php',
+  'swift', 'sh', 'bash', 'ps1', 'sql'
+])
+const CONFIG_EXTENSIONS = new Set(['json', 'yaml', 'yml', 'toml', 'ini', 'env', 'xml'])
+const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico', 'bmp'])
+
+/** File-type icon for the @-mention picker -- a quick visual category, not
+ * a precise language detector, so an unfamiliar extension just falls back
+ * to a plain document glyph rather than guessing. */
+function FilePickerIcon({ path }: { path: string }): JSX.Element {
+  const ext = path.split('.').pop()?.toLowerCase() ?? ''
+  if (CODE_EXTENSIONS.has(ext)) return <CodeFileIcon />
+  if (CONFIG_EXTENSIONS.has(ext)) return <GearIcon />
+  if (IMAGE_EXTENSIONS.has(ext)) return <ImageFileIcon />
+  return <ReadIcon />
 }
 
 function fuzzyFilterFiles(files: string[], query: string): string[] {
@@ -898,22 +920,31 @@ export function ChatPanel({
             {filteredFiles.length === 0 ? (
               <div className="file-picker-empty">No matching files</div>
             ) : (
-              filteredFiles.map((path, index) => (
-                <button
-                  key={path}
-                  type="button"
-                  role="option"
-                  aria-selected={index === activeFileIndex}
-                  className={`file-picker-option${index === activeFileIndex ? ' is-active' : ''}`}
-                  ref={(el) => {
-                    if (index === activeFileIndex) el?.scrollIntoView({ block: 'nearest' })
-                  }}
-                  onMouseEnter={() => setFileHighlightIndex(index)}
-                  onClick={() => handleSelectFile(path)}
-                >
-                  {path}
-                </button>
-              ))
+              filteredFiles.map((path, index) => {
+                const slash = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'))
+                const fileName = slash === -1 ? path : path.slice(slash + 1)
+                const dirName = slash === -1 ? null : path.slice(0, slash)
+                return (
+                  <button
+                    key={path}
+                    type="button"
+                    role="option"
+                    aria-selected={index === activeFileIndex}
+                    className={`file-picker-option${index === activeFileIndex ? ' is-active' : ''}`}
+                    ref={(el) => {
+                      if (index === activeFileIndex) el?.scrollIntoView({ block: 'nearest' })
+                    }}
+                    onMouseEnter={() => setFileHighlightIndex(index)}
+                    onClick={() => handleSelectFile(path)}
+                  >
+                    <span className="file-picker-option-icon">
+                      <FilePickerIcon path={path} />
+                    </span>
+                    <span className="file-picker-option-name">{fileName}</span>
+                    {dirName && <span className="file-picker-option-dir">{dirName}</span>}
+                  </button>
+                )
+              })
             )}
           </div>
         )}
