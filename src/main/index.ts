@@ -109,6 +109,7 @@ app.whenReady().then(async () => {
   }
   const modelRegistry = new ModelRegistry(modelRuntime)
   await modelRegistry.refresh()
+  const modelsHandlers = createModelsHandlers(modelRegistry)
 
   // Backing store for project-less "general" sessions -- a repo row always
   // needs a real project_id (schema FK, NOT NULL), so this hidden project +
@@ -184,10 +185,11 @@ app.whenReady().then(async () => {
       ensureGeneralRepo
     }),
     settings: createSettingsHandlers(appSettingsRepo),
-    passports: createPassportHandlers(passportsRepo, modelRuntime, (url) => shell.openExternal(url), async () => {
-      await modelRegistry.refresh()
+    passports: createPassportHandlers(passportsRepo, modelRuntime, (url) => shell.openExternal(url), async (providerIds) => {
+      await modelRegistry.refresh(providerIds ? { providers: providerIds } : undefined)
+      modelsHandlers.invalidate()
     }),
-    models: createModelsHandlers(modelRegistry),
+    models: modelsHandlers,
     skills: createSkillsHandlers(reposRepo),
     files: createFilesHandlers(
       {

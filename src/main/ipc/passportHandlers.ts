@@ -55,8 +55,11 @@ export function createPassportHandlers(
   // not a live query -- without re-running it here, a credential change
   // made mid-session (a new Passport activated, the active one switched or
   // removed) would leave the model picker showing stale availability until
-  // the next full app restart.
-  refreshModels: () => Promise<void>
+  // the next full app restart. Passing the specific provider(s) involved
+  // scopes the refresh to just those -- a full refresh() re-checks auth for
+  // every configured provider (real network calls for some), which made
+  // every single Passport switch pay for providers that didn't change.
+  refreshModels: (providerIds?: string[]) => Promise<void>
 ): PassportHandlers {
   // Set only while a manual_code prompt from an OAuth flow (Anthropic's
   // browser fallback) is pending -- resolved by submitOAuthCode() once the
@@ -71,7 +74,7 @@ export function createPassportHandlers(
     }
     await getAuthMethodHandler(passport.authMethod).activate(passport, modelRuntime)
     passportsRepo.setActive(passport.id)
-    await refreshModels()
+    await refreshModels([passport.providerId])
   }
 
   return {
@@ -165,7 +168,7 @@ export function createPassportHandlers(
       if (passport.isActive) {
         await getAuthMethodHandler(passport.authMethod).deactivate(passport, modelRuntime)
         passportsRepo.remove(id)
-        await refreshModels()
+        await refreshModels([passport.providerId])
         return
       }
       passportsRepo.remove(id)

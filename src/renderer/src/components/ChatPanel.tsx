@@ -23,6 +23,7 @@ import type {
   SkillSource,
   ThinkingInfo,
   ThinkingLevel,
+  ToolApprovalPolicy,
   TokenUsage,
   UiPromptRequest
 } from '../../../shared/types'
@@ -45,7 +46,8 @@ import {
   ReadIcon,
   CodeFileIcon,
   ImageFileIcon,
-  GearIcon
+  GearIcon,
+  ErrorIcon
 } from './icons'
 import { Markdown } from './Markdown'
 import { DiffView, diffStats } from './DiffView'
@@ -60,6 +62,33 @@ const LAST_MODEL_KEY = 'passcode-last-model'
 const CONTEXT_WINDOW_MIN = 4_000
 const CONTEXT_WINDOW_MAX = 1_000_000
 const CONTEXT_WINDOW_STEP = 1_000
+
+type ApprovalMode = 'auto' | 'manual' | 'readonly'
+
+// Read-only auto-approves lookups but still asks permission before anything
+// that writes or executes -- the three-way split a policy can express with
+// today's per-tool bool map, no new backend concept needed.
+const READ_TOOL_NAMES = ['read', 'grep', 'find', 'ls'] as const
+const WRITE_TOOL_NAMES = ['bash', 'powershell', 'edit', 'write'] as const
+
+function approvalModeFromPolicy(policy: ToolApprovalPolicy): ApprovalMode {
+  if (KNOWN_TOOL_NAMES.every((name) => policy.autoApprove[name])) return 'auto'
+  if (
+    READ_TOOL_NAMES.every((name) => policy.autoApprove[name]) &&
+    WRITE_TOOL_NAMES.every((name) => !policy.autoApprove[name])
+  ) {
+    return 'readonly'
+  }
+  return 'manual'
+}
+
+function policyForApprovalMode(mode: ApprovalMode): ToolApprovalPolicy {
+  const autoApprove: Record<string, boolean> = {}
+  for (const name of KNOWN_TOOL_NAMES) {
+    autoApprove[name] = mode === 'auto' || (mode === 'readonly' && (READ_TOOL_NAMES as readonly string[]).includes(name))
+  }
+  return { autoApprove }
+}
 
 const THINKING_WORDS = [
   'Thinking',
@@ -216,7 +245,12 @@ export function ChatPanel({
   // overflow-y:auto (which computes overflow-x to auto too per spec), so an
   // absolutely-positioned tooltip escaping the option to either side would
   // get clipped/scrolled away instead of floating over the whole window.
-  const [modelTooltip, setModelTooltip] = useState<{ model: ModelInfo; top: number; left: number } | null>(null)
+  const [modelTooltip, setModelTooltip] = useState<{
+    model: ModelInfo
+    left: number
+    top?: number
+    bottom?: number
+  } | null>(null)
   const [currentModel, setCurrentModel] = useState<ModelInfo | null>(null)
   // Real provider-reported quota for the session's current model, shown in
   // the Session Stats popover alongside the session's own (also real)
@@ -226,14 +260,6 @@ export function ChatPanel({
   const [modelMenuOpen, setModelMenuOpen] = useState(false)
   const modelMenuScrollRef = useRef<HTMLDivElement>(null)
   const modelPickerRef = useRef<HTMLDivElement>(null)
-  // A shortcut to switch which Passport is globally active for a provider,
-  // right from the composer -- same setActive() Settings already exposes,
-  // not a per-session override (Passports stay global-active-per-provider
-  // by design). Picking one also updates this session's current model to
-  // match, since a Passport switch is meaningless without that.
-  const [passports, setPassports] = useState<Passport[]>([])
-  const [passportMenuOpen, setPassportMenuOpen] = useState(false)
-  const passportPickerRef = useRef<HTMLDivElement>(null)
   const [contextUsage, setContextUsage] = useState<ContextUsage | null>(null)
   const [autoCompactEnabled, setAutoCompactEnabled] = useState(false)
   const [compacting, setCompacting] = useState(false)
@@ -265,7 +291,12 @@ export function ChatPanel({
   const skillPickerRef = useRef<HTMLDivElement>(null)
   const [attachedFiles, setAttachedFiles] = useState<string[]>([])
   const [pastedImages, setPastedImages] = useState<PastedImage[]>([])
-  const [autoMode, setAutoMode] = useState(false)
+  const [approvalMode, setApprovalMode] = useState<ApprovalMode>('manual')
+  const [passports, setPassports] = useState<Passport[]>([])
+  const [passportMenuOpen, setPassportMenuOpen] = useState(false)
+  const passportPickerRef = useRef<HTMLDivElement>(null)
+  const [thinkingMenuOpen, setThinkingMenuOpen] = useState(false)
+  const thinkingPickerRef = useRef<HTMLDivElement>(null)
   const [thinkingWord, setThinkingWord] = useState(THINKING_WORDS[0])
   const chatScrollRef = useRef<HTMLDivElement>(null)
   const turnActionIdsRef = useRef<string[]>([])
@@ -335,7 +366,7 @@ export function ChatPanel({
 
   useEffect(() => {
     window.api.approvals.getPolicy().then((policy) => {
-      setAutoMode(KNOWN_TOOL_NAMES.every((name) => policy.autoApprove[name]))
+      setApprovalMode(approvalModeFromPolicy(policy))
     })
   }, [modelsRefreshKey])
 
@@ -386,6 +417,17 @@ export function ChatPanel({
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [passportMenuOpen])
+
+  useEffect(() => {
+    if (!thinkingMenuOpen) return
+    function handleClickOutside(e: MouseEvent): void {
+      if (thinkingPickerRef.current && !thinkingPickerRef.current.contains(e.target as Node)) {
+        setThinkingMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [thinkingMenuOpen])
 
   // Scroll the current model into view exactly once when the dropdown
   // opens -- doing this from a ref callback on the option itself instead
@@ -711,10 +753,18 @@ export function ChatPanel({
 
   async function handleSelectPassport(passport: Passport): Promise<void> {
     setPassportMenuOpen(false)
-    if (passport.isActive) return
-    await window.api.passports.setActive(passport.id)
-    const freshPassports = await window.api.passports.list()
-    setPassports(freshPassports)
+    // "active" is scoped per provider, not global -- a Passport that's the
+    // only one for its provider is always isActive, even when the session's
+    // current model belongs to a completely different provider. Skipping
+    // setActive() here is still correct (there's nothing to switch at the
+    // credential level), but the model must still switch to match -- an
+    // early return on isActive alone made picking a different *provider*'s
+    // Passport a no-op whenever that provider only had one Passport.
+    if (!passport.isActive) {
+      await window.api.passports.setActive(passport.id)
+      const freshPassports = await window.api.passports.list()
+      setPassports(freshPassports)
+    }
     // setActive() already refreshes the backend's model registry -- refetch
     // here so this session's own model list reflects it immediately rather
     // than waiting for the next Settings-close-triggered refresh.
@@ -787,20 +837,9 @@ export function ChatPanel({
     }
   }
 
-  async function handleToggleAuto(): Promise<void> {
-    // Reads the live policy fresh instead of trusting this component's own
-    // `autoMode` -- that state is only synced on mount and whenever Settings
-    // closes (see the modelsRefreshKey-keyed effect above), so it can drift
-    // from reality if the per-tool switches in Settings changed since. Toggling
-    // off a stale "already Manual" read would otherwise flip everything back
-    // to fully auto-approved instead of actually turning it off.
-    const policy = await window.api.approvals.getPolicy()
-    const currentlyAllAuto = KNOWN_TOOL_NAMES.every((name) => policy.autoApprove[name])
-    const next = !currentlyAllAuto
-    setAutoMode(next)
-    const autoApprove: Record<string, boolean> = {}
-    for (const name of KNOWN_TOOL_NAMES) autoApprove[name] = next
-    await window.api.approvals.setPolicy({ autoApprove })
+  async function handleSetApprovalMode(mode: ApprovalMode): Promise<void> {
+    setApprovalMode(mode)
+    await window.api.approvals.setPolicy(policyForApprovalMode(mode))
   }
 
   async function handleOpenContextPopover(): Promise<void> {
@@ -991,73 +1030,34 @@ export function ChatPanel({
       </div>
       <ApprovalPanel requests={approvalRequests} onRespond={onRespondApproval} />
       <UiPromptPanel requests={uiPromptRequests} onRespond={handleRespondUiPrompt} />
-      <div className={`composer${busy ? ' is-busy' : ''}`} ref={skillPickerRef}>
-        {showSkillMenu && (
-          <div className="skill-picker-menu" role="listbox">
-            {filteredSkills.map((skill, index) => (
-              <button
-                key={skill.filePath}
-                type="button"
-                role="option"
-                aria-selected={index === activeSkillIndex}
-                className={`skill-picker-option${index === activeSkillIndex ? ' is-active' : ''}`}
-                ref={(el) => {
-                  if (index === activeSkillIndex) el?.scrollIntoView({ block: 'nearest' })
-                }}
-                onMouseEnter={() => setSkillHighlightIndex(index)}
-                onClick={() => handleSelectSkill(skill)}
-              >
-                <span className="skill-picker-option-title">
-                  <span className="skill-picker-option-name">{skill.name}</span>
-                  <span className={`skill-source-badge is-${skill.source}`}>{skillSourceLabel(skill.source)}</span>
-                </span>
-                <span className="skill-picker-option-desc">{skill.description}</span>
-              </button>
-            ))}
-          </div>
-        )}
-        {showFileMenu && (
-          <div className="file-picker-menu" role="listbox">
-            {filteredFiles.length === 0 ? (
-              <div className="file-picker-empty">No matching files</div>
-            ) : (
-              filteredFiles.map((path, index) => {
-                const slash = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'))
-                const fileName = slash === -1 ? path : path.slice(slash + 1)
-                const dirName = slash === -1 ? null : path.slice(0, slash)
-                return (
-                  <button
-                    key={path}
-                    type="button"
-                    role="option"
-                    aria-selected={index === activeFileIndex}
-                    className={`file-picker-option${index === activeFileIndex ? ' is-active' : ''}`}
-                    ref={(el) => {
-                      if (index === activeFileIndex) el?.scrollIntoView({ block: 'nearest' })
-                    }}
-                    onMouseEnter={() => setFileHighlightIndex(index)}
-                    onClick={() => handleSelectFile(path)}
-                  >
-                    <span className="file-picker-option-icon">
-                      <FilePickerIcon path={path} />
-                    </span>
-                    <span className="file-picker-option-name">{fileName}</span>
-                    {dirName && <span className="file-picker-option-dir">{dirName}</span>}
-                  </button>
-                )
-              })
-            )}
-          </div>
-        )}
         <div className="composer-topbar">
-          <button
-            type="button"
-            className={`composer-auto-btn${autoMode ? ' is-active' : ''}`}
-            onClick={handleToggleAuto}
-            title="Toggle auto-approve for all tools"
-          >
-            {autoMode ? 'Auto' : 'Manual'}
-          </button>
+          <div className="composer-mode-group" role="group" aria-label="Approval mode">
+            <button
+              type="button"
+              className={`composer-mode-btn${approvalMode === 'auto' ? ' is-active' : ''}`}
+              onClick={() => handleSetApprovalMode('auto')}
+              title="Auto-approve every tool call"
+            >
+              Auto
+            </button>
+            <button
+              type="button"
+              className={`composer-mode-btn${approvalMode === 'readonly' ? ' is-active' : ''}`}
+              onClick={() => handleSetApprovalMode('readonly')}
+              title="Look around freely -- still asks before writing or running anything"
+            >
+              Read-only
+            </button>
+            <button
+              type="button"
+              className={`composer-mode-btn${approvalMode === 'manual' ? ' is-active' : ''}`}
+              onClick={() => handleSetApprovalMode('manual')}
+              title="Ask before every tool call"
+            >
+              Manual
+            </button>
+          </div>
+          <div className="composer-picker-group">
           {passports.length > 0 && (
             <div className="model-picker" ref={passportPickerRef}>
               <button
@@ -1137,7 +1137,20 @@ export function ChatPanel({
                             onClick={() => handleModelChange(m)}
                             onMouseEnter={(e) => {
                               const rect = e.currentTarget.getBoundingClientRect()
-                              setModelTooltip({ model: m, top: rect.top, left: rect.right + 6 })
+                              // The tooltip's height varies with content (the cache-read
+                              // row is conditional) and can't be measured before it
+                              // renders -- anchoring from rect.top unconditionally let it
+                              // run off the bottom of the window for any row in the lower
+                              // half of the menu (worst with a dropup near the composer).
+                              // A rough height budget decides which edge to anchor from;
+                              // the tooltip's own max-height + scroll (theme.css) is the
+                              // hard backstop if this estimate still runs short.
+                              const left = rect.right + 6
+                              if (window.innerHeight - rect.top < 340) {
+                                setModelTooltip({ model: m, left, bottom: window.innerHeight - rect.bottom })
+                              } else {
+                                setModelTooltip({ model: m, left, top: rect.top })
+                              }
                             }}
                             onMouseLeave={() => setModelTooltip(null)}
                           >
@@ -1152,7 +1165,13 @@ export function ChatPanel({
               {modelMenuOpen && modelTooltip && (
                 <div
                   className="model-config-tooltip"
-                  style={{ position: 'fixed', top: modelTooltip.top, left: modelTooltip.left }}
+                  style={{
+                    position: 'fixed',
+                    left: modelTooltip.left,
+                    ...(modelTooltip.bottom !== undefined
+                      ? { bottom: modelTooltip.bottom }
+                      : { top: modelTooltip.top })
+                  }}
                 >
                   <div className="model-config-tooltip-header">
                     <span
@@ -1221,8 +1240,38 @@ export function ChatPanel({
               )}
             </div>
           )}
+          </div>
           {thinkingInfo?.supported && thinkingInfo.available.length > 1 && (
-            <ThinkingSlider info={thinkingInfo} onCommit={handleThinkingLevelCommit} />
+            <div className="model-picker is-compact" ref={thinkingPickerRef}>
+              <button
+                type="button"
+                className="model-picker-trigger"
+                onClick={() => setThinkingMenuOpen((v) => !v)}
+                title="Reasoning effort"
+              >
+                <span className="model-picker-label is-capitalized">{thinkingInfo.level}</span>
+                <ChevronIcon className={`chevron model-picker-chevron${thinkingMenuOpen ? ' is-open' : ''}`} />
+              </button>
+              {thinkingMenuOpen && (
+                <div className="model-picker-menu" role="listbox">
+                  {thinkingInfo.available.map((level) => (
+                    <button
+                      key={level}
+                      type="button"
+                      role="option"
+                      aria-selected={level === thinkingInfo.level}
+                      className={`model-picker-option is-capitalized${level === thinkingInfo.level ? ' is-selected' : ''}`}
+                      onClick={() => {
+                        setThinkingMenuOpen(false)
+                        handleThinkingLevelCommit(level)
+                      }}
+                    >
+                      {level}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
           {contextUsage && (
             <div className="context-usage" ref={contextPopoverRef}>
@@ -1460,6 +1509,64 @@ export function ChatPanel({
             </div>
           )}
         </div>
+      <div className={`composer${busy ? ' is-busy' : ''}`} ref={skillPickerRef}>
+        {showSkillMenu && (
+          <div className="skill-picker-menu" role="listbox">
+            {filteredSkills.map((skill, index) => (
+              <button
+                key={skill.filePath}
+                type="button"
+                role="option"
+                aria-selected={index === activeSkillIndex}
+                className={`skill-picker-option${index === activeSkillIndex ? ' is-active' : ''}`}
+                ref={(el) => {
+                  if (index === activeSkillIndex) el?.scrollIntoView({ block: 'nearest' })
+                }}
+                onMouseEnter={() => setSkillHighlightIndex(index)}
+                onClick={() => handleSelectSkill(skill)}
+              >
+                <span className="skill-picker-option-title">
+                  <span className="skill-picker-option-name">{skill.name}</span>
+                  <span className={`skill-source-badge is-${skill.source}`}>{skillSourceLabel(skill.source)}</span>
+                </span>
+                <span className="skill-picker-option-desc">{skill.description}</span>
+              </button>
+            ))}
+          </div>
+        )}
+        {showFileMenu && (
+          <div className="file-picker-menu" role="listbox">
+            {filteredFiles.length === 0 ? (
+              <div className="file-picker-empty">No matching files</div>
+            ) : (
+              filteredFiles.map((path, index) => {
+                const slash = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'))
+                const fileName = slash === -1 ? path : path.slice(slash + 1)
+                const dirName = slash === -1 ? null : path.slice(0, slash)
+                return (
+                  <button
+                    key={path}
+                    type="button"
+                    role="option"
+                    aria-selected={index === activeFileIndex}
+                    className={`file-picker-option${index === activeFileIndex ? ' is-active' : ''}`}
+                    ref={(el) => {
+                      if (index === activeFileIndex) el?.scrollIntoView({ block: 'nearest' })
+                    }}
+                    onMouseEnter={() => setFileHighlightIndex(index)}
+                    onClick={() => handleSelectFile(path)}
+                  >
+                    <span className="file-picker-option-icon">
+                      <FilePickerIcon path={path} />
+                    </span>
+                    <span className="file-picker-option-name">{fileName}</span>
+                    {dirName && <span className="file-picker-option-dir">{dirName}</span>}
+                  </button>
+                )
+              })
+            )}
+          </div>
+        )}
         {(selectedSkill || attachedFiles.length > 0 || pastedImages.length > 0) && (
           <div className="composer-chips">
             {selectedSkill && (
@@ -1634,57 +1741,6 @@ export function ChatPanel({
 // the entire transcript on every pointermove tick and cause real UI lag,
 // not just visual jank in the slider itself). Local `index`/`dragging` state
 // lives here; the parent only hears about the change once, on commit.
-const ThinkingSlider = memo(function ThinkingSlider({
-  info,
-  onCommit
-}: {
-  info: ThinkingInfo
-  onCommit: (level: ThinkingLevel) => void
-}): JSX.Element {
-  const [index, setIndex] = useState(() => Math.max(0, info.available.indexOf(info.level)))
-  const [dragging, setDragging] = useState(false)
-
-  // Resyncs the slider's position whenever the effective level changes from
-  // outside a drag -- a model switch (new available set), an auto-clamp on
-  // model change, or our own commit landing back via the thinking_level event.
-  useEffect(() => {
-    const i = info.available.indexOf(info.level)
-    setIndex(i === -1 ? 0 : i)
-  }, [info])
-
-  function commit(indexStr: string): void {
-    setDragging(false)
-    const level = info.available[Number(indexStr)]
-    if (level) onCommit(level)
-  }
-
-  return (
-    <div className="thinking-slider" title={`Reasoning effort: ${info.level}`}>
-      <div className="thinking-slider-track-wrap">
-        <input
-          type="range"
-          min={0}
-          max={info.available.length - 1}
-          step={1}
-          className="thinking-slider-input"
-          value={index}
-          onChange={(e) => setIndex(Number(e.target.value))}
-          onPointerDown={() => setDragging(true)}
-          onPointerUp={(e) => commit(e.currentTarget.value)}
-          onKeyUp={(e) => commit(e.currentTarget.value)}
-        />
-        <div className={`thinking-slider-segments${dragging ? ' is-dragging' : ''}`}>
-          {info.available.map((level, i) => (
-            <div key={level} className={`thinking-slider-segment${i === index ? ' is-current' : ''}`}>
-              {i === index ? level : ''}
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-})
-
 type TimelineItem = Extract<TranscriptItem, { kind: 'thinking' | 'tool' }>
 type SingleItem = Exclude<TranscriptItem, { kind: 'thinking' | 'tool' }>
 
@@ -1756,7 +1812,15 @@ const TranscriptRow = memo(function TranscriptRow({
       </div>
     )
   }
-  return <div className="chat-line is-error">{item.text}</div>
+  return (
+    <div className="chat-line is-error">
+      <ErrorIcon className="error-line-icon" />
+      <div className="error-line-body">
+        <span className="error-line-label">Error</span>
+        <span className="error-line-text">{item.text}</span>
+      </div>
+    </div>
+  )
 })
 
 type RenderGroup = { type: 'timeline'; items: TimelineItem[] } | { type: 'single'; item: SingleItem }
@@ -1833,8 +1897,8 @@ const TimelineRow = memo(function TimelineRow({
             {stat.dels > 0 && <span className="is-del">-{stat.dels}</span>}
           </span>
         )}
-        <span className="timeline-row-metrics" title="Execution time and model token usage">
-          {formatActionMetrics(duration, item.usage, item.usageScope)}
+        <span className="timeline-row-metrics" title={formatActionMetrics(duration, item.usage, item.usageScope)}>
+          <UsageChipContent duration={duration} usage={item.usage} scope={item.usageScope} />
         </span>
         <ChevronIcon className={`chevron${expanded ? ' is-open' : ''}`} />
       </button>
@@ -1886,6 +1950,38 @@ function formatActionMetrics(
   scope: 'model response' | 'turn total' | undefined
 ): string {
   return `${duration ?? 'running'} · ${formatUsage(usage, scope)}`
+}
+
+/** Same numbers as formatActionMetrics, color-tagged per field (duration /
+ * in / out / cached) instead of one run-on "1,642 in / 38 out (+6,528
+ * cached)" string -- the full text stays available via the chip's own
+ * title attribute for anything this clips. */
+function UsageChipContent({
+  duration,
+  usage,
+  scope
+}: {
+  duration: string | null
+  usage: TokenUsage | undefined
+  scope: 'model response' | 'turn total' | undefined
+}): JSX.Element {
+  if (!usage) {
+    return <span className="usage-chip-part usage-chip-dur">{duration ?? 'running'}</span>
+  }
+  const cached = usage.cacheRead + usage.cacheWrite
+  const turnSuffix = scope === 'turn total' ? ' turn' : ''
+  return (
+    <>
+      <span className="usage-chip-part usage-chip-dur">
+        {duration ?? 'running'}
+        {turnSuffix}
+      </span>
+      <span className="usage-chip-sep" />
+      <span className="usage-chip-part usage-chip-in">↓{formatTokenCount(usage.input)}</span>
+      <span className="usage-chip-part usage-chip-out">↑{formatTokenCount(usage.output)}</span>
+      {cached > 0 && <span className="usage-chip-part usage-chip-cache">⟲{formatTokenCount(cached)}</span>}
+    </>
+  )
 }
 
 /** A one-line summary of the completed call's output, shown under the

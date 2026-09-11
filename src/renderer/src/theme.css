@@ -1302,9 +1302,44 @@ button {
 }
 
 .chat-line.is-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger) 25%, transparent);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+}
+
+.error-line-icon {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--danger);
+}
+
+.error-line-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.error-line-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--danger);
+}
+
+.error-line-text {
   font-family: var(--font-mono);
   font-size: 12px;
-  color: var(--danger);
+  color: var(--fg);
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 /* A skipped tool call is a deliberate user choice, not a bug -- styled as
@@ -1491,16 +1526,62 @@ button {
   font-size: 12px;
 }
 
+/* Fixed width so a cheap "0.0s" call and an expensive one with a full
+   in/out/cached breakdown render as the same-size chip -- content that
+   doesn't fill it just leaves trailing space instead of the chip itself
+   growing or shrinking row to row down a long tool timeline. */
 .timeline-row-metrics {
   flex-shrink: 0;
-  padding: 2px 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  width: 172px;
+  overflow: hidden;
+  padding: 2px 8px;
   border: 1px solid var(--border-subtle);
   border-radius: 999px;
-  background: var(--sidebar-bg);
+  background: var(--input-bg);
   color: var(--fg-dim);
   font-family: var(--font-mono);
   font-size: 10px;
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  transition: border-color 120ms ease;
+}
+
+.timeline-row-header:hover .timeline-row-metrics {
+  border-color: var(--fg-dim);
+  color: var(--fg-bright);
+}
+
+.usage-chip-part {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.usage-chip-dur {
+  color: var(--fg);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.usage-chip-sep {
+  width: 1px;
+  height: 9px;
+  flex-shrink: 0;
+  background: var(--border);
+}
+
+.usage-chip-in {
+  color: var(--accent);
+}
+
+.usage-chip-out {
+  color: var(--success);
+}
+
+.usage-chip-cache {
+  color: var(--warning);
 }
 
 .timeline-row-description {
@@ -1708,11 +1789,18 @@ button {
   }
 }
 
+/* Sits above the composer box now (a sibling, not its first child) --
+   matches .composer's own max-width/centering so the two align, with its
+   own bottom margin taking over the spacing .composer's top padding used
+   to provide. */
 .composer-topbar {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: var(--space-2);
-  padding: var(--space-2) var(--space-3) 0;
+  max-width: 900px;
+  width: calc(100% - var(--space-4) * 2);
+  margin: var(--space-3) auto 0;
 }
 
 .composer-chips {
@@ -1787,10 +1875,24 @@ button {
   color: var(--fg-bright);
 }
 
-.composer-auto-btn {
+/* A single bordered pill housing all three approval-mode choices, the
+   active one picked out by fill rather than each choice carrying its own
+   full border -- one continuous "segmented" shape instead of three
+   separately-outlined buttons sitting side by side. */
+.composer-mode-group {
+  display: flex;
+  align-items: center;
   flex-shrink: 0;
-  background: none;
+  gap: 2px;
   border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px;
+  background: var(--input-bg);
+}
+
+.composer-mode-btn {
+  background: none;
+  border: none;
   border-radius: 999px;
   padding: 3px 10px;
   font-size: 11px;
@@ -1798,15 +1900,52 @@ button {
   color: var(--fg-dim);
 }
 
-.composer-auto-btn:hover {
-  border-color: var(--fg-dim);
+.composer-mode-btn:hover {
   color: var(--fg-bright);
+  background: var(--list-hover);
 }
 
-.composer-auto-btn.is-active {
-  border-color: var(--accent);
+.composer-mode-btn.is-active {
   color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+/* Passport + Model share one bordered pill (each trigger drops its own
+   border below) so they read as one "which account and model" section
+   instead of two unrelated floating buttons. */
+.composer-picker-group {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px;
+  background: var(--input-bg);
+}
+
+.composer-picker-group .model-picker-trigger {
+  border: none;
+  border-radius: 999px;
+}
+
+.composer-picker-group .model-picker-trigger:hover,
+.composer-picker-group .model-picker-trigger:focus-visible {
+  background: var(--list-hover);
+  border-color: transparent;
+}
+
+.composer-picker-group > .model-picker + .model-picker {
+  position: relative;
+}
+
+.composer-picker-group > .model-picker + .model-picker::before {
+  content: '';
+  position: absolute;
+  left: -1px;
+  top: 20%;
+  bottom: 20%;
+  width: 1px;
+  background: var(--border);
 }
 
 .skill-picker-menu {
@@ -2025,16 +2164,20 @@ button {
 
 .model-picker {
   position: relative;
-  flex-shrink: 1;
-  min-width: 0;
+  flex-shrink: 0;
 }
 
+/* A fixed width regardless of the selected label's length -- "GitHub
+   Copilot" and "Claude" and "Minimal" used to each size the trigger
+   differently, shifting every control after it in the bar each time the
+   selection changed. Ellipsis (via .model-picker-label below) absorbs
+   whatever doesn't fit instead of letting the box itself resize. */
 .model-picker-trigger {
   display: flex;
   align-items: center;
   gap: 4px;
-  max-width: 160px;
-  background: transparent;
+  width: 160px;
+  background: var(--input-bg);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   color: var(--fg-dim);
@@ -2049,9 +2192,18 @@ button {
 }
 
 .model-picker-label {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* The thinking-effort dropdown's values (minimal/low/.../max) are always
+   short -- the shared 160px width would leave it looking sparse and
+   misaligned next to the model/passport triggers either side of it. */
+.model-picker.is-compact .model-picker-trigger {
+  width: 92px;
 }
 
 .model-picker-chevron {
@@ -2098,6 +2250,8 @@ button {
 
 .model-config-tooltip {
   width: 260px;
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
   background: var(--sidebar-bg);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -2285,6 +2439,10 @@ button {
   background: var(--list-hover);
 }
 
+.is-capitalized {
+  text-transform: capitalize;
+}
+
 .model-picker-option.is-selected {
   color: var(--accent);
   font-weight: 600;
@@ -2298,11 +2456,13 @@ button {
 .context-usage-badge {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
+  width: 56px;
   padding: 3px 8px 3px 6px;
   border-radius: 999px;
   border: 1px solid var(--border);
-  background: transparent;
+  background: var(--input-bg);
   color: var(--fg-dim);
   font-family: var(--font-mono);
   font-size: 11px;
@@ -2325,7 +2485,7 @@ button {
   height: 24px;
   border-radius: 999px;
   border: 1px solid var(--border);
-  background: transparent;
+  background: var(--input-bg);
   color: var(--fg-dim);
   font-size: 12px;
   flex-shrink: 0;
@@ -2334,92 +2494,6 @@ button {
 .composer-icon-badge:hover {
   background: var(--list-hover);
   color: var(--fg-bright);
-}
-
-.thinking-slider {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 3px 7px;
-  border-radius: 999px;
-  border: 1px solid var(--border-subtle);
-  background: transparent;
-  flex-shrink: 0;
-}
-
-.thinking-slider-track-wrap {
-  position: relative;
-  height: 20px;
-  display: flex;
-  align-items: stretch;
-}
-
-/* Sits over the whole segmented track so both a drag and a direct click on
-   any segment's label move the thumb there -- native range inputs already
-   jump to the clicked position, so no extra click handling is needed on
-   the segments themselves. */
-.thinking-slider-input {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  padding: 0;
-  opacity: 0;
-  cursor: pointer;
-  -webkit-appearance: none;
-  appearance: none;
-  z-index: 1;
-}
-
-.thinking-slider-segments {
-  display: flex;
-  width: 100%;
-  border-radius: 999px;
-  overflow: hidden;
-  background: var(--border-subtle);
-  pointer-events: none;
-}
-
-/* Only the current step shows its name and gets real width -- the other
-   steps collapse to thin ticks so the whole control stays compact instead
-   of reserving full-label width for every level at once. No dividers
-   between ticks (a plain shared background instead) so the collapsed
-   steps read as one soft strip rather than a row of hard-edged boxes. */
-.thinking-slider-segment {
-  flex: 0 0 7px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 20px;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 500;
-  text-transform: capitalize;
-  white-space: nowrap;
-  color: var(--fg-dim);
-  transition:
-    flex-basis 200ms cubic-bezier(0.4, 0, 0.2, 1),
-    background-color 200ms ease,
-    color 150ms ease;
-}
-
-.thinking-slider-segment.is-current {
-  flex: 1 1 auto;
-  padding: 0 9px;
-  border-radius: 999px;
-  background: var(--accent);
-  color: #fff;
-  font-weight: 500;
-}
-
-/* The flex-basis/color transition looks nice for a discrete commit, but
-   re-triggers on every single drag tick (onChange fires continuously while
-   dragging) -- stacking dozens of overlapping 200ms transitions is what
-   caused visible jank. Suppressed for the duration of a live drag; keyboard
-   stepping is one discrete change per keypress, so it keeps the animation. */
-.thinking-slider-segments.is-dragging .thinking-slider-segment {
-  transition: none;
 }
 
 .session-stats-panel {
@@ -4273,22 +4347,6 @@ button {
 .kebab-menu-item:disabled {
   opacity: 0.4;
   cursor: default;
-}
-
-/* ---------------------------------------------------------------------
-   Tool-card duration/usage chip -- overrides on top of the flat pill
-   style so it reads as a distinct, glanceable badge in the row header.
-   --------------------------------------------------------------------- */
-.timeline-row-metrics {
-  border-color: color-mix(in srgb, var(--accent) 35%, var(--border-subtle));
-  background: color-mix(in srgb, var(--accent) 7%, var(--sidebar-bg));
-  transition: border-color 120ms ease, background 120ms ease;
-}
-
-.timeline-row-header:hover .timeline-row-metrics {
-  border-color: color-mix(in srgb, var(--accent) 55%, var(--border-subtle));
-  background: color-mix(in srgb, var(--accent) 12%, var(--sidebar-bg));
-  color: var(--fg-bright);
 }
 
 /* ---------------------------------------------------------------------

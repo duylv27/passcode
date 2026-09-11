@@ -733,8 +733,8 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
                     )}
                     {oauthPrompt?.kind === 'browser' && (
                       <p className="settings-row-desc">
-                        A browser window opened to sign in.{' '}
-                        {oauthPrompt.instructions ?? 'If it didn’t redirect back automatically, paste the code or URL it gave you below.'}
+                        {oauthPrompt.instructions ??
+                          'A browser window opened to sign in. If it didn’t redirect back automatically, paste the code or URL it gave you below.'}
                       </p>
                     )}
                     {oauthPrompt?.kind === 'device_code' && (
