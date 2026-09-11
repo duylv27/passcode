@@ -223,6 +223,7 @@ export function ChatPanel({
   // this stays null (and hidden) for every other provider.
   const [sessionQuota, setSessionQuota] = useState<CopilotQuota | null>(null)
   const [modelMenuOpen, setModelMenuOpen] = useState(false)
+  const modelMenuScrollRef = useRef<HTMLDivElement>(null)
   const modelPickerRef = useRef<HTMLDivElement>(null)
   const [contextUsage, setContextUsage] = useState<ContextUsage | null>(null)
   const [autoCompactEnabled, setAutoCompactEnabled] = useState(false)
@@ -358,6 +359,15 @@ export function ChatPanel({
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [modelMenuOpen])
+
+  // Scroll the current model into view exactly once when the dropdown
+  // opens -- doing this from a ref callback on the option itself instead
+  // re-fires on every render (e.g. every hover-driven tooltip update),
+  // snapping the list back and fighting the user's own manual scrolling.
+  useEffect(() => {
+    if (!modelMenuOpen) return
+    modelMenuScrollRef.current?.querySelector('.model-picker-option.is-selected')?.scrollIntoView({ block: 'nearest' })
   }, [modelMenuOpen])
 
   useEffect(() => {
@@ -999,7 +1009,7 @@ export function ChatPanel({
                 <ChevronIcon className={`chevron model-picker-chevron${modelMenuOpen ? ' is-open' : ''}`} />
               </button>
               {modelMenuOpen && (
-                <div className="model-picker-menu" role="listbox">
+                <div className="model-picker-menu" role="listbox" ref={modelMenuScrollRef}>
                   {modelGroups.map((group) => (
                     <div key={group.providerName} className="model-picker-group">
                       <div className="model-picker-group-label">
@@ -1017,9 +1027,6 @@ export function ChatPanel({
                             role="option"
                             aria-selected={isSelected}
                             className={`model-picker-option${isSelected ? ' is-selected' : ''}`}
-                            ref={(el) => {
-                              if (isSelected) el?.scrollIntoView({ block: 'nearest' })
-                            }}
                             onClick={() => handleModelChange(m)}
                             onMouseEnter={(e) => {
                               const rect = e.currentTarget.getBoundingClientRect()
